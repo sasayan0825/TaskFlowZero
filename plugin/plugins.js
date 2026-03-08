@@ -18,9 +18,6 @@
   // ロードするプラグインファイル名の一覧（plugin/ フォルダからの相対パス）
   const PLUGINS = [
     'plugin_lang.js',         // 言語切り替え（日本語 ⇔ 英語）
-    'plugin_svn.js',          // SVN連携
-    'plugin_csv_export.js',   // CSVエクスポート
-    'plugin_overdue_badge.js',// 期限切れバッジ
   ];
 
   // ── 以下は編集不要 ──────────────────────────────────────
