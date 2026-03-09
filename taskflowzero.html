@@ -747,6 +747,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <label style="font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer">
             <input type="checkbox" id="gantt-inazuma" onchange="renderGantt()" checked> イナズマ線
           </label>
+          <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openTaskModal()">＋ タスク追加</button>
         </div>
         <div id="gantt-container">
           <div id="gantt-left">
@@ -965,7 +966,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
 <!-- TASK MODAL (quick add) -->
 <div class="modal-overlay" id="task-modal">
-  <div class="modal" style="width:440px">
+  <div class="modal" style="width:520px;max-height:90vh;overflow-y:auto">
     <div class="modal-title">タスクを追加</div>
     <div class="form-group"><label class="form-label">タイトル *</label><input class="form-input" id="tm-title" placeholder="タスクのタイトル"></div>
     <div class="form-row">
@@ -991,6 +992,22 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       </div>
       <div class="form-group"><label class="form-label">マイルストーン</label>
         <select class="form-select" id="tm-milestone"><option value="">未割り当て</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">詳細</label>
+      <textarea class="form-textarea" id="tm-description" placeholder="タスクの詳細をMarkdownで記述できます..." rows="4" style="resize:vertical"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span>チェックリスト</span>
+        <button type="button" onclick="tmAddChecklistItem()" style="background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0">＋ 項目追加</button>
+      </label>
+      <div id="tm-checklist" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div>
+      <div id="tm-checklist-input-row" style="display:flex;gap:6px;margin-top:6px">
+        <input class="form-input" id="tm-checklist-input" placeholder="チェック項目を入力して Enter" style="flex:1"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();tmAddChecklistItem();}">
+        <button class="btn btn-secondary btn-sm" onclick="tmAddChecklistItem()">追加</button>
       </div>
     </div>
     <div class="modal-footer">
@@ -3216,9 +3233,28 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-start').value='';
   document.getElementById('tm-due').value='';
   document.getElementById('tm-milestone').value='';
+  document.getElementById('tm-description').value='';
+  document.getElementById('tm-checklist').innerHTML='';
+  document.getElementById('tm-checklist-input').value='';
   updateFilters();
   document.getElementById('task-modal').classList.add('show');
   setTimeout(()=>document.getElementById('tm-title').focus(),100);
+}
+
+// チェックリスト項目を追加
+function tmAddChecklistItem(){
+  const input = document.getElementById('tm-checklist-input');
+  const text = input.value.trim();
+  if(!text) return;
+  const container = document.getElementById('tm-checklist');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:6px';
+  row.innerHTML = `<span style="color:var(--muted);font-size:12px;flex-shrink:0">☐</span>
+    <input class="form-input" value="${esc(text)}" style="flex:1;font-size:13px" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('tm-checklist-input').focus();}">
+    <button type="button" onclick="this.parentNode.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;flex-shrink:0;padding:0 2px">✕</button>`;
+  container.appendChild(row);
+  input.value='';
+  input.focus();
 }
 function closeTaskModal(){ document.getElementById('task-modal').classList.remove('show'); }
 
@@ -3228,7 +3264,9 @@ function saveNewTask(){
   const p=getProject(state.currentProjectId); if(!p)return;
   if(!p.nextTaskNum) p.nextTaskNum=Math.max(0,...p.tasks.map(t=>t.number||0))+1;
   const status=document.getElementById('tm-status').value;
-  const task={id:uid(),number:p.nextTaskNum++,title,description:'',status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,milestoneId:document.getElementById('tm-milestone').value||null,labels:[],createdAt:today(),completedAt:status==='done'?today():null,comments:[],checklist:[],activity:[]};
+  const description = document.getElementById('tm-description').value.trim();
+  const checklistItems = [...document.getElementById('tm-checklist').querySelectorAll('input[type!=date]')].map(el=>({id:uid(),text:el.value.trim(),done:false})).filter(c=>c.text);
+  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,milestoneId:document.getElementById('tm-milestone').value||null,labels:[],createdAt:today(),completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[]};
   p.tasks.push(task);
   closeTaskModal(); autoSave(); renderCurrentView(); renderSidebar(); updateFilters();
   toast(`タスク #${task.number} を追加しました`,'success');
