@@ -848,7 +848,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <div class="meta-label">ラベル</div>
         <div id="panel-labels-display" style="margin-bottom:4px"></div>
         <div style="display:flex;gap:6px">
-          <input class="meta-input" id="panel-new-label" placeholder="ラベルを追加..." style="flex:1;font-size:12px" onkeydown="if(event.key==='Enter')addPanelLabel()">
+          <input class="meta-input" id="panel-new-label" placeholder="ラベルを追加..." style="flex:1;font-size:12px" onkeydown="if(event.key==='Enter')addPanelLabel()" list="label-dl"><datalist id="label-dl"></datalist>
           <button class="btn btn-secondary btn-xs" onclick="addPanelLabel()">追加</button>
         </div>
       </div>
@@ -1008,6 +1008,18 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <input class="form-input" id="tm-checklist-input" placeholder="チェック項目を入力して Enter" style="flex:1"
           onkeydown="if(event.key==='Enter'){event.preventDefault();tmAddChecklistItem();}">
         <button class="btn btn-secondary btn-sm" onclick="tmAddChecklistItem()">追加</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span>ラベル</span>
+      </label>
+      <div id="tm-labels-display" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
+      <div style="display:flex;gap:6px">
+        <input class="form-input" id="tm-label-input" placeholder="ラベルを入力して Enter" style="flex:1" list="tm-label-dl"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();tmAddLabel();}">
+        <datalist id="tm-label-dl"></datalist>
+        <button class="btn btn-secondary btn-sm" onclick="tmAddLabel()">追加</button>
       </div>
     </div>
     <div class="modal-footer">
@@ -2065,6 +2077,14 @@ function updateFilters() {
   const all = [...new Set([...(p.members||[]),...assignees])];
   dl.innerHTML = all.map(m=>`<option value="${esc(m)}">`).join('');
   document.getElementById('tm-assignee-dl').innerHTML = dl.innerHTML;
+
+  // Label datalist（タスクパネル・新規作成モーダルのラベル入力補完用）
+  const allLabels = [...new Set(p.tasks.flatMap(t => t.labels||[]))].sort();
+  const labelDlHtml = allLabels.map(l=>`<option value="${esc(l)}">`).join('');
+  const labelDl = document.getElementById('label-dl');
+  if (labelDl) labelDl.innerHTML = labelDlHtml;
+  const tmLabelDl = document.getElementById('tm-label-dl');
+  if (tmLabelDl) tmLabelDl.innerHTML = labelDlHtml;
 }
 
 // ═══════════════════════════════════════
@@ -3236,6 +3256,8 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-description').value='';
   document.getElementById('tm-checklist').innerHTML='';
   document.getElementById('tm-checklist-input').value='';
+  document.getElementById('tm-labels-display').innerHTML='';
+  document.getElementById('tm-label-input').value='';
   updateFilters();
   document.getElementById('task-modal').classList.add('show');
   setTimeout(()=>document.getElementById('tm-title').focus(),100);
@@ -3258,6 +3280,23 @@ function tmAddChecklistItem(){
 }
 function closeTaskModal(){ document.getElementById('task-modal').classList.remove('show'); }
 
+function tmAddLabel(){
+  const input = document.getElementById('tm-label-input');
+  const text = input.value.trim();
+  if(!text) return;
+  const display = document.getElementById('tm-labels-display');
+  // 重複チェック
+  const existing = [...display.querySelectorAll('[data-label]')].map(el=>el.dataset.label);
+  if(existing.includes(text)){input.value='';return;}
+  const tag = document.createElement('span');
+  tag.dataset.label = text;
+  tag.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:rgba(79,142,255,.15);color:var(--accent);border-radius:4px;padding:2px 8px;font-size:12px;cursor:default';
+  tag.innerHTML = `${esc(text)}<span onclick="this.parentNode.remove()" style="cursor:pointer;opacity:.6;font-size:10px">✕</span>`;
+  display.appendChild(tag);
+  input.value='';
+  input.focus();
+}
+
 function saveNewTask(){
   const title=document.getElementById('tm-title').value.trim();
   if(!title){toast('タイトルを入力してください','error');return;}
@@ -3266,7 +3305,8 @@ function saveNewTask(){
   const status=document.getElementById('tm-status').value;
   const description = document.getElementById('tm-description').value.trim();
   const checklistItems = [...document.getElementById('tm-checklist').querySelectorAll('input[type!=date]')].map(el=>({id:uid(),text:el.value.trim(),done:false})).filter(c=>c.text);
-  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,milestoneId:document.getElementById('tm-milestone').value||null,labels:[],createdAt:today(),completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[]};
+  const labels = [...document.getElementById('tm-labels-display').querySelectorAll('[data-label]')].map(el=>el.dataset.label);
+  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[]};
   p.tasks.push(task);
   closeTaskModal(); autoSave(); renderCurrentView(); renderSidebar(); updateFilters();
   toast(`タスク #${task.number} を追加しました`,'success');
