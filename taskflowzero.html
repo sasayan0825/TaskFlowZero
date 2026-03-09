@@ -1967,7 +1967,8 @@ function openProject(id) {
   if (btn) btn.textContent = p.archived ? '♻️ 未完了に戻す' : '📦 完了';
   renderSidebar();
   updateFilters();
-  switchView('list');
+  // 直前に開いていたビューを維持する（初回はlist）
+  switchView(state.currentView || 'list');
 }
 
 function switchView(view) {
