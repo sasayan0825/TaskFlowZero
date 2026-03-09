@@ -2289,7 +2289,9 @@ function renderBurndown() {
     <div class="burndown-stat"><div class="burndown-stat-val">${tasks.filter(t=>t.status==='done').length}/${tasks.length}</div><div class="burndown-stat-label">タスク</div></div>`;
 
   if(burndownChart){burndownChart.destroy();burndownChart=null;}
-  const start=p.startDate||today(); const end=p.endDate||today();
+  const _range = getProjectDateRange(p);
+  const start = _range.startDate;
+  const end   = _range.endDate;
   const startD=new Date(start+'T00:00:00'), endD=new Date(end+'T00:00:00');
   const nowD=new Date(); nowD.setHours(0,0,0,0);
   if(endD<startD){ return; }
@@ -2342,6 +2344,23 @@ function renderBurndown() {
 const GANTT_ROW_H = 40;
 const GANTT_LEFT_W = 260;
 
+
+// プロジェクト内のタスク・マイルストーンから最小開始日・最大終了日を算出
+function getProjectDateRange(p) {
+  const dates = [];
+  (p.milestones||[]).forEach(m => {
+    if (m.startDate) dates.push(m.startDate);
+    if (m.endDate)   dates.push(m.endDate);
+  });
+  (p.tasks||[]).forEach(t => {
+    if (t.startDate)   dates.push(t.startDate);
+    if (t.dueDate)     dates.push(t.dueDate);
+    if (t.completedAt) dates.push(t.completedAt.slice(0,10));
+  });
+  if (!dates.length) return { startDate: today(), endDate: today() };
+  dates.sort();
+  return { startDate: dates[0], endDate: dates[dates.length-1] };
+}
 function renderGantt() {
   const p = getProject(state.currentProjectId); if(!p) return;
   const ms = p.milestones||[];
@@ -2352,8 +2371,12 @@ function renderGantt() {
 
   // Determine gantt start date
   let ganttStart;
-  if (startMode==='today') ganttStart = today();
-  else ganttStart = p.startDate||today();
+  if (startMode==='today') {
+    ganttStart = today();
+  } else {
+    // タスク・マイルストーンの最小開始日から算出（p.startDateは使わない）
+    ganttStart = getProjectDateRange(p).startDate;
+  }
   const ganttEnd = addDays(ganttStart, rangeDays-1);
   const gStartMs = dateToNum(ganttStart);
   const totalW = rangeDays * DAY_W;
