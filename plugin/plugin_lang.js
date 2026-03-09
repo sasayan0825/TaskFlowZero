@@ -237,6 +237,7 @@
     if (wi) {
       wi.innerHTML = wi.innerHTML
         .replace('をご使用ください。', 'Please use Chrome or Edge.')
+        .replace('でご使用ください。', 'Please use Chrome or Edge.')
         .replace('File System Access API が使用できません', 'File System Access API is not supported')
         .replace('このシステムは', 'This app requires')
         .replace(' または ', ' or ');
