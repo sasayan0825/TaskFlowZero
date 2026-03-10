@@ -66,6 +66,20 @@ html.light .modal{box-shadow:0 8px 32px rgba(0,0,0,.18)}
 /* theme toggle btn */
 #theme-toggle{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:var(--radius);font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:5px}
 #theme-toggle:hover{background:var(--surface3)}
+#plugin-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:var(--radius);font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:5px}
+#plugin-btn:hover{background:var(--surface3)}
+.plugin-drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;color:var(--muted);font-size:13px;transition:all .15s;cursor:pointer}
+.plugin-drop-zone.dragover{border-color:var(--accent);background:rgba(79,142,255,.07);color:var(--accent)}
+.plugin-list-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:grab;transition:all .15s;user-select:none}
+.plugin-list-item:hover{background:var(--surface2)}
+.plugin-list-item.dragging{opacity:.4}
+.plugin-list-item.drag-over{border-color:var(--accent);background:rgba(79,142,255,.07)}
+.plugin-drag-handle{color:var(--muted);font-size:14px;flex-shrink:0}
+.plugin-name{flex:1;font-size:13px;font-family:'JetBrains Mono',monospace}
+.plugin-del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;border-radius:3px;transition:color .1s}
+.plugin-del-btn:hover{color:var(--red)}
+.plugin-folder-bar{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);font-size:12px;color:var(--muted)}
+.plugin-folder-name{flex:1;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans JP','Outfit',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
 
@@ -588,6 +602,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   <button id="theme-toggle" onclick="toggleTheme()">🌙 ダーク</button>
   <button class="btn btn-secondary btn-sm" onclick="saveFile(true)">💾 保存</button>
   <button class="btn btn-secondary btn-sm" onclick="openFile()">📂 ファイル変更</button>
+  <button id="plugin-btn" onclick="openPluginModal()" title="プラグイン管理">🔌</button>
 </div>
 
 <!-- APP -->
@@ -1030,6 +1045,46 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 </div>
 
 
+<!-- PLUGIN MODAL -->
+<div class="modal-overlay" id="plugin-modal">
+  <div class="modal" style="width:560px;max-height:90vh;overflow-y:auto">
+    <div class="modal-title" style="display:flex;align-items:center;gap:8px">🔌 プラグイン管理
+      <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">変更後はページをリロードして反映</span>
+    </div>
+
+    <!-- ドロップゾーン -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">プラグインを追加</div>
+      <div id="plugin-drop-zone" class="plugin-drop-zone"
+        ondragover="event.preventDefault();this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')"
+        ondrop="handlePluginDrop(event)">
+        <div style="font-size:22px;margin-bottom:6px">📦</div>
+        <div>JSファイルをここにドロップ</div>
+        <div style="margin:6px 0;font-size:11px;opacity:.6">または</div>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('plugin-file-input').click()">ファイルを選択</button>
+        <input type="file" id="plugin-file-input" accept=".js" style="display:none" onchange="handlePluginFileSelect(event)">
+      </div>
+    </div>
+
+    <!-- プラグイン一覧 -->
+    <div>
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">
+        インストール済み <span id="plugin-count" style="font-weight:400;text-transform:none;letter-spacing:0"></span>
+      </div>
+      <div id="plugin-list" style="display:flex;flex-direction:column;gap:6px;min-height:40px">
+        <div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">読み込み中...</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">⠿ ドラッグで読み込み順を変更できます。削除してもJSファイルは残ります。</div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closePluginModal()">閉じる</button>
+      <button class="btn btn-primary" id="plugin-save-btn" onclick="savePluginsJs()" style="display:none">💾 保存して反映</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFLICT MODAL -->
 <div id="conflict-modal">
   <div id="conflict-box">
@@ -1132,6 +1187,7 @@ function toggleTheme() {
 const IDB_NAME    = 'taskflow-db';
 const IDB_STORE   = 'handles';
 const IDB_KEY     = 'lastFileHandle';
+const IDB_PLUGIN_DIR_KEY = 'pluginDirHandle';
 
 function openIDB() {
   return new Promise((resolve, reject) => {
@@ -1172,6 +1228,258 @@ async function clearHandleFromIDB() {
     db.close();
   } catch(e) {}
 }
+
+// ═══════════════════════════════════════
+// PLUGIN MANAGER
+// ═══════════════════════════════════════
+let _pluginDirHandle = null;
+let _pluginList = [];   // 現在編集中のプラグインリスト
+let _pluginDirty = false;
+
+async function savePluginDirToIDB(handle) {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(handle, IDB_PLUGIN_DIR_KEY);
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch(e) { console.warn('IDB plugin dir save error:', e); }
+}
+
+async function loadPluginDirFromIDB() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(IDB_PLUGIN_DIR_KEY);
+    return await new Promise((res) => {
+      req.onsuccess = () => res(req.result || null);
+      req.onerror   = () => res(null);
+    });
+  } catch(e) { return null; }
+}
+
+// plugins.js から PLUGINS 配列を読み取る
+async function readPluginsFromDir(dirHandle) {
+  try {
+    const fh = await dirHandle.getFileHandle('plugins.js', { create: false });
+    const file = await fh.getFile();
+    const text = await file.text();
+    // const PLUGINS = [ 'a.js', 'b.js', ... ]; を解析
+    const m = text.match(/const\s+PLUGINS\s*=\s*\[([\s\S]*?)\]/);
+    if (!m) return [];
+    return [...m[1].matchAll(/['"]([^'"]+\.js)['"]/g)].map(x => x[1]);
+  } catch(e) { return []; }
+}
+
+// plugins.js を書き換えて保存
+async function writePluginsToDir(dirHandle, plugins) {
+  var lines = [
+    '// ================================================================',
+    '//  plugin/plugins.js  - TaskFlowZero プラグインマニフェスト',
+    '//  このファイルはプラグイン管理UIから自動生成されます。',
+    '// ================================================================',
+    '',
+    '(function () {',
+    "  'use strict';",
+    '',
+    '  const PLUGINS = [',
+  ];
+  plugins.forEach(function(p) { lines.push("    '" + p + "',"); });
+  lines = lines.concat([
+    '  ];',
+    '',
+    '  var base = (function () {',
+    "    var scripts = document.querySelectorAll('script[src]');",
+    '    for (var i = 0; i < scripts.length; i++) {',
+    '      var src = scripts[i].src;',
+    "      if (src.indexOf('plugins.js') !== -1) {",
+    "        return src.substring(0, src.lastIndexOf('/') + 1);",
+    '      }',
+    '    }',
+    "    return 'plugin/';",
+    '  })();',
+    '',
+    '  function loadNext(index) {',
+    '    if (index >= PLUGINS.length) return;',
+    "    var s = document.createElement('script');",
+    '    s.src = base + PLUGINS[index];',
+    '    s.onload  = function () { loadNext(index + 1); };',
+    '    s.onerror = function () {',
+    "      console.warn('[plugins.js] not found: ' + PLUGINS[index]);",
+    '      loadNext(index + 1);',
+    '    };',
+    '    document.head.appendChild(s);',
+    '  }',
+    '',
+    '  loadNext(0);',
+    '})();',
+  ]);
+  var fileContent = lines.join('\n') + '\n';
+  var fh = await dirHandle.getFileHandle('plugins.js', { create: true });
+  var w = await fh.createWritable();
+  await w.write(fileContent);
+  await w.close();
+}
+
+async function openPluginModal() {
+  _pluginDirty = false;
+  document.getElementById('plugin-save-btn').style.display = 'none';
+  document.getElementById('plugin-modal').classList.add('show');
+  document.getElementById('plugin-list').innerHTML =
+    '<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">読み込み中...</div>';
+
+  // IDBから復元
+  if (!_pluginDirHandle) {
+    _pluginDirHandle = await loadPluginDirFromIDB();
+  }
+
+  if (_pluginDirHandle) {
+    // 権限確認・再取得
+    try {
+      const perm = await _pluginDirHandle.queryPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') {
+        await _pluginDirHandle.requestPermission({ mode: 'readwrite' });
+      }
+      _pluginList = await readPluginsFromDir(_pluginDirHandle);
+      renderPluginList();
+      return;
+    } catch(e) {
+      _pluginDirHandle = null;
+    }
+  }
+
+  // 未設定 or 権限切れ → データファイルと同じフォルダを自動で開くピッカーを起動
+  try {
+    const opts = { mode: 'readwrite' };
+    if (state.fileHandle) opts.startIn = state.fileHandle; // 同じフォルダから開始
+    const dir = await window.showDirectoryPicker(opts);
+    _pluginDirHandle = dir;
+    await savePluginDirToIDB(dir);
+    _pluginList = await readPluginsFromDir(dir);
+    renderPluginList();
+  } catch(e) {
+    if (e.name === 'AbortError') {
+      closePluginModal();
+    } else {
+      toast('フォルダの取得に失敗しました', 'error');
+      renderPluginList();
+    }
+  }
+}
+
+function closePluginModal() {
+  document.getElementById('plugin-modal').classList.remove('show');
+}
+
+// selectPluginFolder は openPluginModal 内に統合
+
+function renderPluginList() {
+  const container = document.getElementById('plugin-list');
+  document.getElementById('plugin-count').textContent = `(${_pluginList.length}件)`;
+  if (!_pluginList.length) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">プラグインがありません</div>';
+    return;
+  }
+  container.innerHTML = '';
+  _pluginList.forEach((name, idx) => {
+    const item = document.createElement('div');
+    item.className = 'plugin-list-item';
+    item.draggable = true;
+    item.dataset.idx = idx;
+    item.innerHTML = `
+      <span class="plugin-drag-handle">⠿</span>
+      <span class="plugin-name">${esc(name)}</span>
+      <button class="plugin-del-btn" title="削除" onclick="removePlugin(${idx})">🗑</button>`;
+
+    // ドラッグ＆ドロップ
+    item.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', idx);
+      setTimeout(() => item.classList.add('dragging'), 0);
+    });
+    item.addEventListener('dragend', () => item.classList.remove('dragging'));
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      document.querySelectorAll('.plugin-list-item').forEach(el => el.classList.remove('drag-over'));
+      item.classList.add('drag-over');
+    });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+      const from = parseInt(e.dataTransfer.getData('text/plain'));
+      const to = idx;
+      if (from === to) return;
+      const moved = _pluginList.splice(from, 1)[0];
+      _pluginList.splice(to, 0, moved);
+      markPluginDirty();
+      renderPluginList();
+    });
+
+    container.appendChild(item);
+  });
+}
+
+function removePlugin(idx) {
+  const name = _pluginList[idx];
+  if (!confirm(`"${name}" をプラグインリストから削除しますか？\n（JSファイルは削除されません）`)) return;
+  _pluginList.splice(idx, 1);
+  markPluginDirty();
+  renderPluginList();
+}
+
+function markPluginDirty() {
+  _pluginDirty = true;
+  document.getElementById('plugin-save-btn').style.display = '';
+}
+
+async function handlePluginDrop(event) {
+  event.preventDefault();
+  document.getElementById('plugin-drop-zone').classList.remove('dragover');
+  const files = [...event.dataTransfer.files].filter(f => f.name.endsWith('.js'));
+  if (!files.length) { toast('.js ファイルをドロップしてください', 'error'); return; }
+  for (const file of files) await installPluginFile(file);
+}
+
+async function handlePluginFileSelect(event) {
+  const files = [...event.target.files];
+  event.target.value = '';
+  for (const file of files) await installPluginFile(file);
+}
+
+async function installPluginFile(file) {
+  if (!_pluginDirHandle) {
+    toast('フォルダが設定されていません。一度モーダルを閉じて再度開いてください', 'error'); return;
+  }
+  try {
+    // フォルダにJSファイルをコピー
+    const fh = await _pluginDirHandle.getFileHandle(file.name, { create: true });
+    const w = await fh.createWritable();
+    await w.write(await file.arrayBuffer());
+    await w.close();
+    // リストに追加（重複チェック）
+    if (!_pluginList.includes(file.name)) {
+      _pluginList.push(file.name);
+    }
+    markPluginDirty();
+    renderPluginList();
+    toast(`${file.name} をインストールしました`, 'success');
+  } catch(e) {
+    toast(`インストール失敗: ${e.message}`, 'error');
+  }
+}
+
+async function savePluginsJs() {
+  if (!_pluginDirHandle) { toast('フォルダが選択されていません', 'error'); return; }
+  try {
+    await writePluginsToDir(_pluginDirHandle, _pluginList);
+    _pluginDirty = false;
+    document.getElementById('plugin-save-btn').style.display = 'none';
+    toast('plugins.js を保存しました。ページをリロードして反映してください。', 'success');
+  } catch(e) {
+    toast(`保存失敗: ${e.message}`, 'error');
+  }
+}
+
 
 // Called on page load — show last-file button if handle is stored
 async function initLastFileButton() {
@@ -3862,11 +4170,12 @@ function copyTaskUrl() {
 window.addEventListener('hashchange', () => {
   if (state.data) navigateToHash(window.location.hash);
 });
-['project-modal','task-modal','milestone-modal'].forEach(id=>{
+['project-modal','task-modal','milestone-modal','plugin-modal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){
     if(e.target===this){
       if(id==='project-modal')closeProjectModal();
       else if(id==='task-modal')closeTaskModal();
+      else if(id==='plugin-modal')closePluginModal();
       else closeMilestoneModal();
     }
   });
