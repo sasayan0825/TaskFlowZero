@@ -164,6 +164,10 @@
     '担当者名':                           'Assignee name',
     'マイルストーン':                     'Milestone',
     '未設定':                             'None',
+    'タスクの詳細をMarkdownで記述できます...': 'Describe the task in Markdown...',
+    '＋ 項目追加':                        '+ Add item',
+    'チェック項目を入力して Enter':       'Enter item and press Enter',
+    'ラベルを入力して Enter':             'Enter label and press Enter',
 
     // プロジェクト設定モーダル
     '新規プロジェクト':                   'New Project',

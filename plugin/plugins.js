@@ -1,29 +1,19 @@
 // ================================================================
-//  plugin/plugins.js  - TaskFlow プラグインマニフェスト
-//
-//  このファイルを編集してプラグインを追加・削除してください。
-//  taskflow.html の編集は不要です。
-//
-//  【追加方法】
-//    1. plugin_xxx.js をこのフォルダ（plugin/）に置く
-//    2. 下の PLUGINS 配列にファイル名を追記する
-//
-//  【削除・無効化方法】
-//    該当行を削除するか、先頭に // を付けてコメントアウトする
+//  plugin/plugins.js  - TaskFlowZero プラグインマニフェスト
+//  このファイルはプラグイン管理UIから自動生成されます。
 // ================================================================
 
 (function () {
   'use strict';
 
-  // ロードするプラグインファイル名の一覧（plugin/ フォルダからの相対パス）
   const PLUGINS = [
-    'plugin_lang.js',         // 言語切り替え（日本語 ⇔ 英語）
+    'plugin_lang.js',
+    'plugin_overdue_badge.js',
+    'plugin_csv_export.js',
+    'plugin_summary.js',
   ];
 
-  // ── 以下は編集不要 ──────────────────────────────────────
-  // ロード順を保証しながら順次読み込む
   var base = (function () {
-    // このスクリプト自身のパスから plugin/ フォルダのベースURLを算出
     var scripts = document.querySelectorAll('script[src]');
     for (var i = 0; i < scripts.length; i++) {
       var src = scripts[i].src;
