@@ -3603,7 +3603,12 @@ function saveProject() {
   }
   const _savedP = _editProjectId ? getProject(_editProjectId) : state.data.projects[state.data.projects.length-1];
   const _isNewP = !_editProjectId;
-  _callProjectPluginOnSave(_savedP);
+  // プラグインのonSaveコールバックを呼ぶ
+  (window.TaskFlow && window.TaskFlow._projectTabs || []).forEach(function(def) {
+    if (typeof def.onSave === 'function') {
+      try { def.onSave(_savedP); } catch(e) { console.warn('[plugin onSave]', e); }
+    }
+  });
   closeProjectModal(); autoSave(); renderSidebar(); if(!state.currentProjectId) renderProjectsList();
   window.TaskFlow.emit(_isNewP ? 'project-create' : 'project-update', { project: _savedP });
 }
