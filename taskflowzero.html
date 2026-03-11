@@ -3707,7 +3707,7 @@ function saveNewTask(){
   if(!p.nextTaskNum) p.nextTaskNum=Math.max(0,...p.tasks.map(t=>t.number||0))+1;
   const status=document.getElementById('tm-status').value;
   const description = document.getElementById('tm-description').value.trim();
-  const checklistItems = [...document.getElementById('tm-checklist').querySelectorAll('input[type!=date]')].map(el=>({id:uid(),text:el.value.trim(),done:false})).filter(c=>c.text);
+  const checklistItems = [...document.getElementById('tm-checklist').querySelectorAll('input:not([type="date"])')].map(el=>({id:uid(),text:el.value.trim(),done:false})).filter(c=>c.text);
   const labels = [...document.getElementById('tm-labels-display').querySelectorAll('[data-label]')].map(el=>el.dataset.label);
   const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[]};
   p.tasks.push(task);
