@@ -68,6 +68,9 @@ html.light .modal{box-shadow:0 8px 32px rgba(0,0,0,.18)}
 #theme-toggle:hover{background:var(--surface3)}
 #plugin-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:var(--radius);font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:5px}
 #plugin-btn:hover{background:var(--surface3)}
+@keyframes plugin-spin{to{transform:rotate(360deg)}}
+.plugin-spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:plugin-spin .7s linear infinite;flex-shrink:0}
+.plugin-drop-zone.loading{pointer-events:none;opacity:.6}
 .plugin-drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;color:var(--muted);font-size:13px;transition:all .15s;cursor:pointer}
 .plugin-drop-zone.dragover{border-color:var(--accent);background:rgba(79,142,255,.07);color:var(--accent)}
 .plugin-list-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:grab;transition:all .15s;user-select:none}
@@ -662,6 +665,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div class="view-tab" id="tab-burndown" onclick="switchView('burndown')">📉 バーンダウン</div>
           <div class="view-tab" id="tab-gantt" onclick="switchView('gantt')">📊 ガント</div>
           <div class="view-tab" id="tab-wiki" onclick="switchView('wiki')">📖 Wiki</div>
+          <div id="plugin-tab-container"></div>
         </div>
       </div>
 
@@ -782,6 +786,9 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div class="legend-item"><div class="legend-dot" style="background:var(--green);opacity:.5"></div> 完了塗り</div>
         </div>
       </div>
+
+      <!-- CUSTOM PLUGIN VIEWS -->
+      <div id="plugin-views-container"></div>
 
       <!-- WIKI VIEW -->
       <div id="wiki-view">
@@ -1055,7 +1062,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
     <!-- ドロップゾーン -->
     <div style="margin-bottom:16px">
       <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">プラグインを追加</div>
-      <div id="plugin-drop-zone" class="plugin-drop-zone"
+      <div id="plugin-drop-zone" class="plugin-drop-zone" aria-live="polite"
         ondragover="event.preventDefault();this.classList.add('dragover')"
         ondragleave="this.classList.remove('dragover')"
         ondrop="handlePluginDrop(event)">
@@ -1432,6 +1439,42 @@ function markPluginDirty() {
   document.getElementById('plugin-save-btn').style.display = '';
 }
 
+// プラグインインストール中のローディング表示
+function pluginSetLoading(on) {
+  const dz = document.getElementById('plugin-drop-zone');
+  const saveBtn = document.getElementById('plugin-save-btn');
+  const fileInput = document.getElementById('plugin-file-input');
+  if (!dz) return;
+  if (on) {
+    dz.classList.add('loading');
+    dz._origHTML = dz.innerHTML;
+    dz.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:4px">' +
+      '<div class="plugin-spinner"></div>' +
+      '<div style="font-size:13px">インストール中...</div></div>';
+    if (saveBtn) saveBtn.disabled = true;
+    if (fileInput) fileInput.disabled = true;
+  } else {
+    dz.classList.remove('loading');
+    if (dz._origHTML) { dz.innerHTML = dz._origHTML; delete dz._origHTML; }
+    if (saveBtn) saveBtn.disabled = false;
+    if (fileInput) fileInput.disabled = false;
+  }
+}
+
+// 保存中のローディング表示
+function pluginSetSaving(on) {
+  const btn = document.getElementById('plugin-save-btn');
+  if (!btn) return;
+  if (on) {
+    btn._origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="plugin-spinner"></span> 保存中...';
+  } else {
+    btn.disabled = false;
+    if (btn._origHTML) { btn.innerHTML = btn._origHTML; delete btn._origHTML; }
+  }
+}
+
 async function handlePluginDrop(event) {
   event.preventDefault();
   document.getElementById('plugin-drop-zone').classList.remove('dragover');
@@ -1450,32 +1493,36 @@ async function installPluginFile(file) {
   if (!_pluginDirHandle) {
     toast('フォルダが設定されていません。一度モーダルを閉じて再度開いてください', 'error'); return;
   }
+  pluginSetLoading(true);
   try {
-    // フォルダにJSファイルをコピー
     const fh = await _pluginDirHandle.getFileHandle(file.name, { create: true });
     const w = await fh.createWritable();
     await w.write(await file.arrayBuffer());
     await w.close();
-    // リストに追加（重複チェック）
     if (!_pluginList.includes(file.name)) {
       _pluginList.push(file.name);
     }
     markPluginDirty();
+    pluginSetLoading(false);
     renderPluginList();
     toast(`${file.name} をインストールしました`, 'success');
   } catch(e) {
+    pluginSetLoading(false);
     toast(`インストール失敗: ${e.message}`, 'error');
   }
 }
 
 async function savePluginsJs() {
   if (!_pluginDirHandle) { toast('フォルダが選択されていません', 'error'); return; }
+  pluginSetSaving(true);
   try {
     await writePluginsToDir(_pluginDirHandle, _pluginList);
     _pluginDirty = false;
+    pluginSetSaving(false);
     document.getElementById('plugin-save-btn').style.display = 'none';
     toast('plugins.js を保存しました。ページをリロードして反映してください。', 'success');
   } catch(e) {
+    pluginSetSaving(false);
     toast(`保存失敗: ${e.message}`, 'error');
   }
 }
@@ -2310,15 +2357,35 @@ function openProject(id) {
 
 function switchView(view) {
   state.currentView = view;
+  // 組み込みビューの表示/非表示
   ['list','kanban','burndown','gantt','wiki'].forEach(v => {
     const tab = document.getElementById('tab-'+v);
     if (tab) tab.className = 'view-tab'+(view===v?' active':'');
     const el = document.getElementById(v+'-view');
     if (el) el.style.display = 'none';
   });
-  const viewEl = document.getElementById(view+'-view');
-  if (viewEl) viewEl.style.display = view==='kanban'?'flex':view==='gantt'||view==='wiki'?'flex':'block';
-  document.getElementById('filter-bar').style.display = (view==='gantt'||view==='wiki')?'none':'flex';
+  // カスタムビューの表示/非表示
+  const _customDefs = window.TaskFlow ? window.TaskFlow._viewTabs : [];
+  _customDefs.forEach(def => {
+    const tab = document.getElementById('plugin-tab-'+def.id);
+    if (tab) tab.className = 'view-tab'+(view===def.id?' active':'');
+    const el = document.getElementById('plugin-view-'+def.id);
+    if (el) el.style.display = 'none';
+  });
+
+  // アクティブビューを表示
+  const builtinEl = document.getElementById(view+'-view');
+  if (builtinEl) {
+    builtinEl.style.display = view==='kanban'?'flex':view==='gantt'||view==='wiki'?'flex':'block';
+  } else {
+    const customEl = document.getElementById('plugin-view-'+view);
+    if (customEl) customEl.style.display = 'flex';
+  }
+
+  // フィルターバー: カスタムビューは各自で制御（デフォルト非表示）
+  const isCustomView = _customDefs.some(d => d.id === view);
+  const hideFilter = view==='gantt' || view==='wiki' || isCustomView;
+  document.getElementById('filter-bar').style.display = hideFilter ? 'none' : 'flex';
 
   function _renderView() {
     if (view==='list') renderList();
@@ -2326,6 +2393,18 @@ function switchView(view) {
     else if (view==='burndown') renderBurndown();
     else if (view==='gantt') renderGantt();
     else if (view==='wiki') renderWiki();
+    else {
+      // カスタムビューのrender呼び出し
+      const def = _customDefs.find(d => d.id === view);
+      if (def && typeof def.render === 'function') {
+        const container = document.getElementById('plugin-view-'+def.id);
+        if (container) {
+          const p = getProject(state.currentProjectId);
+          const result = def.render(p, container);
+          if (typeof result === 'string') container.innerHTML = result;
+        }
+      }
+    }
   }
 
   // タブ切り替え時にサイレントマージ（他の人の変更を取り込み）
@@ -2342,6 +2421,17 @@ function switchView(view) {
 function renderCurrentView() {
   if (state.currentView==='list') renderList();
   else if (state.currentView==='kanban') renderKanban();
+  else {
+    const def = (window.TaskFlow ? window.TaskFlow._viewTabs : []).find(d => d.id === state.currentView);
+    if (def && typeof def.render === 'function') {
+      const container = document.getElementById('plugin-view-'+def.id);
+      if (container) {
+        const p = getProject(state.currentProjectId);
+        const result = def.render(p, container);
+        if (typeof result === 'string') container.innerHTML = result;
+      }
+    }
+  }
 }
 
 function updateFilters() {
@@ -4242,6 +4332,39 @@ window.TaskFlow = {
   _projectTabs: [],
   addProjectSettingTab(def) {
     this._projectTabs.push(def);
+  },
+
+  // ── UIフック：ビュータブを追加 ──
+  // def: { id, label, render(project, container) }
+  // render は HTML文字列を返すか、直接 container を操作する
+  _viewTabs: [],
+  addViewTab(def) {
+    if (!def || !def.id || !def.label || typeof def.render !== 'function') {
+      console.warn('[TaskFlow] addViewTab: id, label, render が必要です');
+      return;
+    }
+    if (this._viewTabs.find(d => d.id === def.id)) return; // 重複防止
+    this._viewTabs.push(def);
+
+    // タブボタンをDOMに追加
+    const tabContainer = document.getElementById('plugin-tab-container');
+    if (tabContainer) {
+      const tab = document.createElement('div');
+      tab.id = 'plugin-tab-' + def.id;
+      tab.className = 'view-tab';
+      tab.textContent = def.label;
+      tab.addEventListener('click', () => switchView(def.id));
+      tabContainer.appendChild(tab);
+    }
+
+    // ビューコンテナをDOMに追加
+    const viewContainer = document.getElementById('plugin-views-container');
+    if (viewContainer) {
+      const viewEl = document.createElement('div');
+      viewEl.id = 'plugin-view-' + def.id;
+      viewEl.style.cssText = 'display:none;flex:1;flex-direction:column;overflow:auto;padding:0';
+      viewContainer.appendChild(viewEl);
+    }
   },
 
   // ── UIフック：サイドバー下部にボタン/アイテムを追加 ──
