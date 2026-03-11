@@ -1773,6 +1773,7 @@ async function saveFile(manual=false) {
   if (status === 'automerged') toast(`保存しました（他の変更を自動マージ）`, 'success');
   if (status === 'conflict')   toast(`保存しました（競合を解決）`, 'success');
   if (status === 'error')      toast('保存に失敗しました', 'error');
+  if (['clean','automerged','conflict'].includes(status) && window.TaskFlow) window.TaskFlow.emit('file-save', {});
 }
 
 // ─────────────────────────────────────────
