@@ -1694,12 +1694,24 @@ async function writeFileRaw(dataToWrite) {
 // AUTO SAVE (no merge — fast, silent)
 // ─────────────────────────────────────────
 let saveTimer;
+let _isSaving = false; // 保存処理の多重実行防止フラグ
+
 function autoSave() { clearTimeout(saveTimer); saveTimer = setTimeout(_autoSaveExec, 1200); }
 
 async function _autoSaveExec() {
   if (!state.fileHandle) return;
-  try { await writeFileRaw(state.data); }
+  if (_isSaving) { autoSave(); return; } // 保存中なら1.2秒後に再試行
+  _isSaving = true;
+  try {
+    if (_baseSnapshot) {
+      await fetchAndMerge('silent'); // マージ経由で書き込み（他者の変更を保護）
+    } else {
+      await writeFileRaw(state.data); // 初回保存（baseがないためマージ不可）
+      _baseSnapshot = deepCopy(state.data);
+    }
+  }
   catch(e) { console.warn('autoSave failed:', e); }
+  finally { _isSaving = false; }
 }
 
 // ─────────────────────────────────────────
@@ -1759,12 +1771,16 @@ async function fetchAndMerge(mode = 'save') {
 async function saveFile(manual=false) {
   if (!state.fileHandle) return;
   if (!manual) { await _autoSaveExec(); return; }
+  if (_isSaving) return; // autoSave実行中は手動保存をスキップ
+  _isSaving = true;
 
   if (!_baseSnapshot) {
     // First save — just write
     await writeFileRaw(state.data);
     _baseSnapshot = deepCopy(state.data);
     toast('保存しました', 'success');
+    if (window.TaskFlow) window.TaskFlow.emit('file-save', {});
+    _isSaving = false;
     return;
   }
 
@@ -1774,6 +1790,7 @@ async function saveFile(manual=false) {
   if (status === 'conflict')   toast(`保存しました（競合を解決）`, 'success');
   if (status === 'error')      toast('保存に失敗しました', 'error');
   if (['clean','automerged','conflict'].includes(status) && window.TaskFlow) window.TaskFlow.emit('file-save', {});
+  _isSaving = false;
 }
 
 // ─────────────────────────────────────────
@@ -1840,11 +1857,56 @@ function threeWayMerge(base, mine, disk) {
       });
     }
 
-    // Merge milestone order (mine wins if changed)
-    const bOrder = (b.milestones||[]).map(x=>x.id).join(',');
-    const mOrder = (m.milestones||[]).map(x=>x.id).join(',');
-    const dOrder = (d.milestones||[]).map(x=>x.id).join(',');
-    if (mOrder !== bOrder && dOrder === bOrder) { mergedP.milestones = deepCopy(m.milestones||[]); autoMerged++; }
+    // Merge milestones: field-level merge + order
+    {
+      const bMsIdx = indexBy(b.milestones||[], 'id');
+      const mMsIdx = indexBy(m.milestones||[], 'id');
+      const dMsIdx = indexBy(d.milestones||[], 'id');
+
+      // 順序: mineが変更かつdiskが変更していなければmineの順序を採用
+      const bOrder = (b.milestones||[]).map(x=>x.id).join(',');
+      const mOrder = (m.milestones||[]).map(x=>x.id).join(',');
+      const dOrder = (d.milestones||[]).map(x=>x.id).join(',');
+      const orderBase = (mOrder !== bOrder && dOrder === bOrder)
+        ? (m.milestones||[]) : (d.milestones||[]);
+
+      const allMsIds = new Set([
+        ...(b.milestones||[]).map(x=>x.id),
+        ...(m.milestones||[]).map(x=>x.id),
+        ...(d.milestones||[]).map(x=>x.id),
+      ]);
+
+      const mergedMs = [];
+      // orderBaseの順序でフィールドマージ
+      orderBase.forEach(ms => {
+        const msId = ms.id;
+        const mb = bMsIdx[msId], mm = mMsIdx[msId], md = dMsIdx[msId];
+        if (!mm && mb) return; // mineが削除（baseにあってmineにない）
+        if (!md && mb) return; // diskが削除（baseにあってdiskにない）
+        // 新規追加（baseにない）: mine追加 or disk追加 or 両方追加
+        if (!mb) {
+          if (mm && !md) { mergedMs.push(deepCopy(mm)); autoMerged++; return; }
+          if (!mm && md) { mergedMs.push(deepCopy(md)); return; }
+          if (mm && md)  { mergedMs.push(deepCopy(mm)); return; } // 両方追加はmine優先
+          return;
+        }
+        // 既存MSのフィールドマージ（diskを起点にmineの変更を適用）
+        const mergedMsItem = deepCopy(md || mm);
+        if (mm && md) {
+          const msFieldRes = mergeEntityFields(mb, mm, md, ['name','description','startDate','endDate','color']);
+          msFieldRes.autoFields.forEach(f => { mergedMsItem[f] = mm[f]; autoMerged++; });
+        }
+        mergedMs.push(mergedMsItem);
+      });
+      // orderBaseに含まれない新規アイテムを追加（orderBaseがdiskの場合にmine追加分を補完）
+      allMsIds.forEach(msId => {
+        if (orderBase.find(x => x.id === msId)) return;
+        const mb = bMsIdx[msId], mm = mMsIdx[msId], md = dMsIdx[msId];
+        if (!mb && mm && !md) { mergedMs.push(deepCopy(mm)); autoMerged++; }
+        else if (!mb && !mm && md) { mergedMs.push(deepCopy(md)); }
+      });
+      mergedP.milestones = mergedMs;
+    }
 
     // Merge nextTaskNum
     mergedP.nextTaskNum = Math.max(b?.nextTaskNum||1, m?.nextTaskNum||1, d?.nextTaskNum||1);
@@ -1954,7 +2016,8 @@ function mergeArrayById(base, mine, disk) {
     if (d) {
       const r = deepCopy(d);
       // If mine changed checked state, use mine's
-      if (m && b && m.checked !== b.checked && d.checked === b.checked) { r.checked = m.checked; changed++; }
+      if (m && b && m.done !== b.done && d.done === b.done) { r.done = m.done; changed++; }
+      if (m && b && m.text !== b.text && d.text === b.text) { r.text = m.text; changed++; }
       result.push(r);
     }
   });
@@ -3046,10 +3109,29 @@ function renderGantt() {
     rightRows.appendChild(svg);
   }
 
-  // Sync scroll
+  // Sync scroll: right → left
   const ganttRight = document.getElementById('gantt-right');
   const ganttLeftRows2 = document.getElementById('gantt-left-rows');
   ganttRight.onscroll = () => { ganttLeftRows2.scrollTop = ganttRight.scrollTop; };
+
+  // 左ペイン上でのホイール操作を右ペインに転送
+  // deltaMode に応じてピクセル換算してから scrollBy に渡す
+  //   mode 0 = px（そのまま）
+  //   mode 1 = 行単位 → 1行 = 40px（gantt-rowの高さ）
+  //   mode 2 = ページ単位 → ビューポート高さ
+  const ganttLeft = document.getElementById('gantt-left');
+  ganttLeft.onwheel = (e) => {
+    e.preventDefault();
+    const LINE_H = 40;
+    const mult = e.deltaMode === 1 ? LINE_H
+                : e.deltaMode === 2 ? ganttRight.clientHeight
+                : 1;
+    ganttRight.scrollBy({
+      top:  e.deltaY * mult,
+      left: e.deltaX * mult,
+      behavior: 'auto',
+    });
+  };
 }
 
 function buildDateHeader(ganttStart, rangeDays, gStartMs) {
@@ -4321,6 +4403,32 @@ window.TaskFlow = {
   renderCurrentView: () => renderCurrentView(),
   renderSidebar:     () => renderSidebar(),
   openTaskPanel:     (tid) => openTaskPanel(tid),
+  switchView:        (view) => switchView(view),
+
+  // ── タスク操作 ──
+  createTask(projectId, fields) {
+    const p = getProject(projectId);
+    if (!p) return null;
+    if (!p.nextTaskNum) p.nextTaskNum = Math.max(0, ...p.tasks.map(t => t.number || 0)) + 1;
+    const task = Object.assign({
+      id: uid(), number: p.nextTaskNum++, title: '', description: '',
+      status: 'todo', assignee: '', startDate: '', dueDate: '',
+      completedAt: null, storyPoints: 0, milestoneId: null,
+      labels: [], createdAt: today(), checklist: [], comments: [], activity: [],
+    }, fields);
+    if (task.status === 'done' && !task.completedAt) task.completedAt = today();
+    p.tasks.push(task);
+    return task;
+  },
+  updateTask(projectId, taskId, changes) {
+    const p = getProject(projectId);
+    if (!p) return null;
+    const task = p.tasks.find(t => t.id === taskId);
+    if (!task) return null;
+    Object.assign(task, changes);
+    if (task.status === 'done' && !task.completedAt) task.completedAt = today();
+    return task;
+  },
 
   // ── イベント ──
   // on(event, fn) で購読。発火は TaskFlow.emit() で行う
@@ -4328,6 +4436,10 @@ window.TaskFlow = {
   on(event, fn) {
     if (!this._listeners[event]) this._listeners[event] = [];
     this._listeners[event].push(fn);
+  },
+  off(event, fn) {
+    if (!this._listeners[event]) return;
+    this._listeners[event] = this._listeners[event].filter(f => f !== fn);
   },
   emit(event, data) {
     (this._listeners[event] || []).forEach(fn => { try { fn(data); } catch(e) { console.error('Plugin error:', e); } });
