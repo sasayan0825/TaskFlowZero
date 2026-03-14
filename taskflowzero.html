@@ -795,7 +795,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       </div>
 
       <!-- CUSTOM PLUGIN VIEWS -->
-      <div id="plugin-views-container"></div>
+      <div id="plugin-views-container" style="display:contents"></div>
 
       <!-- WIKI VIEW -->
       <div id="wiki-view">
@@ -4739,7 +4739,7 @@ window.TaskFlow = {
     if (viewContainer) {
       const viewEl = document.createElement('div');
       viewEl.id = 'plugin-view-' + def.id;
-      viewEl.style.cssText = 'display:none;flex:1;flex-direction:column;overflow:auto;padding:0';
+      viewEl.style.cssText = 'display:none;flex:1;flex-direction:column;overflow-y:auto;padding:0;min-height:0';
       viewContainer.appendChild(viewEl);
     }
   },
