@@ -79,7 +79,9 @@
     var totalAsOfLastWeek = tasks.filter(function(t){ return !t.createdAt || t.createdAt <= lastWeek.end; }).length;
     var pctLastWeek = totalAsOfLastWeek > 0 ? Math.round(doneAsOfLastWeek / totalAsOfLastWeek * 100) : 0;
 
-    var overdue = tasks.filter(function(t){ return t.status !== 'done' && t.dueDate && t.dueDate < today; }).length;
+    var overdueTasks = tasks.filter(function(t){ return t.status !== 'done' && t.dueDate && t.dueDate < today; });
+    overdueTasks.sort(function(a,b){ return a.dueDate < b.dueDate ? -1 : 1; });
+    var overdue = overdueTasks.length;
 
     var spTotal    = tasks.reduce(function(s,t){ return s+(t.storyPoints||0); }, 0);
     var spThisWeek = tasks.filter(function(t){ return inRange(t.completedAt, thisWeek); }).reduce(function(s,t){ return s+(t.storyPoints||0); }, 0);
@@ -91,7 +93,7 @@
       pctLastWeek, pctDelta: pct - pctLastWeek,
       addedThisWeek, addedLastWeek,
       completedThisWeek, completedLastWeek,
-      overdue, spTotal, spThisWeek, spLastWeek,
+      overdue, overdueTasks, spTotal, spThisWeek, spLastWeek,
     };
   }
 
@@ -395,7 +397,7 @@
   // サマリータブ レンダリング
   // ══════════════════════════════════════════════════════════
   function statCard(label, val, color) {
-    return '<div style="background:var(--surface2);border-radius:8px;padding:16px;text-align:center">' +
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">' +
       '<div style="font-size:28px;font-weight:700;color:' + color + '">' + val + '</div>' +
       '<div style="font-size:12px;color:var(--muted);margin-top:4px">' + label + '</div></div>';
   }
@@ -403,7 +405,7 @@
     var diff = lw !== null ? tw - lw : null;
     var dc = diff === null ? '' : diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--muted)';
     var dt = diff === null ? '' : (diff >= 0 ? '▲'+diff : '▼'+Math.abs(diff));
-    return '<div style="background:var(--surface2);border-radius:8px;padding:14px;text-align:center">' +
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center">' +
       '<div style="font-size:24px;font-weight:700">' + tw + '<span style="font-size:12px;font-weight:400"> ' + unit + '</span></div>' +
       '<div style="font-size:12px;color:var(--muted);margin-top:2px">' + label + '</div>' +
       (lw !== null ? '<div style="font-size:11px;color:var(--muted);margin-top:4px">先週: ' + lw + unit + ' <span style="color:' + dc + ';font-weight:600">' + dt + '</span></div>' : '') +
@@ -501,7 +503,29 @@
       msHtml +
 
       (stats.overdue > 0
-        ? '<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--red);margin-bottom:24px">⚠️ 期限切れタスクが ' + stats.overdue + ' 件あります</div>'
+        ? '<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:12px 16px;margin-bottom:24px">' +
+            '<div style="font-size:13px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 期限切れタスク（' + stats.overdue + ' 件）</div>' +
+            '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+              '<thead><tr>' +
+                '<th style="text-align:left;padding:4px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid rgba(239,68,68,.2)">#</th>' +
+                '<th style="text-align:left;padding:4px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid rgba(239,68,68,.2)">タスク名</th>' +
+                '<th style="text-align:left;padding:4px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid rgba(239,68,68,.2)">期限</th>' +
+                '<th style="text-align:left;padding:4px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid rgba(239,68,68,.2)">担当者</th>' +
+                '<th style="text-align:left;padding:4px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid rgba(239,68,68,.2)">超過</th>' +
+              '</tr></thead>' +
+              '<tbody>' +
+                stats.overdueTasks.map(function(t) {
+                  var days = diffDays(t.dueDate, localToday());
+                  return '<tr>' +
+                    '<td style="padding:5px 8px;color:var(--muted)">#' + (t.number||'') + '</td>' +
+                    '<td style="padding:5px 8px;color:var(--text)">' + esc(t.title) + '</td>' +
+                    '<td style="padding:5px 8px;color:var(--red);font-weight:600">' + fmtDate(t.dueDate) + '</td>' +
+                    '<td style="padding:5px 8px;color:var(--muted)">' + esc(t.assignee || '―') + '</td>' +
+                    '<td style="padding:5px 8px;color:var(--red)">' + days + '日</td>' +
+                  '</tr>';
+                }).join('') +
+              '</tbody></table>' +
+          '</div>'
         : '<div style="background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--green);margin-bottom:24px">✅ 期限切れタスクはありません</div>') +
 
       '<div style="margin-bottom:8px">' +
