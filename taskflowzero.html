@@ -603,6 +603,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   </div>
   <div style="flex:1"></div>
   <button id="theme-toggle" onclick="toggleTheme()">🌙 ダーク</button>
+  <button class="btn btn-secondary btn-sm" id="refresh-btn" onclick="manualRefresh()" title="他のメンバーの変更を取得">🔄 更新</button>
   <button class="btn btn-secondary btn-sm" onclick="saveFile(true)">💾 保存</button>
   <button class="btn btn-secondary btn-sm" onclick="openFile()">📂 フォルダ変更</button>
   <button id="plugin-btn" onclick="openPluginModal()" title="プラグイン管理">🔌</button>
@@ -1962,6 +1963,30 @@ async function fetchAndMerge(mode = 'save') {
 // ─────────────────────────────────────────
 // MANUAL SAVE (Ctrl+S)
 // ─────────────────────────────────────────
+async function manualRefresh() {
+  if (!state.rootDirHandle) { toast('フォルダが開かれていません', 'warn'); return; }
+  if (_isSaving) { toast('保存中です。しばらくお待ちください', 'warn'); return; }
+
+  const btn = document.getElementById('refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '🔄 更新中...'; }
+
+  try {
+    // 全プロジェクトを dirty にして読み直し＆マージ
+    state.data.projects.forEach(p => _dirtyProjects.add(p.id));
+    _lastFetchAt = 0; // クールダウンをリセット
+    const status = await fetchAndMerge('silent');
+    _renderView();
+    renderSidebar();
+    const count = state.data.projects.length;
+    toast(`更新しました（${count}件のプロジェクト）`, 'success');
+  } catch(e) {
+    console.error('manualRefresh error:', e);
+    toast('更新に失敗しました', 'warn');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 更新'; }
+  }
+}
+
 async function saveFile(manual=false) {
   if (!state.rootDirHandle) return;
   if (!manual) { await _autoSaveExec(); return; }
@@ -4633,7 +4658,7 @@ window.TaskFlow = {
 
   // ── UI操作 ──
   toast:             (msg, type) => toast(msg, type),
-  autoSave:          () => autoSave(),
+  autoSave:          (pid) => autoSave(pid),
   renderCurrentView: () => renderCurrentView(),
   renderSidebar:     () => renderSidebar(),
   openTaskPanel:     (tid) => openTaskPanel(tid),
