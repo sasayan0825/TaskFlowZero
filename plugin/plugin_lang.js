@@ -16,8 +16,6 @@
     '☀️ ライト':                          '☀️ Light',
     '🌙 ダーク':                          '🌙 Dark',
     '💾 保存':                            '💾 Save',
-    '📂 別のファイルを開く':              '📂 Open Another File',
-    '📂 ファイル変更':                    '📂 Change File',
     '前回のファイル':                     'Last File',
     'をご使用ください。':                 'Please use Chrome or Edge.',
     'File System Access API が使用できません': 'File System Access API is not supported',
@@ -30,10 +28,7 @@
     '✅ アクセス許可あり — すぐに開けます': '✅ Access granted — ready to open',
     '🔑 クリックするとアクセス許可を求めます': '🔑 Click to request access permission',
     '↩ すぐに開く':                      '↩ Open Now',
-    '共有フォルダ上のJSONファイルを開くか、': 'Open a JSON file on a shared folder, or',
     '新規作成してください。':             'create a new one.',
-    'データファイルを選択':               'Select Data File',
-    '以降の変更は自動的にファイルへ保存されます。': 'Changes will be saved to the file automatically.',
     ': 保存場所（共有フォルダ）を指定してファイルを作成': ': Create a new file at a shared location',
     ': 共有フォルダの':                   ': Open file from shared folder',
     ': ブラウザに保存されたハンドルで即時復元': ': Instantly reopen from browser cache',
@@ -42,6 +37,13 @@
     'このシステムは':                     'Please use',
     'をご使用ください。':                 'to run this app.',
     '別のファイルを開く':                 'Open Another File',
+    '📂 フォルダ変更':                    '📂 Change Folder',
+    '📂 別のフォルダを開く':              '📂 Open Another Folder',
+    '前回のフォルダ':                     'Last Folder',
+    'データフォルダを選択':               'Select Data Folder',
+    '以降の変更はプロジェクト単位で自動保存されます。': 'Changes are auto-saved per project.',
+    '🔄 更新':                            '🔄 Refresh',
+    '読み込み中...':                      'Loading...',
 
     // サイドバー
     'すべてのプロジェクト':               'All Projects',
@@ -50,6 +52,10 @@
 
     // プロジェクト一覧
     '＋ 新規プロジェクト':               '＋ New Project',
+    '並び順: 番号':                       'Sort: Number',
+    '並び順: 名前':                       'Sort: Name',
+    '並び順: 作成日':                     'Sort: Date',
+    '並び順: 進捗率':                     'Sort: Progress',
     'プロジェクトがありません':           'No projects yet',
     '「＋ 新規プロジェクト」から始めましょう': 'Click "＋ New Project" to get started',
     'プロジェクト':                       'Project',
@@ -181,7 +187,6 @@
     '閉じる':                             'Close',
 
     // マイルストーン
-    '🏁 マイルストーン管理':              '🏁 Milestone Management',
     'マイルストーン管理':                 'Milestone Management',
     '新規マイルストーン':                 'New Milestone',
     '＋ マイルストーンを追加':            '＋ Add Milestone',
@@ -190,6 +195,17 @@
     'マイルストーンの説明...':            'Milestone description...',
     '例: v1.0リリース':                  'e.g. v1.0 Release',
     '✏️ 自分の変更':                      '✏️ My Changes',
+
+    // プラグイン管理UI
+    'プラグインを追加':                   'Add Plugin',
+    'プラグインがありません':             'No plugins installed',
+    'JSファイルをここにドロップ':         'Drop JS file here',
+    'ファイルを選択':                     'Choose File',
+    'インストール中...':                  'Installing...',
+    '💾 保存して反映':                    '💾 Save & Reload',
+    '変更後はページをリロードして反映':   'Save & reload to apply changes',
+    '⠿ ドラッグで読み込み順を変更できます。削除してもJSファイルは残ります。':
+      '⠿ Drag to reorder. Removing from list keeps the JS file.',
 
     // 競合ダイアログ
     '保存競合が検出されました':           'Save Conflict Detected',
@@ -236,15 +252,22 @@
   function translateAll() {
     if (_lang === 'ja') return;
     translateNode(document.body);
-    // welcome-info はJSで動的に書き換えられるため個別対応
+
+    // loader-subtitle: <br>区切りの複数行テキストは個別対応
+    const subtitle = document.querySelector('.loader-subtitle');
+    if (subtitle) {
+      subtitle.innerHTML =
+        'Open a folder to store your data, or<br>create a new one.<br>Changes are auto-saved per project.';
+    }
+
+    // welcome-info: 全体を英語に置換
     const wi = document.querySelector('.welcome-info');
     if (wi) {
-      wi.innerHTML = wi.innerHTML
-        .replace('をご使用ください。', 'Please use Chrome or Edge.')
-        .replace('でご使用ください。', 'Please use Chrome or Edge.')
-        .replace('File System Access API が使用できません', 'File System Access API is not supported')
-        .replace('このシステムは', 'This app requires')
-        .replace(' または ', ' or ');
+      wi.innerHTML =
+        '💡 Use <strong>Chrome / Edge</strong>.<br>' +
+        '<strong>Last Folder</strong>: Reopen instantly from browser cache<br>' +
+        '<strong>Open Another Folder</strong>: Select your shared folder<br>' +
+        '<strong>New</strong>: Create a new file at a shared location';
     }
   }
 
