@@ -2084,6 +2084,24 @@ function threeWayMerge(base, mine, disk) {
       });
     }
 
+    // Merge weeklyNotes: union by weekStart (newer updatedAt wins)
+    {
+      const mNotes = indexBy(m?.weeklyNotes || [], 'weekStart');
+      const dNotes = indexBy(d?.weeklyNotes || [], 'weekStart');
+      const allWeeks = new Set([...Object.keys(mNotes), ...Object.keys(dNotes)]);
+      const mergedNotes = [];
+      allWeeks.forEach(ws => {
+        const mn = mNotes[ws], dn = dNotes[ws];
+        if (mn && !dn) { mergedNotes.push(deepCopy(mn)); return; }
+        if (!mn && dn) { mergedNotes.push(deepCopy(dn)); return; }
+        const mDate = mn.updatedAt || mn.createdAt || '';
+        const dDate = dn.updatedAt || dn.createdAt || '';
+        mergedNotes.push(deepCopy(mDate >= dDate ? mn : dn));
+      });
+      mergedNotes.sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+      mergedP.weeklyNotes = mergedNotes;
+    }
+
     // Merge milestones: field-level merge + order
     {
       const bMsIdx = indexBy(b.milestones||[], 'id');
