@@ -1975,7 +1975,7 @@ async function manualRefresh() {
     state.data.projects.forEach(p => _dirtyProjects.add(p.id));
     _lastFetchAt = 0; // クールダウンをリセット
     const status = await fetchAndMerge('silent');
-    renderMain();
+    renderCurrentView();
     renderSidebar();
     const count = state.data.projects.length;
     toast(`更新しました（${count}件のプロジェクト）`, 'success');
