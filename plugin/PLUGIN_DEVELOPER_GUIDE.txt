@@ -1,0 +1,865 @@
+================================================================================
+  TaskFlowZero プラグイン開発者ガイド
+================================================================================
+
+目次
+  1. はじめに ― 第三者が作れますか？
+  2. プラグインの仕組み
+  3. 最初のプラグインを作る（Hello World）
+  4. 公開API リファレンス
+     4-1. データアクセス
+     4-2. UI操作
+     4-3. タスク操作
+     4-4. イベントシステム
+     4-5. UIフック
+  5. データスキーマ
+     5-1. プロジェクト
+     5-2. マイルストーン
+     5-3. タスク
+     5-4. コメント (Comment)
+     5-5. アクティビティ (Activity)
+     5-6. チェックリストアイテム
+     5-7. 週次コメント (WeeklyNote)
+  6. CSSデザイントークン
+  7. プラグインのインストール方法
+  8. 多言語対応（日本語 / 英語）
+  9. 現在の制約と回避策
+ 10. プラグイン開発チェックリスト
+ 11. サンプルコード集
+
+================================================================================
+1. はじめに ― 第三者が作れますか？
+================================================================================
+
+結論: 作れます。
+
+【現在できること ✅】
+  - サイドバーにボタンを追加する
+  - ビュータブ（リスト/カンバン等と並列）を追加する
+  - タスク詳細パネルにセクションを追加する（DOM操作）
+  - ファイルを開いたとき・タスクを開いたとき等に処理を実行する
+  - TaskFlow のデータ（プロジェクト・タスク等）を読み書きする
+  - タスクの作成・更新を API 経由で行う
+  - トースト通知を表示する
+  - 自動保存をトリガーする
+  - 外部サービスと連携する（fetch API 経由）
+  - ページ全体の DOM を操作する（翻訳プラグイン等）
+  - 言語切り替えプラグイン（plugin_lang.js）に追随して表示を切り替える
+
+【現在制約があること ⚠️】
+  - addProjectSettingTab API はあるがモーダル側描画が未実装
+    （DOM直接操作で代替可能 — 9章参照）
+  - プラグイン間の依存関係管理は手動
+
+================================================================================
+2. プラグインの仕組み
+================================================================================
+
+taskflowzero.html は起動時に以下の順序で動作します。
+
+  1. HTML/CSS/JS を読み込む
+  2. plugin/plugins.js を <script> タグで読み込む
+  3. plugins.js が PLUGINS リストを順に読み込む
+     （ファイルが存在しない場合は静かにスキップ）
+  4. ユーザーがフォルダを選択 or 「前回のフォルダを開く」を押す
+  5. フォルダ内の project_P*.json を読み込んで initApp() が実行される
+  6. initApp() 完了後に「taskflow-ready」イベントを発火
+  7. 以降はユーザー操作に応じてイベントが発火
+
+プラグインはこの流れの「3」で読み込まれ、「6」のイベントを待って
+初期化処理を実行するパターンが基本です。
+
+  ┌─────────────────────────────────────────┐
+  │  taskflowzero.html                      │
+  │  ┌───────────────┐                      │
+  │  │ window.TaskFlow│ ← 公開API           │
+  │  │ （オブジェクト）│                      │
+  │  └───────┬───────┘                      │
+  │          │ イベント発火                  │
+  │          ↓                              │
+  │  ┌───────────────┐  ┌───────────────┐   │
+  │  │ plugin_xxx.js │  │ plugin_yyy.js │   │
+  │  │ （プラグイン） │  │ （プラグイン） │   │
+  │  └───────────────┘  └───────────────┘   │
+  └─────────────────────────────────────────┘
+
+【データファイルについて】
+  TaskFlowZero はフォルダ選択方式を採用しています。
+  プロジェクトごとに独立した JSON ファイルが生成されます。
+
+  共有フォルダ/
+  ├── project_P1.json   ← プロジェクト 1 のデータ全体
+  ├── project_P2.json   ← プロジェクト 2 のデータ全体
+  └── project_P3.json
+
+  プラグインからファイルに直接アクセスする必要はありません。
+  すべてのデータは TaskFlow API 経由で読み書きしてください。
+
+================================================================================
+3. 最初のプラグインを作る（Hello World）
+================================================================================
+
+以下のコードを plugin/plugin_hello.js として保存してください。
+
+--------------------------------------------------------------------------------
+// plugin/plugin_hello.js
+
+(function () {
+  'use strict';
+
+  function init() {
+    // サイドバーにボタンを追加
+    TaskFlow.addSidebarItem({
+      id:    'hello',
+      label: '👋 Hello',
+      onclick: function () {
+        var project = TaskFlow.getCurrentProject();
+        if (project) {
+          TaskFlow.toast('現在のプロジェクト: ' + project.name, 'success');
+        } else {
+          TaskFlow.toast('プロジェクトを選択してください');
+        }
+      }
+    });
+
+    // タスクを開いたときに処理を実行
+    TaskFlow.on('task-open', function (data) {
+      console.log('タスクが開かれました:', data.task.title);
+    });
+  }
+
+  // taskflow-ready イベントを待って初期化
+  document.addEventListener('taskflow-ready', init);
+
+})();
+--------------------------------------------------------------------------------
+
+保存したらプラグイン管理UI（🔌 ボタン）からインストールします（7章参照）。
+
+================================================================================
+4. 公開API リファレンス
+================================================================================
+
+すべての API は window.TaskFlow オブジェクトから利用できます。
+
+────────────────────────────────────────
+4-1. データアクセス
+────────────────────────────────────────
+
+TaskFlow.getState()
+  戻り値: state オブジェクト
+  説明: アプリの現在の状態全体を返します。
+        state.data にすべてのプロジェクト・タスクデータが含まれます。
+        state.currentProjectId で現在選択中のプロジェクトIDが分かります。
+        state.currentView で現在のビュー名が分かります。
+
+TaskFlow.getData()
+  戻り値: { version, projects: Project[], nextProjectNum }
+  説明: 現在メモリに読み込まれているデータを返します。
+
+TaskFlow.getCurrentProject()
+  戻り値: Project | null
+  説明: 現在表示中のプロジェクトを返します。
+        プロジェクト一覧表示中は null を返します。
+
+TaskFlow.getProject(id)
+  引数: id (string) - プロジェクトID
+  戻り値: Project | undefined
+
+TaskFlow.getProjects()
+  戻り値: Project[]
+  説明: すべてのプロジェクト（アーカイブ含む）を返します。
+
+TaskFlow.getTask(projectId, taskId)
+  引数: projectId (string), taskId (string)
+  戻り値: Task | undefined
+
+TaskFlow.getTasks(projectId)
+  引数: projectId (string)
+  戻り値: Task[]
+
+TaskFlow.getCurrentView()
+  戻り値: string - 'list'|'kanban'|'gantt'|'burndown'|'wiki'|カスタムID
+  説明: 現在のビュー名を返します。
+
+────────────────────────────────────────
+4-2. UI操作
+────────────────────────────────────────
+
+TaskFlow.toast(message, type)
+  引数: message (string)
+        type (string, 省略可) - '' | 'success' | 'error'
+  説明: 画面下部にトースト通知を表示します（2.8秒で自動消去）。
+
+TaskFlow.autoSave(pid)
+  引数: pid (string) - 変更したプロジェクトのID（必須）
+  説明: 指定プロジェクトを dirty マークし、1.2秒後に自動保存をスケジュール
+        します。データを変更したあとに必ず呼んでください。
+        pid を省略すると変更がdirtyマークされず保存されません。
+
+  例）
+    var p = TaskFlow.getCurrentProject();
+    // データ変更後
+    TaskFlow.autoSave(p.id);   // ← pid を必ず渡す
+
+TaskFlow.renderCurrentView()
+  説明: 現在のビューを再描画します。
+
+TaskFlow.renderSidebar()
+  説明: サイドバーを再描画します。
+
+TaskFlow.openTaskPanel(taskId)
+  引数: taskId (string)
+  説明: 指定したタスクの詳細パネルを開きます。
+
+TaskFlow.switchView(view)
+  引数: view (string) - 'list'|'kanban'|'gantt'|'burndown'|'wiki'|カスタムID
+  説明: 指定したビューに切り替えます。
+
+────────────────────────────────────────
+4-3. タスク操作
+────────────────────────────────────────
+
+TaskFlow.createTask(projectId, fields)
+  引数: projectId (string)
+        fields (object) - Task フィールドの一部（5-3章参照）
+  戻り値: Task | null
+  説明: タスクを作成してプロジェクトに追加します。
+        id / number / createdAt は自動設定されます。
+        autoSave() / renderCurrentView() は呼び出し元で実行してください。
+
+  例）
+    var p = TaskFlow.getCurrentProject();
+    var task = TaskFlow.createTask(p.id, {
+      title:       '自動生成タスク',
+      status:      'todo',
+      assignee:    '田中',
+      dueDate:     '2026-06-30',
+      storyPoints: 3,
+    });
+    TaskFlow.autoSave(p.id);   // ← pid を渡す
+    TaskFlow.renderCurrentView();
+
+TaskFlow.updateTask(projectId, taskId, changes)
+  引数: projectId (string), taskId (string)
+        changes (object) - 変更するフィールドのみ指定
+  戻り値: Task | null
+  説明: タスクのフィールドを更新します。
+        status='done' を指定すると completedAt が自動セットされます。
+        autoSave() / renderCurrentView() は呼び出し元で実行してください。
+
+  例）
+    var p = TaskFlow.getCurrentProject();
+    TaskFlow.updateTask(p.id, task.id, { status: 'inprogress', assignee: '鈴木' });
+    TaskFlow.autoSave(p.id);   // ← pid を渡す
+    TaskFlow.renderCurrentView();
+
+────────────────────────────────────────
+4-4. イベントシステム
+────────────────────────────────────────
+
+TaskFlow.on(eventName, callback)
+  引数: eventName (string), callback (function)
+  説明: イベントを購読します。複数登録可能。
+
+TaskFlow.off(eventName, callback)
+  引数: eventName (string), callback (function)
+  説明: イベント購読を解除します。登録時と同じ関数参照を渡してください。
+
+TaskFlow.emit(eventName, data)
+  説明: プラグイン間でイベントを送ります。
+        イベント名は 'plugin-' プレフィックスを推奨します。
+
+【現在発火するイベント一覧】
+
+  'ready'
+    発火タイミング: ファイルを開いて initApp() が完了したとき
+    データ: {}
+    ※ document.addEventListener('taskflow-ready', fn) でも同等に使えます。
+
+  'task-open'
+    発火タイミング: タスク詳細パネルが開かれたとき
+    データ: { task: Task, project: Project }
+
+  'task-create'
+    発火タイミング: タスク追加モーダルで保存されたとき
+    データ: { task: Task, project: Project }
+
+  'task-save'
+    発火タイミング: タスク詳細パネルで「保存」ボタンが押されたとき
+    データ: { task: Task, project: Project }
+
+  'task-delete'
+    発火タイミング: タスクが削除されたとき
+    データ: { task: Task, project: Project }
+
+  'task-panel-close'
+    発火タイミング: タスク詳細パネルが閉じられたとき
+    データ: {}
+
+  'view-change'
+    発火タイミング: ビュータブが切り替えられたとき
+    データ: { view: string }
+
+  'project-create'
+    発火タイミング: 新規プロジェクトが作成されたとき
+    データ: { project: Project }
+
+  'project-update'
+    発火タイミング: プロジェクト設定が更新されたとき
+    データ: { project: Project }
+
+  'project-delete'
+    発火タイミング: プロジェクトが削除されたとき
+    データ: { project: Project }
+
+  'project-archive'
+    発火タイミング: プロジェクトがアーカイブ/復元されたとき
+    データ: { project: Project, archived: boolean }
+
+  'milestone-save'
+    発火タイミング: マイルストーンが作成/更新されたとき
+    データ: { milestone: Milestone, project: Project }
+
+  'milestone-delete'
+    発火タイミング: マイルストーンが削除されたとき
+    データ: { milestone: Milestone, project: Project }
+
+  'file-save'
+    発火タイミング: 手動保存が正常完了したとき（競合解決・マージ含む）
+    データ: {}
+
+────────────────────────────────────────
+4-5. UIフック
+────────────────────────────────────────
+
+TaskFlow.addSidebarItem(def)
+  引数: def オブジェクト
+    id      (string, 必須) - ユニークなID
+    label   (string, 必須) - ボタンのテキスト（絵文字使用可）
+    onclick (function, 必須) - クリック時のコールバック
+  説明: サイドバー下部にボタンを追加します。
+
+  例）
+    TaskFlow.addSidebarItem({
+      id:      'myplugin-sync',
+      label:   '🔄 同期',
+      onclick: function() { /* 処理 */ }
+    });
+
+TaskFlow.updateSidebarItem(id, label)
+  引数: id (string), label (string)
+  説明: サイドバーアイテムのラベルを動的に更新します。
+        期限切れバッジ等、カウントを表示したい場合に使います。
+
+TaskFlow.addViewTab(def)
+  引数: def オブジェクト
+    id     (string, 必須) - ユニークなID（既存ビュー名と衝突しないこと）
+    label  (string, 必須) - タブに表示するテキスト（絵文字使用可）
+    render (function, 必須) - render(project, container) → string | void
+  説明: リスト/カンバン等と並列にカスタムビュータブを追加します。
+        タブ切り替え時・プロジェクト切り替え時に render() が呼ばれます。
+        render() は HTML文字列を return するか、container を直接操作します。
+        カスタムビュー表示中はフィルターバーが非表示になります。
+        ビューエリアは flex:1 / overflow-y:auto で自動スクロールします。
+
+  例）
+    TaskFlow.addViewTab({
+      id:    'my-report',
+      label: '📋 レポート',
+      render: function(project, container) {
+        if (!project) return '<div>プロジェクトを選択してください</div>';
+        return '<div style="padding:24px"><h2>' + project.name + '</h2></div>';
+      }
+    });
+
+TaskFlow.addProjectSettingTab(def)
+  引数: def オブジェクト
+    id       (string, 必須)
+    label    (string, 必須)
+    renderFn (function) - renderFn(project) → HTML文字列
+    onSave   (function, 省略可) - onSave(project) → void
+  説明: プロジェクト設定モーダルにタブを追加します。
+        onSave はプロジェクト保存時に呼ばれます。
+  ※ モーダルのタブUI描画は未実装です。タブボタンはDOM操作で追加してください。
+
+================================================================================
+5. データスキーマ
+================================================================================
+
+すべての日付は 'YYYY-MM-DD' 形式の文字列です。
+タイムスタンプは ISO 8601 形式（例: "2026-03-14T10:23:45.000Z"）です。
+
+────────────────────────────────────────
+5-1. プロジェクト (Project)
+────────────────────────────────────────
+
+  {
+    id:            string,       // UID（自動生成）例: "lf3k2abc1"
+    number:        number,       // プロジェクト番号 例: 1 → "P1"
+    name:          string,       // プロジェクト名
+    description:   string,       // 説明
+    startDate:     string,       // 開始日 'YYYY-MM-DD' | ''
+    endDate:       string,       // 終了日 'YYYY-MM-DD' | ''
+    members:       string[],     // メンバー名の配列 例: ["田中", "鈴木"]
+    color:         string,       // カラーコード 例: "#4f8eff"
+    archived:      boolean,      // アーカイブ済みか
+    nextTaskNum:   number,       // 次のタスク番号（自動インクリメント）
+    tasks:         Task[],       // タスク配列
+    milestones:    Milestone[],  // マイルストーン配列
+    wiki:          string,       // Wiki本文（Markdown）
+    weeklyNotes:   WeeklyNote[], // 週次コメント履歴（5-7章参照）
+  }
+
+  ※ プロジェクトは project_P{number}.json として個別ファイルに保存されます。
+
+────────────────────────────────────────
+5-2. マイルストーン (Milestone)
+────────────────────────────────────────
+
+  {
+    id:          string,  // UID
+    name:        string,  // 名前
+    description: string,  // 説明
+    startDate:   string,  // 開始日 'YYYY-MM-DD' | ''
+    endDate:     string,  // 終了日 'YYYY-MM-DD' | ''
+    color:       string,  // カラーコード
+  }
+
+────────────────────────────────────────
+5-3. タスク (Task)
+────────────────────────────────────────
+
+  {
+    id:          string,        // UID
+    number:      number,        // タスク番号（プロジェクト内で一意）
+    title:       string,        // タイトル
+    description: string,        // 詳細（Markdown）
+    status:      string,        // 'todo' | 'inprogress' | 'review' | 'done'
+    assignee:    string,        // 担当者名 | ''
+    startDate:   string,        // 開始日 'YYYY-MM-DD' | ''
+    dueDate:     string,        // 期限 'YYYY-MM-DD' | ''
+    completedAt: string|null,   // 完了日 'YYYY-MM-DD' | null
+    storyPoints: number,        // ストーリーポイント（0=未設定）
+    milestoneId: string|null,   // マイルストーンID | null
+    labels:      string[],      // ラベル名の配列
+    createdAt:   string,        // 作成日 'YYYY-MM-DD'
+    checklist:   ChecklistItem[], // チェックリスト（5-6章参照）
+    comments:    Comment[],     // コメント一覧（5-4章参照）
+    activity:    Activity[],    // アクティビティログ（5-5章参照）
+  }
+
+  【status の値と表示名】
+    'todo'       → To Do（未着手）
+    'inprogress' → 進行中
+    'review'     → レビュー
+    'done'       → 完了
+
+────────────────────────────────────────
+5-4. コメント (Comment)
+────────────────────────────────────────
+
+  task.comments に格納されます。ユーザーが入力した投稿コメントです。
+
+  {
+    id:        string,  // UID
+    author:    string,  // 投稿者名
+    text:      string,  // 本文（Markdown対応）
+    createdAt: string,  // ISO 8601形式 例: "2026-03-14T10:23:45.000Z"
+  }
+
+────────────────────────────────────────
+5-5. アクティビティ (Activity)
+────────────────────────────────────────
+
+  task.activity に格納されます。ステータス変更・担当者変更等の自動ログです。
+
+  {
+    type: string,  // 'status' | 'assignee' | 'due' | 'desc' | 'checklist'
+    icon: string,  // 表示用絵文字 例: '🔄'
+    text: string,  // 説明文（HTMLタグを含む場合あり）
+    at:   string,  // ISO 8601形式 タイムスタンプ
+  }
+
+  ※ コメントとアクティビティは task.comments と task.activity の別配列です。
+     タスク詳細パネルでは両者を時刻順に合わせて表示しています。
+
+────────────────────────────────────────
+5-6. チェックリストアイテム (ChecklistItem)
+────────────────────────────────────────
+
+  {
+    id:   string,   // UID
+    text: string,   // テキスト
+    done: boolean,  // 完了フラグ
+  }
+
+────────────────────────────────────────
+5-7. 週次コメント (WeeklyNote)
+────────────────────────────────────────
+
+  project.weeklyNotes に格納されます。サマリープラグインで使用します。
+  weekStart をキーに週ごとに1件保持され、最大52件（約1年分）保存されます。
+
+  {
+    weekStart: string,  // 週の開始日（月曜）'YYYY-MM-DD'
+    text:      string,  // コメント本文（プレーンテキスト）
+    createdAt: string,  // 初回保存日 'YYYY-MM-DD'
+    updatedAt: string,  // 最終更新日 'YYYY-MM-DD'
+  }
+
+  ※ 同一週を複数人が同時編集した場合は updatedAt が新しい方を採用します。
+
+================================================================================
+6. CSSデザイントークン
+================================================================================
+
+TaskFlow のデザイントークン（CSS変数）をプラグインのUIに使うと、
+ライト/ダークテーマに自動で追従します。
+
+  --bg          背景色（最底面）
+  --surface     カード・パネルの背景
+  --surface2    少し明るい背景（ボタン等）
+  --surface3    さらに明るい背景（ホバー等）
+  --border      通常の境界線
+  --border2     少し強い境界線
+  --text        主要テキスト
+  --muted       補助テキスト（薄い）
+  --accent      アクセントカラー（青）
+  --accent2     アクセントカラー2（明るい青）
+  --red         エラー・削除系
+  --yellow      警告系
+  --green       成功系
+  --orange      オレンジ系（期限警告等）
+  --purple      紫系
+  --radius      角丸の基本値
+  --shadow      ボックスシャドウ
+
+【ライトモードでの注意】
+  --surface2 はライトモードで --bg とほぼ同色になります。
+  カードやパネルに背景色として使う場合は必ず
+  border:1px solid var(--border) を合わせて指定してください。
+
+  例）
+    '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px">'
+
+【既存CSSクラスの再利用】
+
+  btn btn-primary    青いボタン
+  btn btn-secondary  グレーのボタン
+  btn btn-danger     赤いボタン
+  btn btn-sm         小さいボタン
+  form-input         入力フィールド
+  form-select        セレクトボックス
+  form-textarea      テキストエリア
+  section-title      セクションタイトル（横線付き）
+  icon-btn           小さいアイコンボタン
+  modal-overlay      モーダル背景オーバーレイ
+  modal              モーダルコンテンツ枠
+
+================================================================================
+7. プラグインのインストール方法
+================================================================================
+
+【推奨: プラグイン管理UI（🔌 ボタン）を使う】
+
+  taskflowzero.html のヘッダー右端にある 🔌 ボタンを押すと
+  プラグイン管理モーダルが開きます。
+
+  初回のみ: plugin/ フォルダの選択ダイアログが表示されます。
+    → plugin/ フォルダ（プラグインJSを置くフォルダ）を選択してください。
+    → データフォルダ（project_P*.json があるフォルダ）とは別でも構いません。
+    → 以降は自動認識されます（IndexedDB に記憶）。
+
+  インストール:
+    JSファイルをドロップゾーンにドラッグ、またはファイル選択ボタンから選択。
+    → plugin/ フォルダにファイルがコピーされ、リストに自動追加されます。
+
+  順序変更:
+    ⠿ マークをドラッグして読み込み順を変更できます。
+
+  削除:
+    🗑 ボタンでリストから除外できます（JSファイルは残ります）。
+
+  反映:
+    変更後は「💾 保存して反映」ボタンを押し、ページをリロードしてください。
+
+【手動: plugin/plugins.js を直接編集する】
+
+  plugin/plugins.js の PLUGINS 配列にファイル名を追加します。
+
+  📁 plugin/
+  ├── plugins.js          ← このファイルを編集
+  ├── plugin_lang.js
+  └── plugin_hello.js     ← 追加したファイル
+
+  const PLUGINS = [
+    'plugin_lang.js',
+    'plugin_hello.js',   // ← 追記するだけ
+  ];
+
+  注意事項:
+  - 配列の順番がロード順（= 依存関係の順番）になります
+  - ファイルが存在しない場合はコンソール警告のみ、エラーにはなりません
+  - 無効化したい場合は行を削除するか // でコメントアウトしてください
+
+================================================================================
+8. 多言語対応（日本語 / 英語）
+================================================================================
+
+plugin_lang.js と連携して日本語/英語を切り替えるパターンです。
+
+【重要: plugin_lang.js の言語切り替えはページリロード方式です】
+  言語を切り替えると location.reload() が実行されます。
+  そのため「lang-changed イベントを購読する」方式は不要です。
+  起動時に localStorage から現在の言語を読み取るだけで十分です。
+
+【キー名】
+  localStorage.getItem('taskflow_lang')  → 'ja' | 'en' | null（nullは日本語）
+
+【実装パターン】
+
+  (function() {
+    'use strict';
+
+    var DICT = {
+      ja: {
+        sidebarLabel: '📋 レポート',
+        noProject:    'プロジェクトを選択してください',
+      },
+      en: {
+        sidebarLabel: '📋 Report',
+        noProject:    'Please select a project',
+      },
+    };
+
+    // 起動時に言語を読み込む（リロード前提なのでこれだけでOK）
+    var _lang = localStorage.getItem('taskflow_lang') || 'ja';
+    function t() { return DICT[_lang] || DICT.ja; }
+
+    document.addEventListener('taskflow-ready', function() {
+      TaskFlow.addSidebarItem({
+        id:      'my-report',
+        label:   t().sidebarLabel,
+        onclick: function() { /* ... */ }
+      });
+    });
+  })();
+
+================================================================================
+9. 現在の制約と回避策
+================================================================================
+
+────────────────────────────────────────
+制約1: addProjectSettingTab のタブUIが未実装
+────────────────────────────────────────
+
+onSave コールバックは機能しますが、モーダル内のタブボタンUIは自動生成されません。
+
+【回避策: MutationObserver でモーダル表示を検知してDOMを操作する】
+
+  var modalObserver = new MutationObserver(function() {
+    var modal = document.getElementById('project-modal');
+    if (!modal || !modal.classList.contains('show')) return;
+    if (document.getElementById('my-plugin-section')) return; // 重複防止
+
+    var footer = modal.querySelector('.modal-footer');
+    if (footer) {
+      var section = document.createElement('div');
+      section.id = 'my-plugin-section';
+      section.innerHTML =
+        '<label class="form-label">カスタム設定</label>' +
+        '<input class="form-input" id="my-input">';
+      modal.querySelector('.modal').insertBefore(section, footer);
+    }
+  });
+  modalObserver.observe(document.body, { childList: true, subtree: true });
+
+────────────────────────────────────────
+制約2: プラグインファイルの完全自動検出は未対応
+────────────────────────────────────────
+
+plugin/plugins.js への登録は必要です（プラグイン管理UIまたは手動）。
+File System Access API の制約上、フォルダ内ファイルの自動全件スキャンは
+ブラウザセキュリティモデルにより実現していません。
+
+────────────────────────────────────────
+制約3: プラグイン間の依存関係管理は手動
+────────────────────────────────────────
+
+plugin_lang.js に依存するプラグインは、plugins.js の PLUGINS 配列で
+plugin_lang.js よりも後に記載してください。
+
+  const PLUGINS = [
+    'plugin_lang.js',       // 先に読み込む
+    'plugin_my_plugin.js',  // plugin_lang.js に依存するプラグイン
+  ];
+
+================================================================================
+10. プラグイン開発チェックリスト
+================================================================================
+
+配布・公開前に以下を確認してください。
+
+  □ 即時実行関数（IIFE）で変数スコープを閉じている
+    （window.* を汚染しないこと）
+
+  □ 'taskflow-ready' イベント後に初期化している
+    （TaskFlow API が確実に使える状態になってから動作させる）
+
+  □ エラーが発生してもTaskFlow本体の動作を妨げていない
+    （try-catch で適切に囲んでいる）
+
+  □ グローバルに公開が必要な関数は名前衝突を避けた命名にしている
+    例）mypluginXxx のような prefix つき命名
+
+  □ localStorage のキーは 'taskflow_plugin_xxx_' プレフィックスにしている
+    例）'taskflow_plugin_myplugin_config'
+
+  □ ライト/ダークテーマに追従している
+    （CSSカラーは var(--text) 等のデザイントークンを使用）
+    （カード背景に var(--surface2) を使う場合は border も必ず指定）
+
+  □ autoSave() に pid（プロジェクトID）を渡している
+    （省略するとデータが保存されません）
+
+  □ 多言語対応している場合、'taskflow_lang' キーで言語を取得している
+
+  □ ファイルを置かない状態でTaskFlowが正常に動作することを確認している
+
+  □ README（日本語）を同梱している
+
+================================================================================
+11. サンプルコード集
+================================================================================
+
+────────────────────────────────────────
+サンプル A: サイドバーボタンでトースト表示
+────────────────────────────────────────
+
+(function () {
+  'use strict';
+
+  document.addEventListener('taskflow-ready', function () {
+    TaskFlow.addSidebarItem({
+      id:      'hello',
+      label:   '👋 Hello',
+      onclick: function() {
+        var p = TaskFlow.getCurrentProject();
+        TaskFlow.toast(p ? p.name + ' を表示中' : 'プロジェクトを選択してください');
+      }
+    });
+  });
+})();
+
+────────────────────────────────────────
+サンプル B: カスタムビュータブを追加する
+────────────────────────────────────────
+
+(function () {
+  'use strict';
+
+  var _lang = localStorage.getItem('taskflow_lang') || 'ja';
+
+  document.addEventListener('taskflow-ready', function () {
+    TaskFlow.addViewTab({
+      id:    'my-view',
+      label: _lang === 'en' ? '📋 My View' : '📋 マイビュー',
+
+      render: function(project, container) {
+        if (!project) {
+          return '<div style="padding:24px;color:var(--muted)">プロジェクトを選択してください</div>';
+        }
+        var total = project.tasks.length;
+        var done  = project.tasks.filter(function(t){ return t.status === 'done'; }).length;
+        return '<div style="padding:28px">' +
+          '<h2 style="margin-bottom:16px">' + project.name + '</h2>' +
+          '<p>タスク: ' + total + '件 / 完了: ' + done + '件</p>' +
+        '</div>';
+      }
+    });
+  });
+})();
+
+────────────────────────────────────────
+サンプル C: API経由でタスクを自動作成する
+────────────────────────────────────────
+
+(function () {
+  'use strict';
+
+  document.addEventListener('taskflow-ready', function () {
+    TaskFlow.addSidebarItem({
+      id:      'auto-task',
+      label:   '⚡ タスク自動作成',
+      onclick: function() {
+        var p = TaskFlow.getCurrentProject();
+        if (!p) { TaskFlow.toast('プロジェクトを選択してください', 'error'); return; }
+
+        var task = TaskFlow.createTask(p.id, {
+          title:       '自動生成: ' + new Date().toLocaleString(),
+          status:      'todo',
+          storyPoints: 1,
+        });
+        if (task) {
+          TaskFlow.autoSave(p.id);   // ← pid を渡す
+          TaskFlow.renderCurrentView();
+          TaskFlow.toast('#' + task.number + ' を作成しました', 'success');
+        }
+      }
+    });
+  });
+})();
+
+────────────────────────────────────────
+サンプル D: タスクパネルに外部リンクセクションを追加
+────────────────────────────────────────
+
+(function () {
+  'use strict';
+
+  // タスクの description に [JIRA:PROJ-123] 形式で記述すると
+  // タスクパネルに JIRA リンクを表示する
+
+  var JIRA_BASE = 'https://your-company.atlassian.net/browse/';
+  var RE = /\[JIRA:([A-Z]+-\d+)\]/g;
+
+  function injectLinks(task) {
+    var existing = document.getElementById('plugin-jira-section');
+    if (existing) existing.remove();
+
+    var matches = Array.from((task.description || '').matchAll(RE));
+    if (!matches.length) return;
+
+    var links = matches.map(function(m) {
+      return '<a href="' + JIRA_BASE + m[1] + '" target="_blank"' +
+        ' style="display:inline-flex;align-items:center;gap:4px;' +
+        'background:var(--surface2);border:1px solid var(--border);' +
+        'border-radius:4px;padding:4px 10px;font-size:12px;' +
+        'color:var(--accent2);text-decoration:none">' + m[1] + '</a>';
+    }).join('');
+
+    var section = document.createElement('div');
+    section.id = 'plugin-jira-section';
+    section.style.marginBottom = '20px';
+    section.innerHTML =
+      '<div class="section-title">🔗 JIRAリンク' +
+      '<div class="section-title-line"></div></div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + links + '</div>';
+
+    var panelContent = document.querySelector('#task-panel .panel-content');
+    var deleteBtn = panelContent && panelContent.lastElementChild;
+    if (deleteBtn) panelContent.insertBefore(section, deleteBtn);
+  }
+
+  document.addEventListener('taskflow-ready', function () {
+    TaskFlow.on('task-open', function(data) {
+      setTimeout(function() { injectLinks(data.task); }, 120);
+    });
+  });
+})();
+
+================================================================================
+  TaskFlowZero Plugin Developer Guide
+  ご不明な点は taskflowzero.html の実装コードもあわせてご参照ください
+================================================================================
