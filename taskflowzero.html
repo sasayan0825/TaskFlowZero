@@ -1672,6 +1672,11 @@ async function _handleConflictFiles(conflictEntries) {
       const canonicalIdx = state.data.projects.findIndex(p => p.id === pid);
 
       if (canonicalIdx === -1) {
+        // 削除済みプロジェクトの競合コピーは無視して削除
+        if (conflictProject.deleted) {
+          try { await state.rootDirHandle.removeEntry(entry.name); } catch(e) {}
+          continue;
+        }
         // 正規ファイル側に存在しない → そのまま追加
         _migrateProjectFields([conflictProject]);
         state.data.projects.push(conflictProject);
@@ -1734,7 +1739,7 @@ async function _loadSplitFormat(entries) {
     } catch(e) { console.warn('project file read error:', entry.name, e); return null; }
   }));
 
-  state.data.projects = projects.filter(Boolean);
+  state.data.projects = projects.filter(p => p && !p.deleted);
   _migrateProjectFields(state.data.projects);
 
   // nextProjectNum を projects から再計算
@@ -1783,6 +1788,7 @@ function _migrateProjectFields(projects) {
     if (!p.milestones) p.milestones = [];
     if (!p.wiki) p.wiki = '';
     if (p.archived === undefined) p.archived = false;
+    if (p.deleted === undefined) p.deleted = false;
     if (!p.number) p.number = 0;
     p.tasks = p.tasks || [];
     p.tasks.forEach(t => {
@@ -1816,8 +1822,7 @@ async function writeProjectFile(pid) {
 async function deleteProjectFile(pid) {
   if (!state.rootDirHandle) return;
   try {
-    const fh = await state.rootDirHandle.getFileHandle(_projectFileName(pid));
-    await fh.remove();
+    await state.rootDirHandle.removeEntry(_projectFileName(pid));
   } catch(e) { console.warn('deleteProjectFile:', pid, e); }
 }
 
@@ -2055,10 +2060,13 @@ function threeWayMerge(base, mine, disk) {
     const m = mineProjects[pid];
     const d = diskProjects[pid];
 
-    // Project deleted by mine
-    if (b && !m && d) { /* skip — mine deleted it */ return; }
+    // Project deleted by mine (存在しない or deleted フラグ)
+    if (b && (!m || m.deleted) && d) return;
     // Project deleted by disk
-    if (b && m && !d) { /* skip — disk deleted it */ return; }
+    if (b && m && (!d || d.deleted)) return;
+    // 新規追加プロジェクトが deleted フラグ付き → スキップ
+    if (!b && m && m.deleted) return;
+    if (!b && d && d.deleted) return;
     // Project added by mine only
     if (!b && m && !d) { mergedProjects.push(deepCopy(m)); autoMerged++; return; }
     // Project added by disk only
@@ -3969,14 +3977,17 @@ function saveProject() {
   window.TaskFlow.emit(_isNewP ? 'project-create' : 'project-update', { project: _savedP });
 }
 
-function deleteProject(id) {
+async function deleteProject(id) {
   const p=getProject(id);
   if(!confirm(`「${p.name}」を削除しますか？`))return;
+  // deleted フラグをセットしてファイルに書き込む（他ユーザーへの通知）
+  p.deleted = true;
+  await writeProjectFile(id);
+  // メモリ・スナップショット・dirty から除去
   state.data.projects=state.data.projects.filter(x=>x.id!==id);
   _dirtyProjects.delete(id);
   delete _baseSnapshots[id];
-  deleteProjectFile(id); // ファイルを削除（非同期・エラーは無視）
-  autoSave(); renderSidebar();
+  renderSidebar();
   if(state.currentProjectId===id){state.currentProjectId=null;showProjectsList();}
   else renderProjectsList();
   toast('プロジェクトを削除しました');
