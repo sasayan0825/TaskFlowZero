@@ -604,7 +604,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   <div style="flex:1"></div>
   <button id="theme-toggle" onclick="toggleTheme()">🌙 ダーク</button>
   <button class="btn btn-secondary btn-sm" onclick="saveFile(true)">💾 保存</button>
-  <button class="btn btn-secondary btn-sm" onclick="openFile()">📂 ファイル変更</button>
+  <button class="btn btn-secondary btn-sm" onclick="openFile()">📂 フォルダ変更</button>
   <button id="plugin-btn" onclick="openPluginModal()" title="プラグイン管理">🔌</button>
 </div>
 
@@ -1137,9 +1137,8 @@ const DAY_W = 24; // px per day in gantt
 // STATE
 // ═══════════════════════════════════════
 let state = {
-  fileHandle: null,      // taskflow_data.json ハンドル（マスターファイル）
-  rootDirHandle: null,   // 選択したルートフォルダハンドル
-  dataDirHandle: null,   // taskflow_data/ サブフォルダハンドル
+  fileHandle: null,      // 互換用（未使用）
+  rootDirHandle: null,   // 選択したフォルダハンドル（project_P*.json を直接配置）
   data: {version:3, format:'split', projects:[], nextProjectNum:1},
   currentProjectId: null,
   currentView: 'list',
@@ -1148,7 +1147,6 @@ let state = {
 // let _baseSnapshot = null; // v2削除: _baseSnapshots (Map形式) を使用
 let _baseSnapshots  = {};   // { pid: projectSnapshot } プロジェクト単位スナップショット
 let _dirtyProjects  = new Set(); // 変更済みプロジェクトID
-let _masterDirty    = false;     // マスターファイル要書き込みフラグ
 // fetchAndMerge の最終実行時刻（クールダウン管理用）
 let _lastFetchAt = 0;
 const _FETCH_COOLDOWN_MS = 30000; // 30秒以内の再実行はスキップ
@@ -1612,14 +1610,9 @@ async function createNewFile() {
   try {
     const dir = await window.showDirectoryPicker({ mode: 'readwrite' });
     state.rootDirHandle = dir;
-    state.dataDirHandle = await dir.getDirectoryHandle('taskflow_data', { create: true });
     state.data = { version: 3, format: 'split', projects: [], nextProjectNum: 1 };
-    await writeMasterFile();
     _baseSnapshots  = {};
     _dirtyProjects  = new Set();
-    _masterDirty    = false;
-    // マスターファイルハンドルをセット（既存の if(!state.fileHandle) チェックのため）
-    state.fileHandle = await dir.getFileHandle('taskflow_data.json', { create: true });
     await saveHandleToIDB(dir);
     initApp();
     toast('新規ファイルを作成しました', 'success');
@@ -1630,51 +1623,109 @@ async function createNewFile() {
 async function _loadFromRootDir(rootDir) {
   state.rootDirHandle = rootDir;
 
-  // taskflow_data.json を開く（なければ作成）
-  const masterFH = await rootDir.getFileHandle('taskflow_data.json', { create: true });
-  state.fileHandle = masterFH; // 既存コードの if(!state.fileHandle) チェック用
-
-  let masterText = '';
-  try { masterText = await (await masterFH.getFile()).text(); } catch(e) {}
-
-  // taskflow_data/ サブフォルダを開く（なければ作成）
-  state.dataDirHandle = await rootDir.getDirectoryHandle('taskflow_data', { create: true });
-
-  let isSplitFormat = false;
-  if (masterText) {
-    const parsed = JSON.parse(masterText);
-    isSplitFormat = parsed.format === 'split';
+  // フォルダ内ファイルを正規ファイルと競合コピーに分類
+  // 正規: project_P1.json  競合コピー: project_P1 (xxx conflicted copy).json など
+  const entries = [];
+  const conflictEntries = [];
+  for await (const entry of rootDir.values()) {
+    if (entry.kind !== 'file') continue;
+    if (/^project_P\d+\.json$/.test(entry.name)) {
+      entries.push(entry);
+    } else if (/^project_P\d+.+\.json$/i.test(entry.name)) {
+      conflictEntries.push(entry);
+    }
   }
 
-  if (isSplitFormat) {
-    // ── 分割形式: project_*.json を全件読み込み ──
-    await _loadSplitFormat(masterText);
+  if (entries.length > 0) {
+    await _loadSplitFormat(entries);
+    // 競合コピーが存在する場合はマージ処理
+    if (conflictEntries.length > 0) {
+      await _handleConflictFiles(conflictEntries);
+    }
   } else {
-    // ── 旧形式: projects 配列がある JSON ──
-    await _loadLegacyFormat(masterText, masterFH);
+    // 旧形式: taskflow_data.json を探す
+    let legacyText = '';
+    try {
+      const fh = await rootDir.getFileHandle('taskflow_data.json');
+      legacyText = await (await fh.getFile()).text();
+    } catch(e) {}
+    await _loadLegacyFormat(legacyText);
   }
 
   await saveHandleToIDB(rootDir);
   initApp();
 }
 
-// 分割形式の読み込み
-async function _loadSplitFormat(masterText) {
-  const master = masterText ? JSON.parse(masterText) : {};
-  state.data = {
-    version:        master.version        || 3,
-    format:         'split',
-    nextProjectNum: master.nextProjectNum || 1,
-    projects: [],
-  };
+// OneDrive競合コピーのマージ処理
+// base=正規ファイル, mine=正規ファイル, disk=競合コピー → 競合コピーの差分を自動適用
+async function _handleConflictFiles(conflictEntries) {
+  let autoCount = 0, conflictCount = 0;
 
-  // project_*.json を全件読み込み（並列）
-  const entries = [];
-  for await (const entry of state.dataDirHandle.values()) {
-    if (entry.kind === 'file' && /^project_P\d+\.json$/.test(entry.name)) {
-      entries.push(entry);
+  for (const entry of conflictEntries) {
+    try {
+      const text = await (await entry.getFile()).text();
+      const conflictProject = JSON.parse(text);
+      if (!conflictProject || !conflictProject.id) continue;
+      const pid = conflictProject.id;
+
+      const canonicalIdx = state.data.projects.findIndex(p => p.id === pid);
+
+      if (canonicalIdx === -1) {
+        // 正規ファイル側に存在しない → そのまま追加
+        _migrateProjectFields([conflictProject]);
+        state.data.projects.push(conflictProject);
+        _baseSnapshots[pid] = deepCopy(conflictProject);
+        _dirtyProjects.add(pid);
+        try { await state.rootDirHandle.removeEntry(entry.name); } catch(e) {}
+        autoCount++;
+        continue;
+      }
+
+      const canonical = state.data.projects[canonicalIdx];
+
+      // threeWayMerge: base=正規, mine=正規, disk=競合コピー
+      // → 競合コピーだけが変更したフィールドを自動適用、両者が異なる場合はconflict
+      const wrap = p => ({ version: 3, format: 'split', projects: [deepCopy(p)], nextProjectNum: 1 });
+      const result = threeWayMerge(wrap(canonical), wrap(canonical), wrap(conflictProject));
+      const mergedProject = result.merged.projects[0];
+
+      if (result.conflicts.length === 0) {
+        // 自動マージ成功
+        state.data.projects[canonicalIdx] = mergedProject;
+        _baseSnapshots[pid] = deepCopy(mergedProject);
+        _dirtyProjects.add(pid);
+        try { await state.rootDirHandle.removeEntry(entry.name); } catch(e) {}
+        autoCount++;
+      } else {
+        // 競合あり → ダイアログで手動解決
+        conflictCount++;
+        const conflictFileName = entry.name;
+        showConflictDialog(result.conflicts, result.merged, async resolved => {
+          const rp = resolved.projects.find(p => p.id === pid);
+          if (rp) {
+            state.data.projects[state.data.projects.findIndex(p => p.id === pid)] = rp;
+            _baseSnapshots[pid] = deepCopy(rp);
+            _dirtyProjects.add(pid);
+            await writeProjectFile(pid);
+          }
+          try { await state.rootDirHandle.removeEntry(conflictFileName); } catch(e) {}
+          renderSidebar();
+          if (state.currentProjectId === pid) renderMain();
+        });
+      }
+    } catch(e) {
+      console.warn('競合ファイル処理エラー:', entry.name, e);
     }
   }
+
+  if (autoCount > 0) toast(`競合コピー ${autoCount} 件を自動マージしました`, 'success');
+  if (conflictCount > 0) toast(`競合コピー ${conflictCount} 件に手動解決が必要です`, 'warn');
+}
+
+// 分割形式の読み込み（entries: FileSystemFileEntry[]）
+async function _loadSplitFormat(entries) {
+  state.data = { version: 3, format: 'split', nextProjectNum: 1, projects: [] };
+
   const projects = await Promise.all(entries.map(async entry => {
     try {
       const text = await (await entry.getFile()).text();
@@ -1685,47 +1736,42 @@ async function _loadSplitFormat(masterText) {
   state.data.projects = projects.filter(Boolean);
   _migrateProjectFields(state.data.projects);
 
-  // nextProjectNum を projects から再計算（安全のため）
+  // nextProjectNum を projects から再計算
   const maxNum = Math.max(0, ...state.data.projects.map(p => p.number || 0));
-  if (state.data.nextProjectNum <= maxNum) state.data.nextProjectNum = maxNum + 1;
+  state.data.nextProjectNum = maxNum + 1;
 
   // プロジェクト単位スナップショットを初期化
   _baseSnapshots = {};
   state.data.projects.forEach(p => { _baseSnapshots[p.id] = deepCopy(p); });
   _dirtyProjects = new Set();
-  _masterDirty   = false;
 }
 
 // 旧形式（単一JSON）の読み込み → 初回保存で分割形式に移行
-async function _loadLegacyFormat(text, masterFH) {
+async function _loadLegacyFormat(text) {
   if (!text) {
     // 完全に空のフォルダ → 新規と同じ
     state.data = { version: 3, format: 'split', projects: [], nextProjectNum: 1 };
     _baseSnapshots = {};
     _dirtyProjects = new Set();
-    _masterDirty   = false;
     return;
   }
 
-  const old = JSON.parse(text);
+  const legacy = JSON.parse(text);
   state.data = {
     version:        3,
     format:         'split',
-    nextProjectNum: old.nextProjectNum || 1,
-    projects:       old.projects || [],
+    nextProjectNum: legacy.nextProjectNum || 1,
+    projects:       legacy.projects || [],
   };
   _migrateProjectFields(state.data.projects);
 
   const maxNum = Math.max(0, ...state.data.projects.map(p => p.number || 0));
   if (state.data.nextProjectNum <= maxNum) state.data.nextProjectNum = maxNum + 1;
 
-  // 旧形式であることをフラグ → 初回保存で分割形式に変換
+  // 旧形式 → 初回保存で分割形式に変換
   state._needsMigration = true;
-
   _baseSnapshots = {};
-  // 旧形式はまだ分割ファイルがないので baseSnapshot は空
   _dirtyProjects = new Set(state.data.projects.map(p => p.id));
-  _masterDirty   = true;
 
   toast('旧形式を検出しました。次回保存時に分割形式へ移行します。', 'success');
 }
@@ -1747,20 +1793,6 @@ function _migrateProjectFields(projects) {
   projects.forEach(p => { if (!p.number) p.number = ++maxNum; });
 }
 
-// ── マスターファイル書き込み ──────────────────────────
-async function writeMasterFile() {
-  if (!state.rootDirHandle) return;
-  const fh = await state.rootDirHandle.getFileHandle('taskflow_data.json', { create: true });
-  const w  = await fh.createWritable();
-  await w.write(JSON.stringify({
-    version:        state.data.version        || 3,
-    format:         'split',
-    nextProjectNum: state.data.nextProjectNum || 1,
-  }, null, 2));
-  await w.close();
-  state.fileHandle = fh; // 常に最新に保つ
-}
-
 // ── プロジェクトファイル書き込み ──────────────────────
 // プロジェクトIDからファイル名を生成: project_P01.json
 function _projectFileName(pid) {
@@ -1770,10 +1802,10 @@ function _projectFileName(pid) {
 }
 
 async function writeProjectFile(pid) {
-  if (!state.dataDirHandle) return;
+  if (!state.rootDirHandle) return;
   const project = state.data.projects.find(p => p.id === pid);
   if (!project) return;
-  const fh = await state.dataDirHandle.getFileHandle(_projectFileName(pid), { create: true });
+  const fh = await state.rootDirHandle.getFileHandle(_projectFileName(pid), { create: true });
   const w  = await fh.createWritable();
   await w.write(JSON.stringify(project, null, 2));
   await w.close();
@@ -1781,18 +1813,18 @@ async function writeProjectFile(pid) {
 
 // ── プロジェクトファイル削除 ──────────────────────────
 async function deleteProjectFile(pid) {
-  if (!state.dataDirHandle) return;
+  if (!state.rootDirHandle) return;
   try {
-    const fh = await state.dataDirHandle.getFileHandle(_projectFileName(pid));
+    const fh = await state.rootDirHandle.getFileHandle(_projectFileName(pid));
     await fh.remove();
   } catch(e) { console.warn('deleteProjectFile:', pid, e); }
 }
 
 // ── プロジェクトファイルをディスクから再読み込み ──────
 async function readProjectFromDisk(pid) {
-  if (!state.dataDirHandle) return null;
+  if (!state.rootDirHandle) return null;
   try {
-    const fh   = await state.dataDirHandle.getFileHandle(_projectFileName(pid));
+    const fh   = await state.rootDirHandle.getFileHandle(_projectFileName(pid));
     const text = await (await fh.getFile()).text();
     return JSON.parse(text);
   } catch(e) { return null; }
@@ -1821,7 +1853,7 @@ function autoSave(pid) {
 }
 
 async function _autoSaveExec() {
-  if (!state.dataDirHandle) return;
+  if (!state.rootDirHandle) return;
   if (_isSaving) { autoSave(); return; }
   _isSaving = true;
   try {
@@ -1829,11 +1861,6 @@ async function _autoSaveExec() {
     const pids = [..._dirtyProjects];
     for (const pid of pids) {
       await _fetchAndMergeProject(pid, 'silent');
-    }
-    // マスターが dirty なら書き込み
-    if (_masterDirty) {
-      await writeMasterFile();
-      _masterDirty = false;
     }
     // 旧形式の移行完了通知
     if (state._needsMigration && _dirtyProjects.size === 0) {
@@ -1918,7 +1945,7 @@ async function _fetchAndMergeProject(pid, mode) {
 
 // 後方互換: fetchAndMerge は全 dirty プロジェクトを処理
 async function fetchAndMerge(mode = 'save') {
-  if (!state.dataDirHandle) return 'clean';
+  if (!state.rootDirHandle) return 'clean';
   const pids = _dirtyProjects.size > 0
     ? [..._dirtyProjects]
     : state.data.projects.map(p => p.id); // 全件（手動保存時）
@@ -1936,7 +1963,7 @@ async function fetchAndMerge(mode = 'save') {
 // MANUAL SAVE (Ctrl+S)
 // ─────────────────────────────────────────
 async function saveFile(manual=false) {
-  if (!state.dataDirHandle) return;
+  if (!state.rootDirHandle) return;
   if (!manual) { await _autoSaveExec(); return; }
   if (_isSaving) return;
   _isSaving = true;
@@ -1947,8 +1974,6 @@ async function saveFile(manual=false) {
       await writeProjectFile(p.id);
       _baseSnapshots[p.id] = deepCopy(p);
     }
-    await writeMasterFile();
-    _masterDirty = false;
     _dirtyProjects = new Set();
     toast('保存しました', 'success');
     if (window.TaskFlow) window.TaskFlow.emit('file-save', {});
@@ -1959,10 +1984,6 @@ async function saveFile(manual=false) {
   // 全プロジェクトをマージ対象に（手動保存は常に全件チェック）
   state.data.projects.forEach(p => _dirtyProjects.add(p.id));
   const status = await fetchAndMerge('save');
-
-  // マスターも書き込み
-  await writeMasterFile();
-  _masterDirty = false;
 
   if (status === 'clean')      toast('保存しました', 'success');
   if (status === 'automerged') toast('保存しました（他の変更を自動マージ）', 'success');
@@ -2076,6 +2097,19 @@ function threeWayMerge(base, mine, disk) {
         if (mm && md) {
           const msFieldRes = mergeEntityFields(mb, mm, md, ['name','description','startDate','endDate','color']);
           msFieldRes.autoFields.forEach(f => { mergedMsItem[f] = mm[f]; autoMerged++; });
+          if (msFieldRes.conflictFields.length > 0) {
+            conflicts.push({
+              kind: 'milestone',
+              id: msId,
+              parentId: pid,
+              label: `マイルストーン「${mm?.name || md?.name}」`,
+              fields: msFieldRes.conflictFields,
+              mine: mm,
+              theirs: md,
+              mergedBase: mergedMsItem,
+              choice: 'mine',
+            });
+          }
         }
         mergedMs.push(mergedMsItem);
       });
@@ -3888,7 +3922,7 @@ function saveProject() {
       try { def.onSave(_savedP); } catch(e) { console.warn('[plugin onSave]', e); }
     }
   });
-  closeProjectModal(); autoSave(_savedP.id); _masterDirty = true; renderSidebar(); if(!state.currentProjectId) renderProjectsList();
+  closeProjectModal(); autoSave(_savedP.id); renderSidebar(); if(!state.currentProjectId) renderProjectsList();
   window.TaskFlow.emit(_isNewP ? 'project-create' : 'project-update', { project: _savedP });
 }
 
@@ -3898,7 +3932,6 @@ function deleteProject(id) {
   state.data.projects=state.data.projects.filter(x=>x.id!==id);
   _dirtyProjects.delete(id);
   delete _baseSnapshots[id];
-  _masterDirty = true;
   deleteProjectFile(id); // ファイルを削除（非同期・エラーは無視）
   autoSave(); renderSidebar();
   if(state.currentProjectId===id){state.currentProjectId=null;showProjectsList();}
@@ -3910,7 +3943,7 @@ function deleteProject(id) {
 function toggleArchiveProject(id) {
   const p = getProject(id); if(!p) return;
   p.archived = !p.archived;
-  autoSave(id); _masterDirty = true; renderSidebar();
+  autoSave(id); renderSidebar();
   window.TaskFlow.emit('project-archive', { project: p, archived: p.archived });
   // Update header button label if inside project detail
   const btn = document.getElementById('btn-archive-project');
