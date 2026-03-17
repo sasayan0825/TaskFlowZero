@@ -588,9 +588,9 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   </div>
   <div class="welcome-info">
     💡 <strong>Chrome / Edge</strong> をご使用ください。<br>
-    <strong>前回のフォルダ</strong>: ブラウザに保存されたハンドルで即時復元<br>
-    <strong>別のフォルダを開く</strong>: 共有フォルダを選んで接続（既存データを読み込み）<br>
-    <strong>新規作成</strong>: 保存先フォルダを指定して新しいデータファイルを作成
+    <strong>前回のファイル</strong>: ブラウザに保存されたハンドルで即時復元<br>
+    <strong>別のファイルを開く</strong>: 共有フォルダの <code style="background:rgba(255,255,255,.1);padding:1px 5px;border-radius:3px">taskflow_data.json</code> を選択<br>
+    <strong>新規作成</strong>: 保存場所（共有フォルダ）を指定してファイルを作成
   </div>
 </div>
 
@@ -1794,6 +1794,11 @@ function _migrateProjectFields(projects) {
     p.tasks.forEach(t => {
       if (!t.checklist) t.checklist = [];
       if (!t.activity)  t.activity  = [];
+      // checked フィールド補完（done フィールドからの移行対応）
+      t.checklist.forEach(c => {
+        if (c.done !== undefined && c.checked === undefined) c.checked = c.done;
+        if (c.checked === undefined) c.checked = false;
+      });
     });
   });
   let maxNum = Math.max(0, ...projects.map(p => p.number || 0));
@@ -2282,7 +2287,7 @@ function mergeArrayById(base, mine, disk) {
     if (d) {
       const r = deepCopy(d);
       // If mine changed checked state, use mine's
-      if (m && b && m.done !== b.done && d.done === b.done) { r.done = m.done; changed++; }
+      if (m && b && m.checked !== b.checked && d.checked === b.checked) { r.checked = m.checked; changed++; }
       if (m && b && m.text !== b.text && d.text === b.text) { r.text = m.text; changed++; }
       result.push(r);
     }
