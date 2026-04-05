@@ -111,13 +111,37 @@ body{font-family:'Noto Sans JP','Outfit',sans-serif;background:var(--bg);color:v
 #btn-new-project:hover{background:rgba(79,142,255,.2);border-color:rgba(79,142,255,.6)}
 
 /* FILE LOADER */
-#file-loader{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:32px}
-.loader-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:48px 56px;text-align:center;max-width:440px;width:100%}
+#file-loader{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:32px;overflow-y:auto;padding:24px 0}
+.loader-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:36px 44px;text-align:center;max-width:480px;width:100%}
 .loader-title{font-family:'Outfit',sans-serif;font-size:28px;font-weight:700;color:var(--accent2);margin-bottom:8px}
-.loader-subtitle{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:32px}
+.loader-subtitle{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:24px}
 .loader-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 .welcome-info{background:rgba(79,142,255,.08);border:1px solid rgba(79,142,255,.2);border-radius:8px;padding:16px 20px;font-size:12px;line-height:1.7;color:var(--muted);max-width:500px}
 .welcome-info strong{color:var(--accent2)}
+@keyframes tfz-pulse{0%,100%{box-shadow:0 0 0 0 rgba(79,142,255,.5);border-color:var(--accent)}50%{box-shadow:0 0 0 6px rgba(79,142,255,0);border-color:rgba(79,142,255,.4)}}
+@keyframes tfz-pulse-btn{0%,100%{box-shadow:0 0 0 0 rgba(79,142,255,.6)}50%{box-shadow:0 0 0 8px rgba(79,142,255,0)}}
+.hash-folder-banner{background:rgba(79,142,255,.12);border:1px solid rgba(79,142,255,.35);border-radius:8px;padding:12px 18px;font-size:13px;color:var(--accent2);display:flex;align-items:center;gap:10px;max-width:480px;width:100%;box-sizing:border-box;text-align:left}
+.hash-folder-banner strong{color:var(--accent)}
+.folder-history-item.hash-target{animation:tfz-pulse 1.4s ease-in-out infinite;border-color:var(--accent)}
+.btn-hash-pulse{animation:tfz-pulse-btn 1.4s ease-in-out infinite}
+/* ── FOLDER HISTORY ── */
+#folder-history-section{margin-bottom:20px;text-align:left}
+.folder-history-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.folder-history-clear{background:none;border:none;color:var(--muted);font-size:10px;cursor:pointer;padding:0;text-transform:none;letter-spacing:0;font-weight:400}
+.folder-history-clear:hover{color:var(--red)}
+#folder-history-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+.folder-history-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);transition:border-color .15s}
+.folder-history-item:hover{border-color:var(--border2)}
+.folder-history-item.has-perm{border-left:3px solid var(--green)}
+.folder-history-item.no-perm{border-left:3px solid var(--border2)}
+.folder-history-icon{font-size:18px;flex-shrink:0}
+.folder-history-info{flex:1;min-width:0}
+.folder-history-name{font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.folder-history-meta{font-size:10px;color:var(--muted);margin-top:1px}
+.folder-history-open{padding:4px 12px;font-size:12px;flex-shrink:0}
+.folder-history-del{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 5px;border-radius:3px;flex-shrink:0;line-height:1;transition:color .1s}
+.folder-history-del:hover{color:var(--red)}
+#folder-history-empty{font-size:12px;color:var(--muted);text-align:center;padding:16px 0}
 
 /* BUTTONS */
 .btn{padding:9px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:inherit}
@@ -180,6 +204,13 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .assignee-avatar{width:22px;height:22px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent2)}
 .sp-cell{font-family:'JetBrains Mono',monospace;font-size:11px}
 .list-empty{padding:48px;text-align:center;color:var(--muted);font-size:13px}
+
+/* ── LIST DRAG-AND-DROP ── */
+.list-drag-handle{cursor:grab;color:var(--border2);font-size:12px;margin-right:3px;display:inline-block;opacity:0;transition:opacity .15s;user-select:none;vertical-align:middle}
+.list-table tr:hover .list-drag-handle{opacity:1}
+.list-table tr.list-row-dragging{opacity:.4}
+.list-table tr.list-row-drag-over > td{box-shadow:inset 0 2px 0 0 var(--accent) !important}
+.list-ms-group-row.list-ms-drag-over td{background:rgba(79,142,255,.18) !important;outline:2px solid rgba(79,142,255,.35);outline-offset:-1px}
 
 /* ── KANBAN ── */
 #kanban-view{flex:1;overflow-x:auto;overflow-y:hidden;padding:20px 24px;display:flex;gap:16px;align-items:flex-start}
@@ -351,9 +382,9 @@ html.light .meta-input[type="date"]::-webkit-calendar-picker-indicator,html.ligh
 .comment-del{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:0 4px;border-radius:3px}
 .comment-del:hover{color:var(--red)}
 .comment-form{display:flex;flex-direction:column;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px}
-.comment-author-input,.comment-text-input{background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:inherit;font-size:13px;padding:6px 10px;outline:none;transition:border-color .15s;resize:none}
+.comment-author-input,.comment-text-input{background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:inherit;font-size:13px;padding:6px 10px;outline:none;transition:border-color .15s;resize:none;overflow:hidden}
 .comment-author-input:focus,.comment-text-input:focus{border-color:var(--accent)}
-.comment-text-input{min-height:70px;line-height:1.5}
+.comment-text-input{min-height:70px;line-height:1.5;box-sizing:border-box;width:100%}
 .panel-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
 
 /* MODALS */
@@ -428,11 +459,18 @@ html.light .meta-input[type="date"]::-webkit-calendar-picker-indicator,html.ligh
 .list-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .list-table colgroup col:nth-child(1){width:60px}
 .list-table colgroup col:nth-child(2){width:auto}
-.list-table colgroup col:nth-child(3){width:90px}
-.list-table colgroup col:nth-child(4){width:130px}
-.list-table colgroup col:nth-child(5){width:55px}
-.list-table colgroup col:nth-child(6){width:95px}
+.list-table colgroup col:nth-child(3){width:110px}
+.list-table colgroup col:nth-child(4){width:90px}
+.list-table colgroup col:nth-child(5){width:130px}
+.list-table colgroup col:nth-child(6){width:55px}
 .list-table colgroup col:nth-child(7){width:95px}
+.list-table colgroup col:nth-child(8){width:95px}
+.cl-progress-cell{vertical-align:middle}
+.cl-progress-mini{display:flex;flex-direction:column;gap:2px}
+.cl-progress-mini-bar{height:4px;background:var(--surface3);border-radius:2px;overflow:hidden}
+.cl-progress-mini-fill{height:100%;border-radius:2px;background:var(--accent);transition:width .3s}
+.cl-progress-mini-fill.done{background:var(--green)}
+.cl-progress-mini-label{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap}
 .list-ms-group-row td{background:var(--surface2);padding:6px 12px 6px 24px;font-size:11px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
 .list-ms-group-row:hover td{background:var(--surface3)}
 html.light .list-ms-group-row td{background:#dbeafe;color:#1e40af}
@@ -558,6 +596,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
 <!-- FILE LOADER -->
 <div id="file-loader">
+  <div id="hash-folder-banner" style="display:none" class="hash-folder-banner">
+    <span style="font-size:20px;flex-shrink:0">📎</span>
+    <div id="hash-folder-banner-text"></div>
+  </div>
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:-16px">
     <span style="font-size:40px">⚡</span>
     <div>
@@ -569,15 +611,14 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
     <div class="loader-title">データフォルダを選択</div>
     <div class="loader-subtitle">データを保存するフォルダを開くか、<br>新規作成してください。<br>以降の変更はプロジェクト単位で自動保存されます。</div>
 
-    <!-- 前回ファイルボタン（JS で動的表示） -->
-    <div id="last-file-section" style="display:none;margin-bottom:16px;padding:14px 16px;background:rgba(79,142,255,.08);border:1px solid rgba(79,142,255,.25);border-radius:8px;text-align:left">
-      <div style="font-size:11px;color:#6b7fa8;margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.8px">前回のフォルダ</div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <div style="flex:1;min-width:0">
-          <div id="last-file-name" style="font-size:14px;font-weight:600;color:#7aa7ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
-          <div id="last-file-hint" style="font-size:11px;color:#6b7fa8;margin-top:2px"></div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="openLastFile()" id="btn-last-file">↩ 開く</button>
+    <!-- フォルダ履歴（JS で動的表示） -->
+    <div id="folder-history-section" style="display:none">
+      <div class="folder-history-label">
+        <span>📁 フォルダ履歴</span>
+        <button class="folder-history-clear" onclick="clearAllFolderHistory()">すべて削除</button>
+      </div>
+      <div id="folder-history-list">
+        <div id="folder-history-empty" style="display:none">履歴がありません</div>
       </div>
     </div>
 
@@ -588,15 +629,15 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   </div>
   <div class="welcome-info">
     💡 <strong>Chrome / Edge</strong> をご使用ください。<br>
-    <strong>前回のファイル</strong>: ブラウザに保存されたハンドルで即時復元<br>
-    <strong>別のファイルを開く</strong>: 共有フォルダの <code style="background:rgba(255,255,255,.1);padding:1px 5px;border-radius:3px">taskflow_data.json</code> を選択<br>
+    <strong>フォルダ履歴</strong>: 過去に開いたフォルダを一覧から即時復元<br>
+    <strong>別のフォルダを開く</strong>: 共有フォルダを新たに選択して開く<br>
     <strong>新規作成</strong>: 保存場所（共有フォルダ）を指定してファイルを作成
   </div>
 </div>
 
 <!-- HEADER -->
 <div id="header" style="display:none">
-  <div id="logo">⚡ TaskFlowZero</div>
+  <div id="logo" onclick="returnToTop()" style="cursor:pointer" title="TOPへ戻る">⚡ TaskFlowZero</div>
   <div id="file-status">
     <div id="file-dot"></div>
     <span id="file-name-display">未接続</span>
@@ -624,7 +665,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       <div id="sidebar-projects"></div>
     </div>
     <button id="btn-new-project" onclick="openProjectModal()">＋ 新規プロジェクト</button>
-    <div id="sidebar-version" style="position:absolute;bottom:0;left:0;right:0;padding:4px 14px 6px;font-size:10px;color:var(--border2);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;text-align:right;background:var(--surface);border-top:1px solid var(--border);pointer-events:none">v1.0.0</div>
+    <div id="sidebar-version" style="position:absolute;bottom:0;left:0;right:0;padding:4px 14px 6px;font-size:10px;color:var(--border2);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;text-align:right;background:var(--surface);border-top:1px solid var(--border);pointer-events:none">v1.1.0</div>
   </div>
 
   <!-- MAIN -->
@@ -868,6 +909,15 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         </select>
       </div>
       <div class="meta-field" style="grid-column:1/-1">
+        <div class="meta-label">工数 (h)</div>
+        <div style="display:flex;align-items:center;gap:16px;padding:5px 0">
+          <span style="font-size:11px;color:var(--muted)">見積</span>
+          <div id="panel-estimated-hours" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text);min-width:32px">—</div>
+          <span style="font-size:11px;color:var(--muted);margin-left:8px">実績</span>
+          <div id="panel-actual-hours" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text);min-width:32px">—</div>
+        </div>
+      </div>
+      <div class="meta-field" style="grid-column:1/-1">
         <div class="meta-label">マイルストーン</div>
         <select class="meta-select" id="panel-milestone" onchange="panelDirty=true">
           <option value="">未割り当て</option>
@@ -926,9 +976,28 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <button class="md-btn" id="cmt-preview-btn" onclick="setCmtMode('preview')">プレビュー</button>
           <span style="font-size:10px;color:var(--muted);margin-left:8px">**太字** *斜体* `コード`</span>
         </div>
-        <textarea class="comment-text-input" id="comment-text" placeholder="コメントをMarkdownで入力..."></textarea>
+        <textarea class="comment-text-input" id="comment-text" placeholder="コメントをMarkdownで入力..." oninput="autoResizeCmtTextarea(this)"></textarea>
         <div class="md-preview" id="comment-preview" style="min-height:60px;max-height:200px"></div>
-        <div><button class="btn btn-primary btn-sm" onclick="addComment()">コメントを投稿</button></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" id="comment-submit-btn" onclick="addComment()">コメントを投稿</button>
+          <button class="btn btn-primary btn-sm" id="comment-update-btn" onclick="updateComment()" style="display:none">更新する</button>
+          <button class="btn btn-secondary btn-sm" id="comment-cancel-edit-btn" onclick="cancelEditComment()" style="display:none">キャンセル</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="effort-toggle-btn" onclick="toggleEffortPanel()">＋ 工数を追加</button>
+        </div>
+        <div id="effort-panel" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius)">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">工数入力（どちらか一方でも可）</div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text)">
+              見積 (h)
+              <input type="number" id="effort-estimated" min="0" step="0.5" placeholder="0" style="width:72px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;padding:4px 8px;outline:none;text-align:right">
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text)">
+              実績 (h)
+              <input type="number" id="effort-actual" min="0" step="0.5" placeholder="0" style="width:72px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;padding:4px 8px;outline:none;text-align:right">
+            </label>
+            <span style="font-size:11px;color:var(--muted);margin-left:4px">投稿時にタスクへ加算されます</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1165,6 +1234,7 @@ let burndownChart = null;
 // Gantt render state (shared with drag handlers)
 let _ganttRS = { gStartMs:0, totalW:0, ganttStart:'' };
 let _ganttDrag = null;
+let _listDragTaskId = null;
 let _timelineFilter = (() => {
   try { return localStorage.getItem('taskflow-timeline-filter') || 'all'; } catch(e) { return 'all'; }
 })();
@@ -1204,8 +1274,10 @@ function toggleTheme() {
 const IDB_NAME           = 'taskflow-db';
 const IDB_STORE          = 'handles';
 const IDB_KEY            = 'lastFileHandle';     // 旧形式互換（未使用）
-const IDB_ROOT_DIR_KEY   = 'rootDirHandle';      // 分割形式: ルートフォルダ
+const IDB_ROOT_DIR_KEY   = 'rootDirHandle';      // 分割形式: ルートフォルダ（互換用）
 const IDB_PLUGIN_DIR_KEY = 'pluginDirHandle';
+const IDB_HISTORY_KEY    = 'folderHistory';      // フォルダ履歴（最大10件）
+const HISTORY_MAX        = 10;
 
 function openIDB() {
   return new Promise((resolve, reject) => {
@@ -1216,14 +1288,53 @@ function openIDB() {
   });
 }
 
+// フォルダ履歴を読み込む → [{ handle, name, lastAccessed }] (新しい順)
+async function loadFolderHistory() {
+  try {
+    const db  = await openIDB();
+    const tx  = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(IDB_HISTORY_KEY);
+    const result = await new Promise(res => {
+      req.onsuccess = () => res(req.result || []);
+      req.onerror   = () => res([]);
+    });
+    db.close();
+    return result;
+  } catch(e) { return []; }
+}
+
+// フォルダ履歴を保存する
+async function saveFolderHistory(history) {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(history, IDB_HISTORY_KEY);
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch(e) { console.warn('IDB history save error:', e); }
+}
+
+// ハンドルを保存 + 履歴に追加（旧 saveHandleToIDB と同じシグネチャ）
 async function saveHandleToIDB(handle) {
   try {
+    // 旧形式キーも更新（互換性）
     const db = await openIDB();
     const tx = db.transaction(IDB_STORE, 'readwrite');
     tx.objectStore(IDB_STORE).put(handle, IDB_ROOT_DIR_KEY);
     await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
     db.close();
   } catch(e) { console.warn('IDB save error:', e); }
+
+  // 履歴に追加・更新
+  try {
+    let history = await loadFolderHistory();
+    // 同名エントリを除去して先頭に追加
+    history = history.filter(h => h.name !== handle.name);
+    history.unshift({ handle, name: handle.name, lastAccessed: new Date().toISOString() });
+    // 最大件数を超えたら末尾を切り捨て
+    if (history.length > HISTORY_MAX) history = history.slice(0, HISTORY_MAX);
+    await saveFolderHistory(history);
+  } catch(e) { console.warn('IDB history update error:', e); }
 }
 
 async function loadHandleFromIDB() {
@@ -1245,6 +1356,12 @@ async function clearHandleFromIDB() {
     tx.objectStore(IDB_STORE).delete(IDB_ROOT_DIR_KEY);
     db.close();
   } catch(e) {}
+}
+
+// 履歴から特定フォルダを削除する
+async function removeFolderFromHistory(name) {
+  const history = await loadFolderHistory();
+  await saveFolderHistory(history.filter(h => h.name !== name));
 }
 
 // ═══════════════════════════════════════
@@ -1545,52 +1662,150 @@ async function savePluginsJs() {
 function deepCopy(obj){ return JSON.parse(JSON.stringify(obj)); }
 
 // Called on page load — show last-dir button if handle is stored
-async function initLastFileButton() {
-  const handle = await loadHandleFromIDB();
-  if (!handle) return;
-
-  let perm = 'unknown';
-  try { perm = await handle.queryPermission({ mode: 'readwrite' }); } catch(e) {}
-
-  const section = document.getElementById('last-file-section');
-  const nameEl  = document.getElementById('last-file-name');
-  const hintEl  = document.getElementById('last-file-hint');
-
-  nameEl.textContent = handle.name;
-  hintEl.textContent = perm === 'granted'
-    ? '✅ アクセス許可あり — すぐに開けます'
-    : '🔑 クリックするとアクセス許可を求めます';
-  section.style.display = 'block';
-
-  const btn = document.getElementById('btn-last-file');
-  btn.textContent = perm === 'granted' ? '↩ すぐに開く' : '↩ 開く';
+// ── フォルダ履歴UI ────────────────────────────────────
+function _fmtHistoryDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffDays === 0) {
+      const h = String(d.getHours()).padStart(2,'0');
+      const m = String(d.getMinutes()).padStart(2,'0');
+      return `今日 ${h}:${m}`;
+    } else if (diffDays === 1) {
+      return '昨日';
+    } else if (diffDays < 7) {
+      return `${diffDays}日前`;
+    } else {
+      return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+    }
+  } catch(e) { return ''; }
 }
 
-async function openLastFile() {
-  const handle = await loadHandleFromIDB();
-  if (!handle) { toast('保存されたフォルダがありません', 'error'); return; }
+async function initFolderHistory() {
+  const history = await loadFolderHistory();
 
-  const btn = document.getElementById('btn-last-file');
-  btn.textContent = '読み込み中…';
-  btn.disabled = true;
+  // ハッシュにフォルダ名が含まれる場合は TOP 画面を変化させる
+  const _pendingFolder = window._pendingHashFolder || null;
+  if (_pendingFolder) {
+    // バナー表示
+    const banner = document.getElementById('hash-folder-banner');
+    const bannerText = document.getElementById('hash-folder-banner-text');
+    if (banner && bannerText) {
+      bannerText.innerHTML = `<strong>${_pendingFolder}</strong> フォルダへのリンクから来ています。<br>下の履歴または「別のフォルダを開く」から <strong>${_pendingFolder}</strong> を選択してください。`;
+      banner.style.display = 'flex';
+    }
+    // タイトル・サブテキストを差し替え
+    const title = document.querySelector('.loader-title');
+    const subtitle = document.querySelector('.loader-subtitle');
+    if (title) title.textContent = `「${_pendingFolder}」フォルダを開いてください`;
+    if (subtitle) subtitle.innerHTML = `リンク先のタスクを表示するには、<br><strong style="color:var(--accent2)">${_pendingFolder}</strong> フォルダを選択する必要があります。`;
+    // 「別のフォルダを開く」ボタンのパルスは行わない
+  }
+
+  if (!history.length) return;
+
+  const section = document.getElementById('folder-history-section');
+  section.style.display = 'block';
+
+  const list = document.getElementById('folder-history-list');
+  const empty = document.getElementById('folder-history-empty');
+  list.innerHTML = '';
+  list.appendChild(empty);
+
+  // 各エントリのアクセス許可を並列チェック
+  const permChecks = await Promise.all(history.map(async h => {
+    try {
+      const perm = await h.handle.queryPermission({ mode: 'readwrite' });
+      return perm === 'granted';
+    } catch(e) { return false; }
+  }));
+
+  if (!history.length) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  history.forEach((entry, idx) => {
+    const hasPerm = permChecks[idx];
+    const isTarget = _pendingFolder && entry.name === _pendingFolder;
+    const item = document.createElement('div');
+    item.className = 'folder-history-item ' + (hasPerm ? 'has-perm' : 'no-perm') + (isTarget ? ' hash-target' : '');
+    item.innerHTML = `
+      <span class="folder-history-icon">📁</span>
+      <div class="folder-history-info">
+        <div class="folder-history-name" title="${entry.name}">${entry.name}</div>
+        <div class="folder-history-meta">${hasPerm ? '✅ アクセス許可あり' : '🔑 許可が必要'} · ${_fmtHistoryDate(entry.lastAccessed)}</div>
+      </div>
+      <button class="btn btn-primary btn-sm folder-history-open" data-idx="${idx}">
+        ${hasPerm ? '↩ すぐに開く' : '↩ 開く'}
+      </button>
+      <button class="folder-history-del" title="履歴から削除" data-name="${entry.name}">✕</button>`;
+
+    item.querySelector('.folder-history-open').addEventListener('click', () => openFolderFromHistory(idx));
+    item.querySelector('.folder-history-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeFolderHistoryItem(entry.name);
+    });
+    list.appendChild(item);
+  });
+}
+
+// 旧名互換（plugin_lang.js等が参照している場合のため）
+async function initLastFileButton() { return initFolderHistory(); }
+
+async function openFolderFromHistory(idx) {
+  const history = await loadFolderHistory();
+  const entry = history[idx];
+  if (!entry) { toast('履歴が見つかりません', 'error'); return; }
+
+  // ボタンをローディング状態に
+  const btn = document.querySelector(`.folder-history-open[data-idx="${idx}"]`);
+  if (btn) { btn.textContent = '読み込み中…'; btn.disabled = true; }
 
   try {
-    let perm = await handle.queryPermission({ mode: 'readwrite' });
-    if (perm !== 'granted') perm = await handle.requestPermission({ mode: 'readwrite' });
+    let perm = await entry.handle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await entry.handle.requestPermission({ mode: 'readwrite' });
     if (perm !== 'granted') {
       toast('アクセスが拒否されました', 'error');
-      btn.textContent = '↩ 開く'; btn.disabled = false;
+      if (btn) { btn.textContent = '↩ 開く'; btn.disabled = false; }
       return;
     }
-    await _loadFromRootDir(handle);
-    toast('前回のフォルダを開きました: ' + handle.name, 'success');
+    await _loadFromRootDir(entry.handle);
+    toast('フォルダを開きました: ' + entry.name, 'success');
   } catch(e) {
     console.error(e);
     toast('フォルダを開けませんでした', 'error');
-    await clearHandleFromIDB();
-    document.getElementById('last-file-section').style.display = 'none';
-    btn.textContent = '↩ 開く'; btn.disabled = false;
+    if (btn) { btn.textContent = '↩ 開く'; btn.disabled = false; }
+    // アクセス不能なら履歴から削除
+    await removeFolderFromHistory(entry.name);
+    await initFolderHistory();
   }
+}
+
+// 旧名互換
+async function openLastFile() {
+  const history = await loadFolderHistory();
+  if (!history.length) { toast('保存されたフォルダがありません', 'error'); return; }
+  return openFolderFromHistory(0);
+}
+
+async function removeFolderHistoryItem(name) {
+  await removeFolderFromHistory(name);
+  await initFolderHistory();
+  // 全削除後に履歴セクションを隠す
+  const history = await loadFolderHistory();
+  if (!history.length) document.getElementById('folder-history-section').style.display = 'none';
+}
+
+async function clearAllFolderHistory() {
+  if (!confirm('フォルダ履歴をすべて削除しますか？')) return;
+  await saveFolderHistory([]);
+  document.getElementById('folder-history-section').style.display = 'none';
+  toast('履歴を削除しました');
 }
 
 // ═══════════════════════════════════════
@@ -2192,23 +2407,31 @@ function threeWayMerge(base, mine, disk) {
       ...Object.keys(diskTasks),
     ]);
 
-    const mergedTasks = [];
-    allTaskIds.forEach(tid => {
+    // タスク並び順: マイルストーンと同じロジック
+    // mineだけが順序変更していればmineの順序を採用、そうでなければdiskの順序を維持
+    const bTaskOrder = (b?.tasks||[]).map(x=>x.id).join(',');
+    const mTaskOrder = (m?.tasks||[]).map(x=>x.id).join(',');
+    const dTaskOrder = (d?.tasks||[]).map(x=>x.id).join(',');
+    const taskOrderBase = (mTaskOrder !== bTaskOrder && dTaskOrder === bTaskOrder)
+      ? (m?.tasks||[]) : (d?.tasks||[]);
+
+    // タスクマージ本体（taskOrderBase の順序でフィールドマージ）
+    function mergeOneTask(tid) {
       const tb = baseTasks[tid];
       const tm = mineTasks[tid];
       const td = diskTasks[tid];
 
-      if (tb && !tm && td) return;  // mine deleted
-      if (tb && tm && !td) return;  // disk deleted
-      if (!tb && tm && !td) { mergedTasks.push(deepCopy(tm)); autoMerged++; return; } // mine added
-      if (!tb && !tm && td) { mergedTasks.push(deepCopy(td)); return; }               // disk added
-      if (!tb && tm && td) { mergedTasks.push(deepCopy(tm)); return; }                // both added
-      if (!tm && !td) return;
+      if (tb && !tm && td) return null;  // mine deleted
+      if (tb && tm && !td) return null;  // disk deleted
+      if (!tb && tm && !td) { autoMerged++; return deepCopy(tm); } // mine added
+      if (!tb && !tm && td) { return deepCopy(td); }               // disk added
+      if (!tb && tm && td)  { return deepCopy(tm); }               // both added
+      if (!tm && !td) return null;
 
       const mergedT = deepCopy(td);
       const taskFields = mergeEntityFields(
         tb, tm, td,
-        ['title','status','assignee','startDate','dueDate','storyPoints','description','milestoneId','labels','completedAt'],
+        ['title','status','assignee','startDate','dueDate','storyPoints','estimatedHours','actualHours','description','milestoneId','labels','completedAt'],
         pid, tid
       );
       taskFields.autoFields.forEach(f => { mergedT[f] = tm[f]; autoMerged++; });
@@ -2223,10 +2446,15 @@ function threeWayMerge(base, mine, disk) {
       const newActs = (tm.activity||[]).filter(a => !diskActIds.has(a.at+'|'+a.type));
       mergedT.activity = [...(td.activity||[]), ...newActs].sort((a,b)=>(a.at<b.at?-1:1));
 
-      // Comments: union by id
-      const diskComIds = new Set((td.comments||[]).map(c=>c.id));
-      const newComs = (tm.comments||[]).filter(c => !diskComIds.has(c.id));
-      mergedT.comments = [...(td.comments||[]), ...newComs].sort((a,b)=>(a.createdAt<b.createdAt?-1:1));
+      // Comments: union by id, respecting deletions tracked in _deletedCommentIds
+      const deletedIds = new Set(tm._deletedCommentIds||[]);
+      const memComIds  = new Set((tm.comments||[]).map(c=>c.id));
+      // disk comments: exclude ones deleted in memory
+      const keepDisk   = (td.comments||[]).filter(c => !deletedIds.has(c.id) && !memComIds.has(c.id));
+      mergedT.comments = [...(tm.comments||[]), ...keepDisk].sort((a,b)=>(a.createdAt<b.createdAt?-1:1));
+      // carry over only IDs still present on disk (clean up stale entries)
+      const diskAllIds = new Set((td.comments||[]).map(c=>c.id));
+      mergedT._deletedCommentIds = [...deletedIds].filter(id => diskAllIds.has(id));
 
       if (taskFields.conflictFields.length > 0) {
         conflicts.push({
@@ -2241,8 +2469,20 @@ function threeWayMerge(base, mine, disk) {
           choice: 'mine',
         });
       }
+      return mergedT;
+    }
 
-      mergedTasks.push(mergedT);
+    const mergedTasks = [];
+    // taskOrderBase の順序でマージ
+    taskOrderBase.forEach(t => {
+      const r = mergeOneTask(t.id);
+      if (r) mergedTasks.push(r);
+    });
+    // taskOrderBase に含まれない新規追加タスク（orderBaseがdiskの場合にmine追加分を補完）
+    allTaskIds.forEach(tid => {
+      if (taskOrderBase.find(t => t.id === tid)) return;
+      const r = mergeOneTask(tid);
+      if (r) mergedTasks.push(r);
     });
 
     mergedP.tasks = mergedTasks;
@@ -2277,21 +2517,25 @@ function mergeArrayById(base, mine, disk) {
   const diskIdx = indexBy(disk, 'id');
   const allIds = new Set([...Object.keys(baseIdx),...Object.keys(mineIdx),...Object.keys(diskIdx)]);
   let changed = 0;
-  const result = [];
+  const resultMap = {};
   allIds.forEach(id => {
     const b=baseIdx[id], m=mineIdx[id], d=diskIdx[id];
     if (b && !m) return; // deleted by mine
     if (b && !d) return; // deleted by disk
-    if (!b && m && !d) { result.push(deepCopy(m)); changed++; return; }
-    if (!b && !m && d) { result.push(deepCopy(d)); return; }
+    if (!b && m && !d) { resultMap[id] = deepCopy(m); changed++; return; }
+    if (!b && !m && d) { resultMap[id] = deepCopy(d); return; }
     if (d) {
       const r = deepCopy(d);
-      // If mine changed checked state, use mine's
       if (m && b && m.checked !== b.checked && d.checked === b.checked) { r.checked = m.checked; changed++; }
       if (m && b && m.text !== b.text && d.text === b.text) { r.text = m.text; changed++; }
-      result.push(r);
+      resultMap[id] = r;
     }
   });
+  // mine の順序を優先して並べ、mine にない項目（disk 追加分）を末尾に追加
+  const mineOrder = mine.map(x => x.id).filter(id => resultMap[id]);
+  const mineOrderSet = new Set(mineOrder);
+  const rest = Object.keys(resultMap).filter(id => !mineOrderSet.has(id));
+  const result = [...mineOrder, ...rest].map(id => resultMap[id]);
   return { result, changed };
 }
 
@@ -2307,6 +2551,7 @@ function indexBy(arr, key) {
 const FIELD_LABELS = {
   title:'タイトル', status:'ステータス', assignee:'担当者',
   startDate:'開始日', dueDate:'期限', storyPoints:'SP',
+  estimatedHours:'見積工数(h)', actualHours:'実績工数(h)',
   description:'詳細', milestoneId:'MS', labels:'ラベル',
   completedAt:'完了日', name:'名前', archived:'アーカイブ',
   color:'カラー', wiki:'Wiki', members:'メンバー',
@@ -2382,6 +2627,7 @@ function formatConflictVal(field, val) {
   }
   if (field === 'labels') return Array.isArray(val) ? val.join(', ') || '（なし）' : String(val);
   if (field === 'storyPoints') return val === 0 ? '未設定' : String(val);
+  if (field === 'estimatedHours' || field === 'actualHours') return val === 0 ? '未設定' : `${val}h`;
   if (typeof val === 'boolean') return val ? 'はい' : 'いいえ';
   if (field === 'description' || field === 'wiki') {
     const s = String(val);
@@ -2448,6 +2694,28 @@ function resolveConflict() {
 // ═══════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════
+function returnToTop() {
+  if (panelDirty && !confirm('変更が保存されていません。TOPに戻りますか？')) return;
+  // パネルを閉じる
+  document.getElementById('task-panel').classList.remove('open');
+  document.getElementById('panel-backdrop').classList.remove('show');
+  _panelTaskId = null; panelDirty = false;
+  // アプリ画面を隠してTOPを表示
+  document.getElementById('header').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('file-loader').style.display = 'flex';
+  // ハッシュとフォルダ関連のガイドをリセット
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  window._pendingHashFolder = null;
+  document.getElementById('hash-folder-banner').style.display = 'none';
+  const title = document.querySelector('.loader-title');
+  const subtitle = document.querySelector('.loader-subtitle');
+  if (title) title.textContent = 'データフォルダを選択';
+  if (subtitle) subtitle.innerHTML = 'データを保存するフォルダを開くか、<br>新規作成してください。<br>以降の変更はプロジェクト単位で自動保存されます。';
+  // 履歴を再描画
+  initFolderHistory();
+}
+
 function initApp() {
   document.getElementById('file-loader').style.display = 'none';
   document.getElementById('header').style.display = 'flex';
@@ -2771,6 +3039,8 @@ function switchView(view) {
 function renderCurrentView() {
   if (state.currentView==='list') renderList();
   else if (state.currentView==='kanban') renderKanban();
+  else if (state.currentView==='burndown') renderBurndown();
+  else if (state.currentView==='gantt') renderGantt();
   else {
     const def = (window.TaskFlow ? window.TaskFlow._viewTabs : []).find(d => d.id === state.currentView);
     if (def && typeof def.render === 'function') {
@@ -2883,8 +3153,8 @@ function renderList() {
     const msTasks = grouped[ms.id]||[];
     if (!msTasks.length) return;
     const doneCount = msTasks.filter(t=>t.status==='done').length;
-    rows += `<tr class="list-ms-group-row" onclick="toggleMsGroup('mg-${ms.id}',this)"${ms.description?` data-ms-desc="${esc(ms.description)}"`:''}>
-      <td colspan="7">
+    rows += `<tr class="list-ms-group-row" onclick="toggleMsGroup('mg-${ms.id}',this)"${ms.description?` data-ms-desc="${esc(ms.description)}"`:''}  ondragover="listMsDragOver(event,'${ms.id}')" ondragleave="listMsDragLeave(event)" ondrop="listMsDrop(event,'${ms.id}')">
+      <td colspan="10">
         <span id="mg-arrow-${ms.id}" style="margin-right:6px;font-size:10px">▼</span>
         <span style="width:8px;height:8px;border-radius:50%;background:${ms.color||'#4f8eff'};display:inline-block;margin-right:6px;vertical-align:middle"></span>
         🏁 ${esc(ms.name)}${ms.description?` <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:4px">💬</span>`:''}
@@ -2895,8 +3165,8 @@ function renderList() {
     <tbody id="mg-${ms.id}">${msTasks.map(t=>buildListRow(t)).join('')}</tbody>`;
   });
   if (noMs.length) {
-    rows += `<tr class="list-ms-group-row" onclick="toggleMsGroup('mg-none',this)">
-      <td colspan="7"><span id="mg-arrow-none" style="margin-right:6px;font-size:10px">▼</span>未割り当て <span style="margin-left:8px">${noMs.length}件</span></td>
+    rows += `<tr class="list-ms-group-row" onclick="toggleMsGroup('mg-none',this)" ondragover="listMsDragOver(event,'__none__')" ondragleave="listMsDragLeave(event)" ondrop="listMsDrop(event,'__none__')">
+      <td colspan="10"><span id="mg-arrow-none" style="margin-right:6px;font-size:10px">▼</span>未割り当て <span style="margin-left:8px">${noMs.length}件</span></td>
     </tr>
     <tbody id="mg-none">${noMs.map(t=>buildListRow(t)).join('')}</tbody>`;
   }
@@ -2904,17 +3174,21 @@ function renderList() {
   body.innerHTML = `
     <table class="list-table">
       <colgroup>
-        <col style="width:60px"><col><col style="width:90px">
-        <col style="width:130px"><col style="width:55px">
+        <col style="width:60px"><col><col style="width:110px">
+        <col style="width:90px"><col style="width:130px"><col style="width:55px">
+        <col style="width:75px"><col style="width:75px">
         <col style="width:95px"><col style="width:95px">
       </colgroup>
       <thead>
         <tr>
           <th style="padding-left:24px">#</th>
           <th>タイトル</th>
+          <th>チェックリスト</th>
           <th>ステータス</th>
           <th>担当者</th>
           <th>SP</th>
+          <th style="text-align:right;padding-right:8px">見積(h)</th>
+          <th style="text-align:right;padding-right:8px">実績(h)</th>
           <th>開始日</th>
           <th>期限</th>
         </tr>
@@ -2930,6 +3204,129 @@ function toggleMsGroup(id, trEl) {
   const hidden = tbody.style.display === 'none';
   tbody.style.display = hidden ? '' : 'none';
   if (arrow) arrow.textContent = hidden ? '▼' : '▶';
+}
+
+
+// ── List view drag-and-drop ──────────────────────────────────────────────────
+function listRowDragStart(e, taskId) {
+  _listDragTaskId = taskId;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', taskId);
+  setTimeout(() => {
+    const el = document.querySelector(`tr[data-task-id="${taskId}"]`);
+    if (el) el.classList.add('list-row-dragging');
+  }, 0);
+}
+
+function listRowDragEnd(e) {
+  _listDragTaskId = null;
+  document.querySelectorAll('.list-row-dragging,.list-row-drag-over').forEach(el => {
+    el.classList.remove('list-row-dragging', 'list-row-drag-over');
+  });
+  document.querySelectorAll('.list-ms-drag-over').forEach(el => el.classList.remove('list-ms-drag-over'));
+}
+
+function listRowDragOver(e, taskId) {
+  if (!_listDragTaskId || taskId === _listDragTaskId) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.list-row-drag-over').forEach(el => el.classList.remove('list-row-drag-over'));
+  document.querySelectorAll('.list-ms-drag-over').forEach(el => el.classList.remove('list-ms-drag-over'));
+  e.currentTarget.classList.add('list-row-drag-over');
+}
+
+function listRowDragLeave(e) {
+  e.currentTarget.classList.remove('list-row-drag-over');
+}
+
+function listRowDrop(e, targetTaskId) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (!_listDragTaskId || targetTaskId === _listDragTaskId) return;
+
+  const p = getProject(state.currentProjectId);
+  if (!p) return;
+
+  const fromIdx = p.tasks.findIndex(t => t.id === _listDragTaskId);
+  const toIdx   = p.tasks.findIndex(t => t.id === targetTaskId);
+  if (fromIdx < 0 || toIdx < 0) return;
+
+  const task       = p.tasks[fromIdx];
+  const targetTask = p.tasks[toIdx];
+  const oldMsId    = task.milestoneId;
+
+  // マイルストーン境界をまたぐ場合は milestoneId を更新
+  task.milestoneId = targetTask.milestoneId;
+
+  // 配列内の順序を変更（fromIdx 除去 → toIdx 位置に挿入）
+  p.tasks.splice(fromIdx, 1);
+  const newToIdx = p.tasks.findIndex(t => t.id === targetTaskId);
+  p.tasks.splice(newToIdx, 0, task);
+
+  autoSave(state.currentProjectId);
+  renderList();
+
+  if (oldMsId !== task.milestoneId) {
+    const p2 = getProject(state.currentProjectId);
+    const msName = task.milestoneId
+      ? ((p2.milestones||[]).find(m => m.id === task.milestoneId)?.name || 'マイルストーン')
+      : '未割り当て';
+    toast(`マイルストーン → ${msName} に変更`, 'success');
+  }
+}
+
+function listMsDragOver(e, msId) {
+  if (!_listDragTaskId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.list-row-drag-over').forEach(el => el.classList.remove('list-row-drag-over'));
+  document.querySelectorAll('.list-ms-drag-over').forEach(el => el.classList.remove('list-ms-drag-over'));
+  e.currentTarget.classList.add('list-ms-drag-over');
+}
+
+function listMsDragLeave(e) {
+  e.currentTarget.classList.remove('list-ms-drag-over');
+}
+
+function listMsDrop(e, msId) {
+  e.preventDefault();
+  if (!_listDragTaskId) return;
+
+  const p = getProject(state.currentProjectId);
+  if (!p) return;
+
+  const fromIdx = p.tasks.findIndex(t => t.id === _listDragTaskId);
+  if (fromIdx < 0) return;
+
+  const task       = p.tasks[fromIdx];
+  const oldMsId    = task.milestoneId;
+  const targetMsId = msId === '__none__' ? null : msId;
+
+  // milestoneId を更新
+  task.milestoneId = targetMsId;
+
+  // 対象マイルストーングループの末尾に移動
+  p.tasks.splice(fromIdx, 1);
+  let insertIdx = p.tasks.length;
+  for (let i = p.tasks.length - 1; i >= 0; i--) {
+    if ((p.tasks[i].milestoneId || null) === targetMsId) {
+      insertIdx = i + 1;
+      break;
+    }
+  }
+  p.tasks.splice(insertIdx, 0, task);
+
+  autoSave(state.currentProjectId);
+  renderList();
+
+  if (oldMsId !== targetMsId) {
+    const p2 = getProject(state.currentProjectId);
+    const msName = targetMsId
+      ? ((p2.milestones||[]).find(m => m.id === targetMsId)?.name || 'マイルストーン')
+      : '未割り当て';
+    toast(`マイルストーン → ${msName} に変更`, 'success');
+  }
 }
 
 // ── Milestone description tooltip ──────────────────────────────
@@ -2980,8 +3377,35 @@ function buildListRow(t) {
   const diff = daysDiff(t.dueDate);
   const dueCls = diff!==null?(diff<0?'overdue':diff<=3?'soon':''):'';
   const labels = (t.labels||[]).slice(0,2).map(l=>`<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`).join('');
-  return `<tr onclick="openTaskPanel('${t.id}')">
-    <td class="task-num-cell">#${t.number||'?'}</td>
+
+  // チェックリスト進捗（getTaskProgress と同じロジック: 完了ステータスで100%、それ以外は最大99%）
+  const cl = t.checklist||[];
+  let clCell = '<td class="cl-progress-cell" style="color:var(--muted);font-size:12px">—</td>';
+  if (cl.length > 0 || t.status === 'done') {
+    const prog    = getTaskProgress(t);
+    const pct     = Math.round(prog * 100);
+    const allDone = prog >= 1.0;
+    const done    = cl.filter(x=>x.checked).length;
+    const label   = t.status === 'done'
+      ? `${cl.length}/${cl.length} (100%)`
+      : `${done}/${cl.length} (${pct}%)`;
+    clCell = `<td class="cl-progress-cell">
+      <div class="cl-progress-mini">
+        <div class="cl-progress-mini-bar">
+          <div class="cl-progress-mini-fill${allDone?' done':''}" style="width:${pct}%"></div>
+        </div>
+        <div class="cl-progress-mini-label">${label}</div>
+      </div>
+    </td>`;
+  }
+
+  return `<tr draggable="true" data-task-id="${t.id}" onclick="openTaskPanel('${t.id}')"
+    ondragstart="listRowDragStart(event,'${t.id}')"
+    ondragend="listRowDragEnd(event)"
+    ondragover="listRowDragOver(event,'${t.id}')"
+    ondrop="listRowDrop(event,'${t.id}')"
+    ondragleave="listRowDragLeave(event)">
+    <td class="task-num-cell"><span class="list-drag-handle">⠿</span>#${t.number||'?'}</td>
     <td>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-weight:500">${esc(t.title)}</span>
@@ -2989,11 +3413,14 @@ function buildListRow(t) {
         ${(t.comments||[]).length>0?`<span style="font-size:10px;color:var(--muted)">💬 ${t.comments.length}</span>`:''}
       </div>
     </td>
+    ${clCell}
     <td><span class="status-badge" style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44">${s.label}</span></td>
     <td>
       ${t.assignee?`<div style="display:flex;align-items:center;gap:6px"><div class="assignee-avatar">${initials(t.assignee)}</div><span style="font-size:12px">${esc(t.assignee)}</span></div>`:'<span style="color:var(--muted);font-size:12px">—</span>'}
     </td>
     <td class="sp-cell">${t.storyPoints>0?`<span style="background:rgba(79,142,255,.15);color:var(--accent);padding:1px 7px;border-radius:4px">${t.storyPoints}</span>`:'—'}</td>
+    <td style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)">${t.estimatedHours>0?t.estimatedHours:'—'}</td>
+    <td style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;${t.actualHours>0&&t.estimatedHours>0?(t.actualHours>t.estimatedHours?'color:var(--red)':'color:var(--green)'):'color:var(--muted)'}">${t.actualHours>0?t.actualHours:'—'}</td>
     <td class="due-cell">${t.startDate?fmtFull(t.startDate):'—'}</td>
     <td class="due-cell ${dueCls}">${t.dueDate?fmtFull(t.dueDate):'—'}</td>
   </tr>`;
@@ -3064,7 +3491,7 @@ function onDrop(e,status){
 // ═══════════════════════════════════════
 function renderBurndown() {
   const p = getProject(state.currentProjectId); if(!p)return;
-  const tasks=p.tasks;
+  const tasks=getFilteredTasks();
   const totalPts=tasks.reduce((s,t)=>s+(t.storyPoints||0),0);
   const donePts=tasks.filter(t=>t.status==='done').reduce((s,t)=>s+(t.storyPoints||0),0);
   document.getElementById('burndown-stats').innerHTML=`
@@ -4084,7 +4511,7 @@ function saveNewTask(){
   const description = document.getElementById('tm-description').value.trim();
   const checklistItems = [...document.getElementById('tm-checklist').querySelectorAll('input:not([type="date"])')].map(el=>({id:uid(),text:el.value.trim(),done:false})).filter(c=>c.text);
   const labels = [...document.getElementById('tm-labels-display').querySelectorAll('[data-label]')].map(el=>el.dataset.label);
-  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[]};
+  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours:0,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[]};
   p.tasks.push(task);
   closeTaskModal(); autoSave(state.currentProjectId); renderCurrentView(); renderSidebar(); updateFilters();
   toast(`タスク #${task.number} を追加しました`,'success');
@@ -4130,6 +4557,7 @@ function _openTaskPanelInner(taskId){
   document.getElementById('panel-completed').value=t.completedAt||'';
   toggleCompletedField(t.status);
   document.getElementById('panel-points').value=t.storyPoints||0;
+  updateHoursDisplay(t);
   document.getElementById('panel-desc').value=t.description||'';
   document.getElementById('panel-milestone').value=t.milestoneId||'';
   document.getElementById('panel-save-status').textContent='';
@@ -4151,8 +4579,7 @@ function _openTaskPanelInner(taskId){
   // Update URL hash
   const p2 = getProject(state.currentProjectId);
   if (p2 && t) {
-    const hash = `#P${p2.number}-${t.number}`;
-    history.replaceState(null, '', hash);
+    history.replaceState(null, '', buildTaskHash(p2, t));
   }
   // プラグインへ task-open イベントを通知
   if (window.TaskFlow) window.TaskFlow.emit('task-open', { task: t, project: p });
@@ -4350,15 +4777,29 @@ function renderTimeline(t) {
   list.innerHTML = items.map(item => {
     if (item.kind === 'comment') {
       const c = item.data; const i = item.idx;
-      return `<div class="activity-item">
+      // コメント番号：createdAt 昇順での連番（削除後もずれない）
+      const commentNo = i + 1;
+      const effortBadge = c.effortLog ? (() => {
+        const parts = [];
+        if (c.effortLog.estimated) parts.push(`見積 ${c.effortLog.estimated}h`);
+        if (c.effortLog.actual)    parts.push(`実績 ${c.effortLog.actual}h`);
+        return parts.length ? `<div style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;background:rgba(79,142,255,.1);border:1px solid rgba(79,142,255,.25);border-radius:4px;padding:2px 8px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--accent)">⏱ ${parts.join('　')}</div>` : '';
+      })() : '';
+      const editedBadge = c.editedAt ? `<span style="font-size:10px;color:var(--muted);font-style:italic">編集済み ${fmtDatetime(c.editedAt)}</span>` : '';
+      return `<div class="activity-item" id="comment-anchor-${commentNo}">
         <div class="activity-icon-col"><div class="comment-avatar" title="${esc(c.author||'匿名')}">${initials(c.author||'?')}</div></div>
         <div class="activity-body">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);background:var(--surface3);padding:1px 6px;border-radius:3px">C${commentNo}</span>
             <span style="font-size:12px;font-weight:600;color:var(--text)">${esc(c.author||'匿名')}</span>
             <span class="activity-date">${fmtDatetime(c.createdAt)}</span>
-            <button onclick="deleteComment(${i})" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
+            ${editedBadge}
+            <button onclick="copyCommentUrl(${commentNo})" title="このコメントのURLをコピー" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">🔗</button>
+            <button onclick="startEditComment(${i})" title="編集" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">✏️</button>
+            <button onclick="deleteComment(${i})" title="削除" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
           </div>
           <div class="md-preview" style="display:block;min-height:unset;border:none;padding:4px 8px;background:var(--surface2);border-radius:5px;font-size:12px">${marked.parse(c.text||'')}</div>
+          ${effortBadge}
         </div>
       </div>`;
     } else {
@@ -4384,24 +4825,147 @@ function fmtDatetime(iso) {
   } catch(e){ return iso.slice(0,16); }
 }
 
+// ── 工数再計算（コメントの effortLog を全件集計）────────────────
+function recalcHours(t) {
+  let est = 0, act = 0;
+  (t.comments||[]).forEach(c => {
+    if (c.effortLog) {
+      est += c.effortLog.estimated || 0;
+      act += c.effortLog.actual    || 0;
+    }
+  });
+  t.estimatedHours = Math.round(est * 100) / 100;
+  t.actualHours    = Math.round(act * 100) / 100;
+}
+
+function updateHoursDisplay(t) {
+  const estEl = document.getElementById('panel-estimated-hours');
+  const actEl = document.getElementById('panel-actual-hours');
+  if (estEl) estEl.textContent = t.estimatedHours > 0 ? `${t.estimatedHours}h` : '—';
+  if (actEl) {
+    actEl.textContent = t.actualHours > 0 ? `${t.actualHours}h` : '—';
+    if (t.actualHours > 0 && t.estimatedHours > 0) {
+      actEl.style.color = t.actualHours > t.estimatedHours ? 'var(--red)' : 'var(--green)';
+    } else {
+      actEl.style.color = 'var(--text)';
+    }
+  }
+}
+
+function toggleEffortPanel() {
+  const panel = document.getElementById('effort-panel');
+  const btn   = document.getElementById('effort-toggle-btn');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? '' : 'none';
+  btn.textContent = open ? '✕ 工数をキャンセル' : '＋ 工数を追加';
+  btn.style.background = open ? 'rgba(79,142,255,.12)' : '';
+  if (open) document.getElementById('effort-estimated').focus();
+}
+
+function autoResizeCmtTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.max(70, el.scrollHeight) + 'px';
+}
+
+let _editingCommentIdx = -1;
+
+function startEditComment(idx) {
+  const t = getTask(state.currentProjectId, _panelTaskId); if (!t) return;
+  const c = t.comments[idx]; if (!c) return;
+  _editingCommentIdx = idx;
+  const ta = document.getElementById('comment-text');
+  ta.value = c.text || '';
+  document.getElementById('comment-author').value = c.author || '';
+  autoResizeCmtTextarea(ta);
+  // 工数パネルを展開してセット
+  const estVal = c.effortLog?.estimated || '';
+  const actVal = c.effortLog?.actual    || '';
+  document.getElementById('effort-estimated').value = estVal;
+  document.getElementById('effort-actual').value    = actVal;
+  const effortPanel = document.getElementById('effort-panel');
+  if ((estVal || actVal) && effortPanel.style.display === 'none') toggleEffortPanel();
+  // ボタン切り替え
+  document.getElementById('comment-submit-btn').style.display  = 'none';
+  document.getElementById('comment-update-btn').style.display  = '';
+  document.getElementById('comment-cancel-edit-btn').style.display = '';
+  setCmtMode('edit');
+  ta.focus();
+}
+
+function cancelEditComment() {
+  _editingCommentIdx = -1;
+  document.getElementById('comment-text').value = '';
+  document.getElementById('effort-estimated').value = '';
+  document.getElementById('effort-actual').value = '';
+  const effortPanel = document.getElementById('effort-panel');
+  if (effortPanel.style.display !== 'none') toggleEffortPanel();
+  const ta = document.getElementById('comment-text');
+  ta.style.height = '70px';
+  document.getElementById('comment-submit-btn').style.display  = '';
+  document.getElementById('comment-update-btn').style.display  = 'none';
+  document.getElementById('comment-cancel-edit-btn').style.display = 'none';
+  setCmtMode('edit');
+}
+
+function updateComment() {
+  const text = document.getElementById('comment-text').value.trim();
+  if (!text) { toast('コメントを入力してください', 'error'); return; }
+  const t = getTask(state.currentProjectId, _panelTaskId); if (!t) return;
+  const c = t.comments[_editingCommentIdx]; if (!c) return;
+  c.text     = text;
+  c.author   = document.getElementById('comment-author').value.trim() || c.author;
+  c.editedAt = new Date().toISOString();
+  const estVal = parseFloat(document.getElementById('effort-estimated').value) || 0;
+  const actVal = parseFloat(document.getElementById('effort-actual').value)    || 0;
+  if (estVal > 0 || actVal > 0) {
+    c.effortLog = { estimated: estVal, actual: actVal };
+  } else {
+    delete c.effortLog;
+  }
+  recalcHours(t);
+  updateHoursDisplay(t);
+  cancelEditComment();
+  renderTimeline(t); autoSave(state.currentProjectId); renderCurrentView();
+  toast('コメントを更新しました', 'success');
+}
+
 function addComment(){
   const author=document.getElementById('comment-author').value.trim()||'名無し';
   const text=document.getElementById('comment-text').value.trim();
   if(!text){toast('コメントを入力してください','error');return;}
   const t=getTask(state.currentProjectId,_panelTaskId); if(!t)return;
   if(!t.comments)t.comments=[];
-  t.comments.push({id:uid(),author,text,createdAt:new Date().toISOString()});
+  const comment={id:uid(),author,text,createdAt:new Date().toISOString()};
+  const estVal=parseFloat(document.getElementById('effort-estimated').value)||0;
+  const actVal=parseFloat(document.getElementById('effort-actual').value)||0;
+  if(estVal>0||actVal>0) comment.effortLog={estimated:estVal,actual:actVal};
+  t.comments.push(comment);
+  recalcHours(t);
   document.getElementById('comment-author').value=author;
-  document.getElementById('comment-text').value='';
+  const cmtTa=document.getElementById('comment-text');
+  cmtTa.value='';
+  cmtTa.style.height='70px';
+  document.getElementById('effort-estimated').value='';
+  document.getElementById('effort-actual').value='';
+  const effortPanel=document.getElementById('effort-panel');
+  if(effortPanel.style.display!=='none') toggleEffortPanel();
   setCmtMode('edit');
+  updateHoursDisplay(t);
   renderTimeline(t); autoSave(state.currentProjectId); renderCurrentView();
-  toast('コメントを投稿しました','success');
+  toast(comment.effortLog?'コメントと工数を投稿しました':'コメントを投稿しました','success');
 }
 
 function deleteComment(idx){
-  if(!confirm('このコメントを削除しますか？'))return;
+  if(!confirm('このコメントを削除しますか？\n工数が登録されている場合は合計から減算されます。'))return;
   const t=getTask(state.currentProjectId,_panelTaskId); if(!t)return;
-  t.comments.splice(idx,1); renderTimeline(t); autoSave(state.currentProjectId); renderCurrentView();
+  const removed = t.comments.splice(idx,1)[0];
+  if(removed){
+    if(!t._deletedCommentIds) t._deletedCommentIds=[];
+    if(!t._deletedCommentIds.includes(removed.id)) t._deletedCommentIds.push(removed.id);
+  }
+  recalcHours(t);
+  updateHoursDisplay(t);
+  renderTimeline(t); autoSave(state.currentProjectId); renderCurrentView();
 }
 
 function renderComments(comments){}  // kept for compatibility
@@ -4552,6 +5116,7 @@ function toggleChecklistItem(idx) {
     at: now
   });
   renderChecklist(t); renderTimeline(t); autoSave(state.currentProjectId);
+  if (state.currentView === 'list') renderList();
 }
 
 function deleteChecklistItem(idx) {
@@ -4562,6 +5127,7 @@ function deleteChecklistItem(idx) {
   t.activity.push({type:'checklist',icon:'🗑',text:`チェックリスト削除: <b>${esc(item.text)}</b>`,at:new Date().toISOString()});
   t.checklist.splice(idx,1);
   renderChecklist(t); renderTimeline(t); autoSave(state.currentProjectId);
+  if (state.currentView === 'list') renderList();
 }
 
 // ── Panel resize ──────────────────────────────────────────────────
@@ -4596,33 +5162,77 @@ function deleteChecklistItem(idx) {
 // ═══════════════════════════════════════
 // URL HASH NAVIGATION
 // ═══════════════════════════════════════
+function copyCommentUrl(commentNo) {
+  const p = getProject(state.currentProjectId);
+  const t = _panelTaskId ? getTask(state.currentProjectId, _panelTaskId) : null;
+  if (!p || !t) return;
+  const url = window.location.href.split('#')[0] + buildTaskHash(p, t, commentNo);
+  navigator.clipboard.writeText(url).then(() => {
+    toast(`C${commentNo} のURLをコピーしました`, 'success');
+  }).catch(() => {
+    prompt('このURLをコピーしてください:', url);
+  });
+}
+
+function scrollToComment(commentNo) {
+  const el = document.getElementById(`comment-anchor-${commentNo}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // ハイライト演出
+  el.style.transition = 'background .2s';
+  el.style.background = 'rgba(79,142,255,.15)';
+  setTimeout(() => { el.style.background = ''; }, 1800);
+}
+
+function buildTaskHash(p, t, commentNo) {
+  const folder = state.rootDirHandle ? state.rootDirHandle.name : null;
+  const base = folder ? `#${folder}-P${p.number}-${t.number}` : `#P${p.number}-${t.number}`;
+  return commentNo != null ? `${base}-C${commentNo}` : base;
+}
+
 function navigateToHash(hash) {
   if (!hash || hash === '#') return;
-  // Format: #P{projectNum}-{taskNum}
-  const m = hash.match(/^#P(\d+)-(\d+)$/i);
+  // Format: #[FolderName-]P{projectNum}-{taskNum}[-C{commentNo}]
+  const m = hash.match(/^#(?:(.+?)-)?P(\d+)-(\d+)(?:-C(\d+))?$/i);
   if (!m) return;
-  const pNum = parseInt(m[1]);
-  const tNum = parseInt(m[2]);
+  const folderName = m[1] || null;
+  const pNum = parseInt(m[2]);
+  const tNum = parseInt(m[3]);
+  const commentNo = m[4] != null ? parseInt(m[4]) : null;
+
+  // フォルダ名チェック
+  if (folderName) {
+    const currentFolder = state.rootDirHandle ? state.rootDirHandle.name : null;
+    if (!currentFolder) {
+      toast(`「${folderName}」フォルダを開いてから再度URLにアクセスしてください`, 'error');
+      return;
+    }
+    if (currentFolder !== folderName) {
+      toast(`フォルダが違います（必要: ${folderName}、現在: ${currentFolder}）`, 'error');
+      return;
+    }
+  }
 
   const p = state.data.projects.find(x => x.number === pNum);
   if (!p) { toast(`プロジェクト P${pNum} が見つかりません`, 'error'); return; }
   const t = p.tasks.find(x => x.number === tNum);
   if (!t) { toast(`タスク #${tNum} が見つかりません`, 'error'); return; }
 
-  // Switch to the project if needed
-  if (state.currentProjectId !== p.id) {
-    openProject(p.id);
-  }
-  // Slight delay to allow view render before opening panel
-  setTimeout(() => openTaskPanel(t.id), 100);
+  if (state.currentProjectId !== p.id) openProject(p.id);
+  setTimeout(() => {
+    openTaskPanel(t.id);
+    if (commentNo != null) {
+      // コメントNoへスクロール（パネル描画後）
+      setTimeout(() => scrollToComment(commentNo), 300);
+    }
+  }, 100);
 }
 
 function copyTaskUrl() {
   const p = getProject(state.currentProjectId);
   const t = _panelTaskId ? getTask(state.currentProjectId, _panelTaskId) : null;
   if (!p || !t) return;
-  const hash = `#P${p.number}-${t.number}`;
-  const url = window.location.href.split('#')[0] + hash;
+  const url = window.location.href.split('#')[0] + buildTaskHash(p, t);
   navigator.clipboard.writeText(url).then(() => {
     const btn = document.getElementById('panel-url-copy-btn');
     btn.textContent = '✅ コピー完了';
@@ -4706,7 +5316,7 @@ window.TaskFlow = {
     const task = Object.assign({
       id: uid(), number: p.nextTaskNum++, title: '', description: '',
       status: 'todo', assignee: '', startDate: '', dueDate: '',
-      completedAt: null, storyPoints: 0, milestoneId: null,
+      completedAt: null, storyPoints: 0, estimatedHours: 0, actualHours: 0, milestoneId: null,
       labels: [], createdAt: today(), checklist: [], comments: [], activity: [],
     }, fields);
     if (task.status === 'done' && !task.completedAt) task.completedAt = today();
@@ -4841,6 +5451,11 @@ function _renderPluginSidebarItems() {
 if(!window.showDirectoryPicker){
   document.querySelector('.welcome-info').innerHTML=`⚠️ <strong>File System Access API が使用できません</strong><br>このシステムは <strong>Chrome</strong> または <strong>Edge</strong> でご使用ください。`;
 } else {
+  // ハッシュからフォルダ名を先読みして保持
+  (function() {
+    const m = window.location.hash.match(/^#([^-]+)-P\d+-\d+/i);
+    window._pendingHashFolder = m ? m[1] : null;
+  })();
   // Check for last-used file handle in IndexedDB
   initLastFileButton();
 }
