@@ -5,6 +5,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TaskFlowZero</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0f1a'/%3E%3Cpolygon points='19,3 10,18 16,18 13,29 22,14 16,14' fill='%234f8eff' stroke='%237aa7ff' stroke-width='0.8'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#0b0f1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TaskFlowZero">
+<script>
+(function() {
+  const SVG_SRC = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#0b0f1a"/><polygon points="304,48 160,288 256,288 208,464 352,224 256,224" fill="#4f8eff" stroke="#7aa7ff" stroke-width="12" stroke-linejoin="round"/></svg>`;
+  const blob = new Blob([SVG_SRC], {type:'image/svg+xml'});
+  const svgUrl = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = function() {
+    function toPng(size) {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      c.getContext('2d').drawImage(img, 0, 0, size, size);
+      return c.toDataURL('image/png');
+    }
+    const png192 = toPng(192);
+    const png512 = toPng(512);
+    URL.revokeObjectURL(svgUrl);
+    const appleLink = document.createElement('link');
+    appleLink.rel = 'apple-touch-icon';
+    appleLink.href = png192;
+    document.head.appendChild(appleLink);
+    const manifest = {
+      name: 'TaskFlowZero',
+      short_name: 'TFZ',
+      description: 'プロジェクト管理システム',
+      start_url: './',
+      display: 'standalone',
+      background_color: '#0b0f1a',
+      theme_color: '#0b0f1a',
+      icons: [
+        {src: png192, sizes: '192x192', type: 'image/png', purpose: 'any maskable'},
+        {src: png512, sizes: '512x512', type: 'image/png', purpose: 'any maskable'}
+      ]
+    };
+    const mBlob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = URL.createObjectURL(mBlob);
+    document.head.appendChild(link);
+  };
+  img.src = svgUrl;
+})();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" onerror="this.remove()">
 <script>
 // CDN → ローカルファイル フォールバックローダー
@@ -665,7 +711,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       <div id="sidebar-projects"></div>
     </div>
     <button id="btn-new-project" onclick="openProjectModal()">＋ 新規プロジェクト</button>
-    <div id="sidebar-version" style="position:absolute;bottom:0;left:0;right:0;padding:4px 14px 6px;font-size:10px;color:var(--border2);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;text-align:right;background:var(--surface);border-top:1px solid var(--border);pointer-events:none">v1.1.0</div>
+    <div id="sidebar-version" style="position:absolute;bottom:0;left:0;right:0;padding:4px 14px 6px;font-size:10px;color:var(--border2);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;text-align:right;background:var(--surface);border-top:1px solid var(--border);pointer-events:none">v1.0.0</div>
   </div>
 
   <!-- MAIN -->
