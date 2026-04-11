@@ -913,10 +913,11 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('wiki-textarea','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
             <button class="md-btn-fmt" title="リスト" onclick="insertMd('wiki-textarea','\n- ','','項目')">≡</button>
             <button class="md-btn-fmt" title="見出し" onclick="insertMd('wiki-textarea','## ','','見出し')">H</button>
+            <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('wiki-textarea')" style="margin-left:4px">📎</button>
             <button class="btn btn-primary btn-sm" id="wiki-save-btn" onclick="saveWiki()" style="display:none;margin-left:auto">保存</button>
           </div>
           <div id="wiki-content-area">
-            <textarea id="wiki-textarea" placeholder="# プロジェクト概要&#10;&#10;ここにWikiをMarkdownで記述してください。&#10;&#10;## 目的&#10;&#10;## アーキテクチャ&#10;&#10;## 開発環境のセットアップ"></textarea>
+            <textarea id="wiki-textarea" placeholder="# プロジェクト概要&#10;&#10;ここにWikiをMarkdownで記述してください。&#10;&#10;## 目的&#10;&#10;## アーキテクチャ&#10;&#10;## 開発環境のセットアップ" onpaste="handleMdPaste(event,'wiki-textarea')"></textarea>
             <div id="wiki-preview"></div>
           </div>
         </div>
@@ -1013,9 +1014,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('panel-desc','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
         <button class="md-btn-fmt" title="リスト" onclick="insertMd('panel-desc','\n- ','','項目')">≡</button>
         <button class="md-btn-fmt" title="見出し" onclick="insertMd('panel-desc','## ','','見出し')">H</button>
+        <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('panel-desc')" style="margin-left:4px">📎</button>
         <div style="flex:1"></div>
       </div>
-      <textarea class="desc-textarea" id="panel-desc" placeholder="詳細をMarkdownで記述..." oninput="panelDirty=true"></textarea>
+      <textarea class="desc-textarea" id="panel-desc" placeholder="詳細をMarkdownで記述..." oninput="panelDirty=true" onpaste="handleMdPaste(event,'panel-desc')"></textarea>
       <div class="md-preview" id="panel-desc-preview"></div>
     </div>
 
@@ -1053,8 +1055,9 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('comment-text','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
           <button class="md-btn-fmt" title="リスト" onclick="insertMd('comment-text','\n- ','','項目')">≡</button>
           <button class="md-btn-fmt" title="見出し" onclick="insertMd('comment-text','## ','','見出し')">H</button>
+          <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('comment-text')" style="margin-left:4px">📎</button>
         </div>
-        <textarea class="comment-text-input" id="comment-text" placeholder="コメントをMarkdownで入力..." oninput="autoResizeCmtTextarea(this)"></textarea>
+        <textarea class="comment-text-input" id="comment-text" placeholder="コメントをMarkdownで入力..." oninput="autoResizeCmtTextarea(this)" onpaste="handleMdPaste(event,'comment-text')"></textarea>
         <div class="md-preview" id="comment-preview" style="min-height:60px;max-height:200px"></div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" id="comment-submit-btn" onclick="addComment()">コメントを投稿</button>
@@ -1182,9 +1185,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('tm-description','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
           <button class="md-btn-fmt" title="リスト" onclick="insertMd('tm-description','\n- ','','項目')">≡</button>
           <button class="md-btn-fmt" title="見出し" onclick="insertMd('tm-description','## ','','見出し')">H</button>
+          <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('tm-description')" style="margin-left:4px">📎</button>
         </div>
       </label>
-      <textarea class="form-textarea" id="tm-description" placeholder="タスクの詳細をMarkdownで記述できます..." rows="6" style="resize:vertical;width:100%;box-sizing:border-box"></textarea>
+      <textarea class="form-textarea" id="tm-description" placeholder="タスクの詳細をMarkdownで記述できます..." rows="6" style="resize:vertical;width:100%;box-sizing:border-box" onpaste="handleMdPaste(event,'tm-description')"></textarea>
       <div class="md-preview" id="tm-desc-preview" style="min-height:80px;display:none"></div>
     </div>
     <div class="form-group">
@@ -1322,6 +1326,8 @@ let _editMilestoneId = null;
 let _msfColor = PROJECT_COLORS[0];
 let _listTab = 'open';
 let burndownChart = null;
+// ファイルキャッシュ: "P1/filename" → Blob URL
+let _fileCache = new Map();
 // Gantt render state (shared with drag handlers)
 let _ganttRS = { gStartMs:0, totalW:0, ganttStart:'' };
 let _ganttDrag = null;
@@ -2837,6 +2843,9 @@ function initApp() {
   renderSidebar();
   showProjectsList();
 
+  // ファイルキャッシュを初期化（files/ フォルダ走査）
+  initFileCache();
+
   // Handle URL hash navigation after render
   setTimeout(() => navigateToHash(window.location.hash), 200);
   // プラグインへ ready イベントを通知
@@ -4171,6 +4180,7 @@ function setWikiMode(mode) {
     eBtn.classList.add('active');
     pBtn.classList.remove('active');
     sBtn.style.display = 'inline-flex';
+    _toggleFmtBtns('wiki-edit-btn', true);
     ta.focus();
     ta.oninput = () => { _wikiDirty = true; };
   } else {
@@ -4188,6 +4198,7 @@ function setWikiMode(mode) {
     eBtn.classList.remove('active');
     pBtn.classList.add('active');
     sBtn.style.display = 'none';
+    _toggleFmtBtns('wiki-edit-btn', false);
     buildToc(raw);
     // Scroll spy
     setupWikiScrollSpy();
@@ -4209,7 +4220,7 @@ function buildWikiHtml(raw) {
   }
   try {
     // まず普通にパース（バージョン依存しない安全な方法）
-    let html = linkifyTaskRefs(marked.parse(raw));
+    let html = linkifyTfz(linkifyTaskRefs(marked.parse(raw)));
     // パース後のHTMLの見出しタグにアンカーIDを付与（正規表現で後処理）
     html = html.replace(/<h([1-4])>(.*?)<\/h\1>/gi, (match, level, text) => {
       // HTMLタグを除去してIDを生成
@@ -4807,6 +4818,135 @@ function deleteCurrentTask(){
 
 // ── タスク参照リンク変換 ────────────────────────────────
 // #[FolderName-]P{n}-{n} をクリッカブルリンクに変換
+// ═══════════════════════════════════════
+// FILE ATTACHMENT SYSTEM
+// ═══════════════════════════════════════
+
+// files/P{n}/ フォルダを走査して Blob URL をキャッシュ
+async function initFileCache() {
+  if (!state.rootDirHandle) return;
+  // 既存キャッシュを解放
+  _fileCache.forEach(url => { try { URL.revokeObjectURL(url); } catch(e){} });
+  _fileCache.clear();
+  try {
+    const filesDir = await state.rootDirHandle.getDirectoryHandle('files', { create: false });
+    for await (const [pFolder, pHandle] of filesDir.entries()) {
+      if (pHandle.kind !== 'directory') continue;
+      for await (const [fname, fHandle] of pHandle.entries()) {
+        if (fHandle.kind !== 'file') continue;
+        try {
+          const file = await fHandle.getFile();
+          const url  = URL.createObjectURL(file);
+          _fileCache.set(`${pFolder}/${fname}`, url);
+        } catch(e) {}
+      }
+    }
+  } catch(e) {} // files/ フォルダが存在しない場合は無視
+}
+
+// ファイルを files/P{n}/ に保存してキャッシュに追加、tfz:// キーを返す
+async function saveAttachment(projectId, file) {
+  if (!state.rootDirHandle) throw new Error('フォルダが開かれていません');
+  const p = state.data.projects.find(x => x.id === projectId);
+  if (!p) throw new Error('プロジェクトが見つかりません');
+  const pKey = `P${p.number}`;
+
+  // files/ → P{n}/ フォルダを作成
+  const filesDir = await state.rootDirHandle.getDirectoryHandle('files', { create: true });
+  const pDir     = await filesDir.getDirectoryHandle(pKey, { create: true });
+
+  // 重複しないファイル名を生成
+  const ts   = new Date().toISOString().replace(/[-:T]/g,'').slice(0,12);
+  const safe = file.name.replace(/[\\/:*?"<>|]/g, '_');
+  const fname = `${ts}_${safe}`;
+
+  const fh = await pDir.getFileHandle(fname, { create: true });
+  const w  = await fh.createWritable();
+  await w.write(file);
+  await w.close();
+
+  // Blob URL をキャッシュに追加
+  const savedFile = await fh.getFile();
+  const url = URL.createObjectURL(savedFile);
+  const key = `${pKey}/${fname}`;
+  _fileCache.set(key, url);
+  return `tfz://${key}`;
+}
+
+// tfz://P1/fname → Blob URL に解決（キャッシュにあれば返す）
+function tfzResolve(key) {
+  return _fileCache.get(key) || null;
+}
+
+// Markdown レンダリング後HTML内の tfz:// を実際の URL に変換
+function linkifyTfz(html) {
+  // <img src="tfz://..."> → Blob URL
+  html = html.replace(/src="tfz:\/\/([^"]+)"/g, (_, key) => {
+    const url = tfzResolve(key);
+    return url ? `src="${url}" data-tfz="${key}"` : `src="" data-tfz-missing="${key}" alt="（ファイルが見つかりません: ${key}）"`;
+  });
+  // <a href="tfz://..."> → ダウンロードリンク
+  html = html.replace(/href="tfz:\/\/([^"]+)"/g, (_, key) => {
+    const url = tfzResolve(key);
+    const fname = key.split('/').pop() || key;
+    return url
+      ? `href="${url}" download="${fname}" data-tfz="${key}"`
+      : `href="#" data-tfz-missing="${key}" onclick="return false"`;
+  });
+  return html;
+}
+
+// 現在のプロジェクトIDを取得（コメント用：パネルが開いているタスクのプロジェクト）
+function _currentAttachProjectId() {
+  return state.currentProjectId;
+}
+
+// ファイルを添付してカーソル位置に挿入
+async function attachFile(taId) {
+  const pid = _currentAttachProjectId();
+  if (!pid) { toast('プロジェクトが選択されていません', 'error'); return; }
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,.pdf,.txt,.md,.csv,.xlsx,.docx,.zip';
+  input.onchange = async () => {
+    const file = input.files[0]; if (!file) return;
+    try {
+      toast('ファイルを保存中...', 'success');
+      const tfzKey = await saveAttachment(pid, file);
+      const fname = tfzKey.split('/').pop();
+      const isImage = file.type.startsWith('image/');
+      const md = isImage ? `![${fname}](${tfzKey})` : `[${fname}](${tfzKey})`;
+      insertMd(taId, md, '', '');
+      toast(`${fname} を添付しました`, 'success');
+    } catch(e) {
+      toast('添付に失敗しました: ' + e.message, 'error');
+    }
+  };
+  input.click();
+}
+
+// ペーストイベント処理（画像のみ）
+async function handleMdPaste(e, taId) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  const imageItem = Array.from(items).find(it => it.type.startsWith('image/'));
+  if (!imageItem) return;
+  e.preventDefault();
+  const pid = _currentAttachProjectId();
+  if (!pid) { toast('プロジェクトが選択されていません', 'error'); return; }
+  const ext  = imageItem.type.split('/')[1]?.replace('jpeg','jpg') || 'png';
+  const file = new File([imageItem.getAsFile()], `paste.${ext}`, { type: imageItem.type });
+  try {
+    toast('画像を保存中...', 'success');
+    const tfzKey = await saveAttachment(pid, file);
+    const fname = tfzKey.split('/').pop();
+    insertMd(taId, `![${fname}](${tfzKey})`, '', '');
+    toast('画像を貼り付けました', 'success');
+  } catch(e) {
+    toast('貼り付けに失敗しました: ' + e.message, 'error');
+  }
+}
+
 function linkifyTaskRefs(html) {
   return html.replace(/#((?:[A-Za-z0-9_\u3040-\u9FFF\u30A0-\u30FF\u4E00-\u9FFF]+-)?P\d+-\d+)\b/g, (match, ref) => {
     const m = ref.match(/^(?:(.+?)-)?P(\d+)-(\d+)$/i);
@@ -4829,19 +4969,30 @@ function linkifyTaskRefs(html) {
   });
 }
 
+// 書式ボタン・区切りの表示切り替え（編集時のみ表示）
+function _toggleFmtBtns(editBtnId, visible) {
+  const toolbar = document.getElementById(editBtnId)?.closest('.md-toolbar, .wiki-toolbar');
+  if (!toolbar) return;
+  toolbar.querySelectorAll('.md-btn-fmt, .md-toolbar-sep').forEach(el => {
+    el.style.display = visible ? '' : 'none';
+  });
+}
+
 function setMdMode(mode){
   const ta=document.getElementById('panel-desc');
   const pv=document.getElementById('panel-desc-preview');
   if(mode==='preview'){
-    pv.innerHTML=linkifyTaskRefs(marked.parse(ta.value||'*(内容なし)*'));
+    pv.innerHTML=linkifyTfz(linkifyTaskRefs(marked.parse(ta.value||'*(内容なし)*')));
     pv.style.height='auto';
     pv.style.display='block'; ta.style.display='none';
     document.getElementById('md-edit-btn').classList.remove('active');
     document.getElementById('md-preview-btn').classList.add('active');
+    _toggleFmtBtns('md-edit-btn', false);
   } else {
     pv.style.display='none'; ta.style.display='block';
     document.getElementById('md-edit-btn').classList.add('active');
     document.getElementById('md-preview-btn').classList.remove('active');
+    _toggleFmtBtns('md-edit-btn', true);
   }
 }
 
@@ -4885,16 +5036,18 @@ function setTmDescMode(mode) {
   const pBtn = document.getElementById('tm-desc-preview-btn');
   if (!ta || !pv) return;
   if (mode === 'preview') {
-    pv.innerHTML = linkifyTaskRefs(marked.parse(ta.value || '*(空)*'));
+    pv.innerHTML = linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*')));
     pv.style.display = 'block';
     ta.style.display = 'none';
     eBtn.classList.remove('active');
     pBtn.classList.add('active');
+    _toggleFmtBtns('tm-desc-edit-btn', false);
   } else {
     pv.style.display = 'none';
     ta.style.display = 'block';
     eBtn.classList.add('active');
     pBtn.classList.remove('active');
+    _toggleFmtBtns('tm-desc-edit-btn', true);
   }
 }
 
@@ -4904,16 +5057,18 @@ function setCmtMode(mode) {
   const editBtn = document.getElementById('cmt-edit-btn');
   const prevBtn = document.getElementById('cmt-preview-btn');
   if (mode === 'preview') {
-    pv.innerHTML = linkifyTaskRefs(marked.parse(ta.value || '*(空)*'));
+    pv.innerHTML = linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*')));
     pv.style.display = 'block';
     ta.style.display = 'none';
     editBtn.classList.remove('active');
     prevBtn.classList.add('active');
+    _toggleFmtBtns('cmt-edit-btn', false);
   } else {
     pv.style.display = 'none';
     ta.style.display = 'block';
     editBtn.classList.add('active');
     prevBtn.classList.remove('active');
+    _toggleFmtBtns('cmt-edit-btn', true);
   }
 }
 
@@ -4974,7 +5129,7 @@ function renderTimeline(t) {
             <button onclick="startEditComment(${i})" title="編集" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">✏️</button>
             <button onclick="deleteComment(${i})" title="削除" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
           </div>
-          <div class="md-preview" style="display:block;min-height:unset;border:none;padding:4px 8px;background:var(--surface2);border-radius:5px;font-size:12px">${linkifyTaskRefs(marked.parse(c.text||''))}</div>
+          <div class="md-preview" style="display:block;min-height:unset;border:none;padding:4px 8px;background:var(--surface2);border-radius:5px;font-size:12px">${linkifyTfz(linkifyTaskRefs(marked.parse(c.text||'')))}</div>
           ${effortBadge}
         </div>
       </div>`;
