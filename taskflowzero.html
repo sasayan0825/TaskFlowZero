@@ -914,7 +914,6 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <button class="md-btn-fmt" title="リスト" onclick="insertMd('wiki-textarea','\n- ','','項目')">≡</button>
             <button class="md-btn-fmt" title="見出し" onclick="insertMd('wiki-textarea','## ','','見出し')">H</button>
             <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('wiki-textarea')" style="margin-left:4px">📎</button>
-            <button class="btn btn-primary btn-sm" id="wiki-save-btn" onclick="saveWiki()" style="display:none;margin-left:auto">保存</button>
           </div>
           <div id="wiki-content-area">
             <textarea id="wiki-textarea" placeholder="# プロジェクト概要&#10;&#10;ここにWikiをMarkdownで記述してください。&#10;&#10;## 目的&#10;&#10;## アーキテクチャ&#10;&#10;## 開発環境のセットアップ" onpaste="handleMdPaste(event,'wiki-textarea')"></textarea>
@@ -4172,14 +4171,12 @@ function setWikiMode(mode) {
   const pv  = document.getElementById('wiki-preview');
   const eBtn = document.getElementById('wiki-edit-btn');
   const pBtn = document.getElementById('wiki-preview-btn');
-  const sBtn = document.getElementById('wiki-save-btn');
 
   if (mode === 'edit') {
     ta.style.display = 'block';
     pv.style.display = 'none';
     eBtn.classList.add('active');
     pBtn.classList.remove('active');
-    sBtn.style.display = 'inline-flex';
     _toggleFmtBtns('wiki-edit-btn', true);
     ta.focus();
     ta.oninput = () => { _wikiDirty = true; };
@@ -4190,6 +4187,7 @@ function setWikiMode(mode) {
       p.wiki = raw;
       autoSave(state.currentProjectId);
       _wikiDirty = false;
+      toast('Wiki を保存しました', 'success');
     }
     const html = buildWikiHtml(raw);
     pv.innerHTML = html;
@@ -4197,7 +4195,6 @@ function setWikiMode(mode) {
     pv.style.display = 'block';
     eBtn.classList.remove('active');
     pBtn.classList.add('active');
-    sBtn.style.display = 'none';
     _toggleFmtBtns('wiki-edit-btn', false);
     buildToc(raw);
     // Scroll spy
