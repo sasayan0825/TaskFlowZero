@@ -3146,6 +3146,7 @@ function renderCurrentView() {
   else if (state.currentView==='kanban') renderKanban();
   else if (state.currentView==='burndown') renderBurndown();
   else if (state.currentView==='gantt') renderGantt();
+  else if (state.currentView==='wiki') renderWiki();
   else {
     const def = (window.TaskFlow ? window.TaskFlow._viewTabs : []).find(d => d.id === state.currentView);
     if (def && typeof def.render === 'function') {
@@ -4161,6 +4162,8 @@ let _wikiDirty = false;
 function renderWiki() {
   const p = getProject(state.currentProjectId); if(!p) return;
   const content = p.wiki || '';
+  // 編集中は textarea を上書きしない（入力中の内容を保護）
+  if (_wikiMode === 'edit') return;
   document.getElementById('wiki-textarea').value = content;
   setWikiMode('preview');
 }
@@ -4294,6 +4297,7 @@ function closeMilestoneModal() {
   else if(state.currentView==='kanban') renderKanban();
   else if(state.currentView==='burndown') renderBurndown();
   else if(state.currentView==='gantt') renderGantt();
+  else if(state.currentView==='wiki') renderWiki();
 }
 
 function renderMsList() {
