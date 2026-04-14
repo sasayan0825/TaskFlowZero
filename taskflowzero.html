@@ -1370,11 +1370,13 @@ let _dirtyProjects  = new Set(); // 変更済みプロジェクトID
 // fetchAndMerge の最終実行時刻（クールダウン管理用）
 let _lastFetchAt = 0;
 const _FETCH_COOLDOWN_MS = 30000; // 30秒以内の再実行はスキップ
+let _fileLastModified = {}; // { pid: lastModified(ms) } ファイル更新時刻キャッシュ（manualRefresh差分チェック用）
 // pending conflict resolution callback
 let _conflictResolveCallback = null;
 let _conflictItems = [];  // [{kind, id, parentId, mine, theirs, choice:'mine'|'theirs'}]
 let panelDirty = false;
-let _panelTaskId = null;
+let _panelTaskId    = null;
+let _panelProjectId = null; // マイタスク等でパネルを開いた際の元プロジェクトID
 let _editProjectId = null;
 let _selectedColor = PROJECT_COLORS[0];
 let _editMilestoneId = null;
@@ -2188,6 +2190,11 @@ async function writeProjectFile(pid) {
   const w  = await fh.createWritable();
   await w.write(JSON.stringify(project, null, 2));
   await w.close();
+  // 書き込み後に lastModified をキャッシュ（manualRefresh の差分判定に使用）
+  try {
+    const readFh = await state.rootDirHandle.getFileHandle(_projectFileName(pid));
+    _fileLastModified[pid] = (await readFh.getFile()).lastModified;
+  } catch(e) { /* キャッシュ失敗は無視 */ }
 }
 
 // ── プロジェクトファイル削除 ──────────────────────────
@@ -2351,14 +2358,49 @@ async function manualRefresh() {
   if (btn) { btn.disabled = true; btn.textContent = '🔄 更新中...'; }
 
   try {
-    // 全プロジェクトを dirty にして読み直し＆マージ
-    state.data.projects.forEach(p => _dirtyProjects.add(p.id));
+    // 改善B: ファイルの lastModified を比較し、変更されたプロジェクトのみ dirty に追加。
+    // 未変更ファイルの JSON 読み込み・マージをスキップしてアクセス負荷を軽減する。
+    let changedCount = 0;
+    for (const p of state.data.projects) {
+      try {
+        const fh = await state.rootDirHandle.getFileHandle(_projectFileName(p.id));
+        const lm = (await fh.getFile()).lastModified;
+        if (!_fileLastModified[p.id] || lm > _fileLastModified[p.id]) {
+          _dirtyProjects.add(p.id);
+          changedCount++;
+        }
+      } catch(e) {
+        // ファイルが見つからない等 → dirty として扱い確実にマージ
+        _dirtyProjects.add(p.id);
+        changedCount++;
+      }
+    }
+
+    if (changedCount === 0) {
+      toast('既に最新です', 'success');
+      return;
+    }
+
     _lastFetchAt = 0; // クールダウンをリセット
-    const status = await fetchAndMerge('silent');
+    await fetchAndMerge('silent');
     renderCurrentView();
     renderSidebar();
-    const count = state.data.projects.length;
-    toast(`更新しました（${count}件のプロジェクト）`, 'success');
+
+    // パネルが開いていれば最新データで再描画する。
+    // マイタスク経由で開いた場合は state.currentProjectId が null なので
+    // _panelProjectId（開いた時点のプロジェクトID）を使ってタスクを探す。
+    if (_panelTaskId) {
+      const _pid = _panelProjectId || state.currentProjectId;
+      const _proj = getProject(_pid);
+      if (_proj && _proj.tasks.find(t => t.id === _panelTaskId)) {
+        const _savedPid = state.currentProjectId;
+        state.currentProjectId = _pid;
+        _openTaskPanelInner(_panelTaskId);
+        state.currentProjectId = _savedPid;
+      }
+    }
+
+    toast(`更新しました（${changedCount}件のプロジェクトに変更あり）`, 'success');
   } catch(e) {
     console.error('manualRefresh error:', e);
     toast('更新に失敗しました', 'warn');
@@ -2602,20 +2644,89 @@ function threeWayMerge(base, mine, disk) {
       mergedT.checklist = mergedChecklist.result;
       autoMerged += mergedChecklist.changed;
 
-      // Activity log: union (append mine entries not in disk)
-      const diskActIds = new Set((td.activity||[]).map(a=>a.at+'|'+a.type));
-      const newActs = (tm.activity||[]).filter(a => !diskActIds.has(a.at+'|'+a.type));
-      mergedT.activity = [...(td.activity||[]), ...newActs].sort((a,b)=>(a.at<b.at?-1:1));
+      // Activity log: 3-way union
+      // diskがactivityを持たない（フォーマット移行等）場合はtbをフォールバックに使用
+      const baseActs = tb?.activity || [];
+      const memActs  = tm?.activity || [];
+      const diskActs = td?.activity || [];
+      // disk が base より少ない場合（偶発的な消失）はbaseを起点に復元
+      const actBase  = diskActs.length === 0 && baseActs.length > 0 ? baseActs : diskActs;
+      const diskActIds = new Set(actBase.map(a => a.at + '|' + a.type));
+      const newActs = memActs.filter(a => !diskActIds.has(a.at + '|' + a.type));
+      mergedT.activity = [...actBase, ...newActs].sort((a, b) => (a.at < b.at ? -1 : 1));
 
-      // Comments: union by id, respecting deletions tracked in _deletedCommentIds
-      const deletedIds = new Set(tm._deletedCommentIds||[]);
-      const memComIds  = new Set((tm.comments||[]).map(c=>c.id));
-      // disk comments: exclude ones deleted in memory
-      const keepDisk   = (td.comments||[]).filter(c => !deletedIds.has(c.id) && !memComIds.has(c.id));
-      mergedT.comments = [...(tm.comments||[]), ...keepDisk].sort((a,b)=>(a.createdAt<b.createdAt?-1:1));
-      // carry over only IDs still present on disk (clean up stale entries)
-      const diskAllIds = new Set((td.comments||[]).map(c=>c.id));
-      mergedT._deletedCommentIds = [...deletedIds].filter(id => diskAllIds.has(id));
+      // Comments: proper 3-way merge (base / mine / disk)
+      // 旧実装は「memにIDがあれば無条件でmem優先」だったため、
+      // AがコメントをDisk上で編集・削除してもBのメモリ版が勝ってしまうバグがあった。
+      // 修正: baseとの差分を比較し、Diskだけが変更した場合はDiskを採用する。
+      // 改善A: td._deletedCommentIds（Aの墓標）も参照し、Bのbaseが古い場合の
+      //        「削除済みコメントの復活」を防止する。
+      const deletedIds     = new Set(tm._deletedCommentIds || []);   // B が削除
+      const diskDeletedIds = new Set(td?._deletedCommentIds || []);  // A が削除（墓標）
+      const baseComMap  = indexBy(tb?.comments || [], 'id');
+      const memComMap   = indexBy(tm?.comments  || [], 'id');
+      const diskComMap  = indexBy(td?.comments  || [], 'id');
+      const allComIds   = new Set([
+        ...Object.keys(baseComMap),
+        ...Object.keys(memComMap),
+        ...Object.keys(diskComMap),
+      ]);
+
+      const mergedComments = [];
+      allComIds.forEach(id => {
+        // B または A が明示的に削除済み（墓標あり）→ 常にスキップ
+        if (deletedIds.has(id) || diskDeletedIds.has(id)) return;
+
+        const inBase = id in baseComMap;
+        const inMem  = id in memComMap;
+        const inDisk = id in diskComMap;
+
+        // A がディスクから削除した（baseにあったがdiskにない）→ 削除を尊重
+        if (inBase && !inDisk) return;
+
+        // A が新規追加（baseにもBのメモリにもない）→ そのまま採用
+        if (!inBase && !inMem && inDisk) {
+          mergedComments.push(diskComMap[id]);
+          return;
+        }
+
+        // B が新規追加（baseにもdiskにもない）→ そのまま採用
+        if (!inBase && inMem && !inDisk) {
+          mergedComments.push(memComMap[id]);
+          return;
+        }
+
+        // memとdiskの両方に存在する場合：3-wayで解決
+        if (inMem && inDisk) {
+          if (!inBase) {
+            // 両者が同じIDで独立追加（稀）→ disk優先
+            mergedComments.push(diskComMap[id]);
+            return;
+          }
+          // baseとの差分を比較
+          const baseStr = JSON.stringify(baseComMap[id]);
+          const memStr  = JSON.stringify(memComMap[id]);
+          const diskStr = JSON.stringify(diskComMap[id]);
+          const memChanged  = memStr  !== baseStr;
+          const diskChanged = diskStr !== baseStr;
+
+          if (memChanged && !diskChanged) {
+            // Bだけが編集 → Bのバージョンを採用
+            mergedComments.push(memComMap[id]);
+          } else {
+            // Diskが編集（またはどちらも変更なし、または両者が編集した場合はdisk優先）
+            mergedComments.push(diskComMap[id]);
+          }
+        }
+        // inMem && !inDisk && !inBase は上の「B新規追加」で処理済み
+      });
+
+      mergedT.comments = mergedComments.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+      // 墓標（_deletedCommentIds）は B・A 双方の削除 ID を合算して引き継ぐ。
+      // マージ後のコメントに含まれていない ID のみ保持し、リストが肥大化しないようにする。
+      const mergedComIds = new Set(mergedComments.map(c => c.id));
+      const allTombstones = new Set([...deletedIds, ...diskDeletedIds]);
+      mergedT._deletedCommentIds = [...allTombstones].filter(id => !mergedComIds.has(id));
 
       if (taskFields.conflictFields.length > 0) {
         conflicts.push({
@@ -2871,7 +2982,7 @@ function returnToTop() {
   // パネルを閉じる
   document.getElementById('task-panel').classList.remove('open');
   document.getElementById('panel-backdrop').classList.remove('show');
-  _panelTaskId = null; panelDirty = false;
+  _panelTaskId = null; _panelProjectId = null; panelDirty = false;
   // アプリ画面を隠してTOPを表示
   document.getElementById('header').style.display = 'none';
   document.getElementById('app').style.display = 'none';
@@ -3403,6 +3514,13 @@ function openProject(id) {
 }
 
 function switchView(view) {
+  // Wiki編集中に別ビューへ切り替える場合、未保存の変更を警告
+  if (_wikiDirty && state.currentView === 'wiki' && view !== 'wiki') {
+    if (!confirm('Wikiの変更が保存されていません。切り替えますか？\n（「キャンセル」で編集を続けられます）')) return;
+    // 確認OKの場合は変更を破棄してフラグをリセット
+    _wikiDirty = false;
+  }
+
   state.currentView = view;
   // 組み込みビューの表示/非表示
   ['list','kanban','burndown','gantt','wiki'].forEach(v => {
@@ -3467,6 +3585,17 @@ function switchView(view) {
 }
 
 function renderCurrentView() {
+  // プロジェクト横断ビュー（マイタスク・プロジェクト一覧）を先に判定する。
+  // state.currentProjectId が null のとき、通常のビュー描画関数は何もしないため
+  // ここで明示的に分岐しないと更新ボタン押下後も画面が古いまま残る。
+  if (document.getElementById('my-tasks-view').style.display !== 'none') {
+    renderMyTasks();
+    return;
+  }
+  if (!state.currentProjectId) {
+    renderProjectsList();
+    return;
+  }
   if (state.currentView==='list') renderList();
   else if (state.currentView==='kanban') renderKanban();
   else if (state.currentView==='burndown') renderBurndown();
@@ -4483,6 +4612,7 @@ function toggleGanttMs(msId) {
 // ═══════════════════════════════════════
 let _wikiMode = 'preview';
 let _wikiDirty = false;
+let _wikiAutoSaveTimer = null; // 改善C: Wiki編集中の debounced autoSave タイマー
 
 function renderWiki() {
   const p = getProject(state.currentProjectId); if(!p) return;
@@ -4507,8 +4637,23 @@ function setWikiMode(mode) {
     pBtn.classList.remove('active');
     _toggleFmtBtns('wiki-edit-btn', true);
     ta.focus();
-    ta.oninput = () => { _wikiDirty = true; };
+    ta.oninput = () => {
+      _wikiDirty = true;
+      // 改善C: 3秒操作が止まったら自動保存（ブラウザクラッシュ時のダメージ最小化）
+      // プレビュー切替時の保存トースト表示のため _wikiDirty は true のまま維持する
+      clearTimeout(_wikiAutoSaveTimer);
+      _wikiAutoSaveTimer = setTimeout(() => {
+        const _p = getProject(state.currentProjectId);
+        if (_p && _wikiDirty) {
+          _p.wiki = ta.value;
+          autoSave(state.currentProjectId);
+        }
+      }, 3000);
+    };
   } else {
+    // プレビューに切り替わる際、debounced タイマーをキャンセルして確定保存する
+    clearTimeout(_wikiAutoSaveTimer);
+    _wikiAutoSaveTimer = null;
     const raw = ta.value;
     const p = getProject(state.currentProjectId);
     if (_wikiDirty && p) {
@@ -4981,7 +5126,7 @@ function openTaskPanel(taskId){
 function _openTaskPanelInner(taskId){
   const p=getProject(state.currentProjectId); if(!p)return;
   const t=p.tasks.find(x=>x.id===taskId); if(!t)return;
-  _panelTaskId=taskId; panelDirty=false;
+  _panelTaskId=taskId; _panelProjectId=state.currentProjectId; panelDirty=false;
   try { _timelineFilter = localStorage.getItem('taskflow-timeline-filter') || 'all'; } catch(e) { _timelineFilter='all'; }
   // ボタンのactive状態を保存値に合わせて更新
   ({all:'tl-btn-all',comments:'tl-btn-comments',activity:'tl-btn-activity'});
@@ -5126,7 +5271,7 @@ function closeTaskPanel(){
   if(panelDirty&&!confirm('変更が保存されていません。閉じますか？'))return;
   document.getElementById('task-panel').classList.remove('open');
   document.getElementById('panel-backdrop').classList.remove('show');
-  _panelTaskId=null; panelDirty=false;
+  _panelTaskId=null; _panelProjectId=null; panelDirty=false;
   // Clear URL hash
   history.replaceState(null, '', window.location.pathname + window.location.search);
   window.TaskFlow.emit('task-panel-close', {});
@@ -5137,7 +5282,8 @@ function deleteCurrentTask(){
   const p=getProject(state.currentProjectId); if(!p)return;
   const _dt=p.tasks.find(t=>t.id===_panelTaskId);
   p.tasks=p.tasks.filter(t=>t.id!==_panelTaskId);
-  panelDirty=false; closeTaskPanel(); autoSave(state.currentProjectId); renderCurrentView(); renderSidebar();
+  // immediate=true: 削除はデバウンスせず即時書き込み（ゾンビタスク防止）
+  panelDirty=false; closeTaskPanel(); autoSave(state.currentProjectId, true); renderCurrentView(); renderSidebar();
   toast('タスクを削除しました');
   if(_dt) window.TaskFlow.emit('task-delete', { task:_dt, project:p });
 }
@@ -5919,6 +6065,7 @@ function deleteChecklistItem(idx) {
   const item = t.checklist[idx];
   t.activity.push({type:'checklist',icon:'🗑',text:`チェックリスト削除: <b>${esc(item.text)}</b>`,at:new Date().toISOString()});
   t.checklist.splice(idx,1);
+  panelDirty = true;
   renderChecklist(t); renderTimeline(t); autoSave(state.currentProjectId);
   if (state.currentView === 'list') renderList();
 }
