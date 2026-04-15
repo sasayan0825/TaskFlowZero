@@ -423,6 +423,12 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 /* keep old lines */
 .panel-title-input{width:100%;background:none;border:none;font-family:'Outfit',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin-bottom:16px;outline:none;border-bottom:1px solid transparent;padding-bottom:4px;transition:border-color .15s}
 .panel-title-input:focus{border-bottom-color:var(--accent)}
+.panel-creator-bar{display:flex;align-items:center;gap:10px;margin:-10px 0 14px;flex-wrap:wrap}
+.panel-creator-bar .creator-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.panel-creator-bar .creator-item span{font-size:12px}
+.panel-creator-input{background:none;border:none;border-bottom:1px dashed var(--border);color:var(--text);font-size:11px;font-family:inherit;padding:1px 4px;outline:none;width:120px;border-radius:0}
+.panel-creator-input:focus{border-bottom-color:var(--accent);color:var(--text)}
+.panel-creator-input:disabled{border-bottom-color:transparent;color:var(--muted);cursor:default;width:auto}
 .panel-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
 .meta-field{display:flex;flex-direction:column;gap:4px}
 .meta-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
@@ -996,6 +1002,19 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   </div>
   <div class="panel-body">
     <input class="panel-title-input" id="panel-title" placeholder="タスクのタイトル" oninput="panelDirty=true">
+    <div class="panel-creator-bar" id="panel-creator-bar" style="display:none">
+      <div class="creator-item">
+        <span>👤</span>
+        <input class="panel-creator-input" id="panel-creator" placeholder="作成者名"
+               list="panel-creator-dl" oninput="panelDirty=true"
+               title="作成から24時間以内のみ編集できます">
+        <datalist id="panel-creator-dl"></datalist>
+      </div>
+      <div class="creator-item">
+        <span>📅</span>
+        <span id="panel-created-at"></span>
+      </div>
+    </div>
     <div class="panel-meta-grid">
       <div class="meta-field">
         <div class="meta-label">ステータス</div>
@@ -1202,6 +1221,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   <div class="modal" style="width:520px;max-height:90vh;overflow-y:auto">
     <div class="modal-title">タスクを追加</div>
     <div class="form-group"><label class="form-label">タイトル *</label><input class="form-input" id="tm-title" placeholder="タスクのタイトル"></div>
+    <div class="form-group"><label class="form-label">作成者</label><input class="form-input" id="tm-creator" placeholder="作成者名" list="tm-creator-dl"><datalist id="tm-creator-dl"></datalist></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">ステータス</label>
         <select class="form-select" id="tm-status">
@@ -2634,10 +2654,14 @@ function threeWayMerge(base, mine, disk) {
       const mergedT = deepCopy(td);
       const taskFields = mergeEntityFields(
         tb, tm, td,
+        // creator / createdAtTime は作成時の記録なので競合比較から除外し、下で保護する
         ['title','status','assignee','startDate','dueDate','storyPoints','estimatedHours','actualHours','description','milestoneId','labels','completedAt'],
         pid, tid
       );
       taskFields.autoFields.forEach(f => { mergedT[f] = tm[f]; autoMerged++; });
+      // creator / createdAtTime: 最初に値が設定されたほうを優先（上書き防止）
+      mergedT.creator       = td.creator       || tm?.creator       || tb?.creator       || '';
+      mergedT.createdAtTime = td.createdAtTime  || tm?.createdAtTime || tb?.createdAtTime || null;
 
       // Checklist: merge by item id
       const mergedChecklist = mergeArrayById(tb?.checklist||[], tm?.checklist||[], td?.checklist||[]);
@@ -3461,7 +3485,10 @@ function renderProjectsList() {
         <div class="stat-item"><div class="stat-val">${ms}</div><div class="stat-lbl">MS</div></div>
         <div class="stat-item"><div class="stat-val">${totalPts}</div><div class="stat-lbl">SP</div></div>
       </div>
-      <div class="progress-bar" style="margin-bottom:10px"><div class="progress-fill" style="width:${pct}%;background:${p.color||'var(--green)'}"></div></div>
+      <div style="position:relative;margin-bottom:10px">
+        <span style="position:absolute;right:0;top:-15px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted)">${pct}%</span>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${p.color||'var(--green)'}"></div></div>
+      </div>
       <div class="project-card-footer">
         <div class="project-card-members">${(p.members||[]).slice(0,5).map(m=>`<div class="member-avatar" title="${esc(m)}">${initials(m)}</div>`).join('')}</div>
         <div class="project-date">${p.endDate?'期限: '+fmtFull(p.endDate):''}</div>
@@ -5047,6 +5074,18 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-due').value='';
   document.getElementById('tm-milestone').value='';
   document.getElementById('tm-description').value='';
+  // 作成者: マイタスクで設定された名前を初期値にセット（変更可）
+  const _myName = localStorage.getItem('taskflow-my-name') || '';
+  document.getElementById('tm-creator').value = _myName;
+  // 作成者 datalist を担当者候補と共有
+  const _tmCreatorDl = document.getElementById('tm-creator-dl');
+  if (_tmCreatorDl) {
+    const _p = getProject(state.currentProjectId);
+    const _members   = _p ? (_p.members||[]) : [];
+    const _assignees = _p ? (_p.tasks||[]).map(t=>t.assignee).filter(Boolean) : [];
+    const _all = [...new Set([..._members, ..._assignees])].sort();
+    _tmCreatorDl.innerHTML = _all.map(n=>`<option value="${esc(n)}">`).join('');
+  }
   setTmDescMode('edit');
   document.getElementById('tm-checklist').innerHTML='';
   document.getElementById('tm-checklist-input').value='';
@@ -5100,7 +5139,9 @@ function saveNewTask(){
   const description = document.getElementById('tm-description').value.trim();
   const checklistItems = [...document.getElementById('tm-checklist').querySelectorAll('input:not([type="date"])')].map(el=>({id:uid(),text:el.value.trim(),done:false})).filter(c=>c.text);
   const labels = [...document.getElementById('tm-labels-display').querySelectorAll('[data-label]')].map(el=>el.dataset.label);
-  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours:0,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[]};
+  const _creatorVal = document.getElementById('tm-creator').value.trim();
+  const _createdAtTime = new Date().toISOString();
+  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours:0,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[]};
   p.tasks.push(task);
   closeTaskModal(); autoSave(state.currentProjectId); renderCurrentView(); renderSidebar(); updateFilters();
   toast(`タスク #${task.number} を追加しました`,'success');
@@ -5139,6 +5180,44 @@ function _openTaskPanelInner(taskId){
   updateFilters();
   document.getElementById('panel-task-num').textContent='#'+(t.number||'?');
   document.getElementById('panel-title').value=t.title;
+
+  // ── 作成者バー描画 ───────────────────────────────────────────
+  (function renderCreatorBar() {
+    const bar       = document.getElementById('panel-creator-bar');
+    const creatorIn = document.getElementById('panel-creator');
+    const createdEl = document.getElementById('panel-created-at');
+    const creatorDl = document.getElementById('panel-creator-dl');
+    // createdAtTime または creator のどちらかがあれば表示
+    if (!t.createdAtTime && !t.creator) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+    // 作成者 input
+    creatorIn.value = t.creator || '';
+    // 24時間以内のみ編集可
+    const editable = t.createdAtTime
+      ? (Date.now() - new Date(t.createdAtTime).getTime() < 86400000)
+      : false;
+    creatorIn.disabled = !editable;
+    creatorIn.title = editable
+      ? '作成から24時間以内のみ編集できます'
+      : '作成者は作成後24時間を過ぎると変更できません';
+    // 作成日時
+    createdEl.textContent = t.createdAtTime ? fmtDatetime(t.createdAtTime) : '';
+    // datalist に担当者・メンバー補完
+    if (creatorDl && p) {
+      const _all = [...new Set([...(p.members||[]), ...(p.tasks||[]).map(x=>x.assignee).filter(Boolean)])].sort();
+      creatorDl.innerHTML = _all.map(n=>`<option value="${esc(n)}">`).join('');
+    }
+  })();
+
+  // ── コメント投稿者の初期値 ─────────────────────────────────
+  (function initCommentAuthor() {
+    const caInput = document.getElementById('comment-author');
+    if (!caInput) return;
+    // 既に値が入っている場合（前回投稿者を維持）はそのまま
+    if (caInput.value) return;
+    const savedName = localStorage.getItem('taskflow-my-name') || '';
+    caInput.value = savedName;
+  })();
   document.getElementById('panel-status').value=t.status;
   document.getElementById('panel-assignee').value=t.assignee||'';
   document.getElementById('panel-start').value=t.startDate||'';
@@ -5222,6 +5301,11 @@ function savePanelTask(){
   const oldDesc=t.description||'';
 
   t.title=document.getElementById('panel-title').value.trim()||t.title;
+  // creator: 24時間以内かつ input が有効な場合のみ更新
+  const _creatorIn = document.getElementById('panel-creator');
+  if (_creatorIn && !_creatorIn.disabled) {
+    t.creator = _creatorIn.value.trim();
+  }
   t.status=newStatus;
   const newAssignee=document.getElementById('panel-assignee').value.trim();
   t.assignee=newAssignee;
@@ -5272,6 +5356,9 @@ function closeTaskPanel(){
   document.getElementById('task-panel').classList.remove('open');
   document.getElementById('panel-backdrop').classList.remove('show');
   _panelTaskId=null; _panelProjectId=null; panelDirty=false;
+  // 作成者バーをリセット（次のタスクを開いたとき前の値が残らないように）
+  const _cBar = document.getElementById('panel-creator-bar');
+  if (_cBar) _cBar.style.display = 'none';
   // Clear URL hash
   history.replaceState(null, '', window.location.pathname + window.location.search);
   window.TaskFlow.emit('task-panel-close', {});
