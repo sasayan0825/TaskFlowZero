@@ -188,6 +188,9 @@ th.sortable.sort-desc::after{content:' ↓'}
 .my-mention-text{font-size:12px;line-height:1.5;color:var(--text)}
 .my-task-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;transition:all .15s}
 .my-task-row:hover{border-color:var(--border2);background:var(--surface2)}
+.activity-heatmap-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;overflow-x:auto}
+.activity-detail-item{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;transition:all .15s}
+.activity-detail-item:hover{border-color:var(--border2);background:var(--surface2)}
 #btn-new-project{margin:8px 12px 16px;padding:8px;background:rgba(79,142,255,.1);border:1px dashed rgba(79,142,255,.3);border-radius:var(--radius);color:var(--accent);font-size:12px;cursor:pointer;text-align:center;transition:all .15s}
 #btn-new-project:hover{background:rgba(79,142,255,.2);border-color:rgba(79,142,255,.6)}
 
@@ -3138,7 +3141,7 @@ function renderSidebar() {
   const c = document.getElementById('sidebar-projects');
   c.innerHTML = '';
   // アーカイブされていないプロジェクトのみ表示
-  state.data.projects.filter(p => !p.archived).sort((a,b) => (a.number||0) - (b.number||0)).forEach(p => {
+  state.data.projects.filter(p => !p.archived).sort(_projectSortComparator).forEach(p => {
     const done = p.tasks.filter(t=>t.status==='done').length;
     const d = document.createElement('div');
     d.className = 'sidebar-item'+(p.id===state.currentProjectId?' active':'');
@@ -3194,12 +3197,14 @@ function _countMyTasks(myName) {
     n + (p.tasks||[]).filter(t => t.assignee === myName && t.status !== 'done').length, 0);
 }
 
-let _myTasksTab     = 'mention'; // 'mention' | 'task'
-let _myTasksSortCol = 'dueDate';
-let _myTasksSortAsc = true;
+let _myTasksTab          = 'mention'; // 'mention' | 'task' | 'activity'
+let _myTasksSortCol      = 'dueDate';
+let _myTasksSortAsc      = true;
+let _myActivitySelDate   = null; // アクティビティタブの選択日付
 
 function switchMyTasksTab(tab) {
   _myTasksTab = tab;
+  if (tab !== 'activity') _myActivitySelDate = null;
   renderMyTasks();
 }
 
@@ -3241,6 +3246,9 @@ function renderMyTasks() {
       </div>
       <div class="my-tasks-tab${_myTasksTab==='task'?' active':''}" onclick="switchMyTasksTab('task')">
         📋 担当タスク
+      </div>
+      <div class="my-tasks-tab${_myTasksTab==='activity'?' active':''}" onclick="switchMyTasksTab('activity')">
+        📊 アクティビティ
       </div>
     </div>`;
 
@@ -3298,7 +3306,7 @@ function renderMyTasks() {
         </div>`;
       }).join('') : `<div style="text-align:center;padding:20px;font-size:12px;color:var(--muted)">メンションはありません</div>`}`;
 
-  } else {
+  } else if (_myTasksTab === 'task') {
     // ── 担当タスク収集 ──
     let myTasks = [];
     projects.forEach(p => {
@@ -3364,6 +3372,9 @@ function renderMyTasks() {
           </tr>`;
         }).join('')}</tbody>
       </table>` : `<div style="text-align:center;padding:20px;font-size:12px;color:var(--muted)">担当タスクはありません</div>`}`;
+
+  } else if (_myTasksTab === 'activity') {
+    contentHtml = _renderActivityTabContent(myName);
   }
 
   body.innerHTML = tabsHtml + contentHtml;
@@ -3377,6 +3388,184 @@ function renderMyTasks() {
     if (taskStatFilter)    { const el=document.getElementById('my-task-stat-filter');    if(el) el.value=taskStatFilter; }
   }
 }
+
+// ── アクティビティタブ ─────────────────────────────────────────────
+function selectActivityDate(dateStr) {
+  _myActivitySelDate = (_myActivitySelDate === dateStr) ? null : dateStr;
+  renderMyTasks();
+}
+
+function _buildActivityEvents(myName) {
+  const projects = state.data.projects || [];
+  const byDate = {};
+  function add(dateStr, ev) {
+    if (!dateStr || dateStr.length < 10) return;
+    const d = dateStr.length === 10 ? dateStr : localDateStr(new Date(dateStr));
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(ev);
+  }
+  projects.forEach(p => {
+    const pc = p.color || '#4f8eff';
+    (p.tasks || []).forEach(t => {
+      // タスク完了（担当者）
+      if (t.assignee === myName && t.completedAt) {
+        add(t.completedAt, { type:'complete', icon:'✅', text:`タスク完了: <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+      }
+      // タスク作成（作成者）
+      if (t.creator === myName) {
+        add(t.createdAtTime || t.createdAt, { type:'create', icon:'➕', text:`タスク作成: <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+      }
+      // コメント投稿・工数記録
+      (t.comments || []).forEach(c => {
+        if (!c.author || c.author !== myName || !c.createdAt) return;
+        if (c.effortLog) {
+          const parts = [];
+          if (c.effortLog.estimated) parts.push(`見積 ${c.effortLog.estimated}h`);
+          if (c.effortLog.actual)    parts.push(`実績 ${c.effortLog.actual}h`);
+          add(c.createdAt, { type:'effort', icon:'⏱', text:`工数記録: ${parts.join(' / ')} — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+        } else {
+          const snip = (c.text||'').slice(0,40) + ((c.text||'').length>40?'…':'');
+          add(c.createdAt, { type:'comment', icon:'💬', text:`コメント投稿: &ldquo;${esc(snip)}&rdquo; — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+        }
+      });
+    });
+  });
+  return byDate;
+}
+
+function _renderActivityTabContent(myName) {
+  const byDate = _buildActivityEvents(myName);
+
+  // 日付範囲：364日前の直前の日曜日 〜 今日
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = localDateStr(today);
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 364);
+  startDate.setDate(startDate.getDate() - startDate.getDay()); // 直前の日曜
+  const startStr = localDateStr(startDate);
+
+  // ── 統計 ──────────────────────────────────
+  const activeDates = Object.keys(byDate).filter(d => d >= startStr && d <= todayStr).sort();
+  const totalEvents = activeDates.reduce((s,d) => s + byDate[d].length, 0);
+  const activeDays  = activeDates.length;
+
+  // 最長連続日数
+  let maxStreak = 0, tmp = 0;
+  for (let i = 0; i < activeDates.length; i++) {
+    if (i === 0) { tmp = 1; }
+    else {
+      const diff = (new Date(activeDates[i]) - new Date(activeDates[i-1])) / 86400000;
+      tmp = diff === 1 ? tmp + 1 : 1;
+    }
+    maxStreak = Math.max(maxStreak, tmp);
+  }
+  // 現在の連続日数
+  let curStreak = 0;
+  for (let i = 0; i <= 364; i++) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    if (byDate[d.toISOString().slice(0,10)]?.length > 0) curStreak++;
+    else break;
+  }
+
+  // ── 統計カード ────────────────────────────
+  const statsHtml = `<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">${[
+    ['📊', totalEvents+'件', '過去1年のアクティビティ'],
+    ['📅', activeDays+'日', 'アクティブ日数'],
+    ['🔥', curStreak+'日',  '現在の連続日数'],
+    ['⭐', maxStreak+'日',  '最長連続日数'],
+  ].map(([icon,val,label]) => `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;flex:1;min-width:110px">
+    <div style="font-size:16px;margin-bottom:4px">${icon}</div>
+    <div style="font-size:22px;font-weight:700;color:var(--accent2);font-family:'JetBrains Mono',monospace">${val}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">${label}</div>
+  </div>`).join('')}</div>`;
+
+  // ── ヒートマップ SVG ──────────────────────
+  const CELL=12, GAP=2, STEP=14, LEFT=4, TOP=20;
+
+  // セル色
+  function cellColor(n) {
+    if (n <  0) return 'var(--bg)';       // 未来
+    if (n === 0) return 'var(--surface3)';
+    if (n <= 2)  return 'rgba(79,142,255,0.28)';
+    if (n <= 5)  return 'rgba(79,142,255,0.52)';
+    if (n <= 9)  return 'rgba(79,142,255,0.78)';
+    return 'var(--accent)';
+  }
+
+  // 週データ構築
+  const weeks = [];
+  const cur = new Date(startDate);
+  while (cur <= today) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      const ds = localDateStr(cur);
+      week.push({ ds, month: cur.getMonth(), dom: cur.getDate(), count: cur > today ? -1 : (byDate[ds]?.length || 0) });
+      cur.setDate(cur.getDate() + 1);
+    }
+    weeks.push(week);
+  }
+
+  const svgW = LEFT + weeks.length * STEP + 4;
+  const svgH = TOP + 7 * STEP;
+  const MONTHS_JA = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+  let inner = '';
+  // 月ラベル＋セル
+  let prevM = -1;
+  weeks.forEach((week, wi) => {
+    const m = week[0].month;
+    if (m !== prevM) {
+      inner += `<text x="${LEFT + wi*STEP}" y="13" font-size="10" fill="var(--muted)" font-family="inherit">${MONTHS_JA[m]}</text>`;
+      prevM = m;
+    }
+    week.forEach((day, di) => {
+      const x = LEFT + wi*STEP, y = TOP + di*STEP;
+      const color = cellColor(day.count);
+      const isSel = day.ds === _myActivitySelDate;
+      const strokeAttr = isSel ? ` stroke="var(--accent2)" stroke-width="1.5"` : '';
+      if (day.count >= 0) {
+        inner += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${color}"${strokeAttr} style="cursor:pointer" onclick="selectActivityDate('${day.ds}')"><title>${day.ds} (${day.count}件)</title></rect>`;
+      } else {
+        inner += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${color}"/>`;
+      }
+    });
+  });
+
+  const heatmapSvg = `<svg width="${svgW}" height="${svgH}" xmlns="http://www.w3.org/2000/svg" style="display:block">${inner}</svg>`;
+
+  const legendHtml = `<div style="display:flex;align-items:center;gap:4px;margin-top:10px;font-size:10px;color:var(--muted)">
+    少ない${[0,1,3,6,10].map(n=>`<div style="width:11px;height:11px;border-radius:2px;background:${cellColor(n)}"></div>`).join('')}多い
+    <span style="margin-left:auto;font-size:10px">クリックで詳細表示</span>
+  </div>`;
+
+  // ── 詳細パネル ────────────────────────────
+  let detailHtml = '';
+  if (_myActivitySelDate) {
+    const evts = byDate[_myActivitySelDate] || [];
+    const typeOrder = { complete:0, create:1, effort:2, comment:3 };
+    const sorted = [...evts].sort((a,b) => (typeOrder[a.type]??9) - (typeOrder[b.type]??9));
+    detailHtml = `<div style="margin-top:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">
+        ${_myActivitySelDate} &nbsp;—&nbsp; ${evts.length}件のアクティビティ
+      </div>
+      ${sorted.length ? sorted.map(ev => `
+        <div class="activity-detail-item" onclick="openProject('${ev.pid}');setTimeout(()=>openTaskPanel('${ev.tid}'),150)">
+          <span style="font-size:15px;flex-shrink:0;margin-top:1px">${ev.icon}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;line-height:1.5">${ev.text}</div>
+            <div style="margin-top:3px"><span style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span></div>
+          </div>
+          <span style="font-size:10px;color:var(--muted);flex-shrink:0;margin-top:2px">→</span>
+        </div>`).join('')
+      : `<div style="text-align:center;padding:20px;font-size:12px;color:var(--muted)">この日のアクティビティはありません</div>`}
+    </div>`;
+  } else {
+    detailHtml = `<div style="text-align:center;padding:24px 20px;font-size:12px;color:var(--muted)">セルをクリックして日付ごとの詳細を表示</div>`;
+  }
+
+  return `${statsHtml}<div class="activity-heatmap-box">${heatmapSvg}${legendHtml}</div>${detailHtml}`;
+}
+// ── /アクティビティタブ ───────────────────────────────────────────
 
 function showMyTasks() {
   state.currentProjectId = null;
@@ -3414,6 +3603,20 @@ function showProjectsList() {
   renderProjectsList();
 }
 
+// プロジェクト一覧・サイドバー共通のソート比較関数
+// proj-sort セレクトの値を参照するため、両方の描画が常に同じ順序になる
+function _projectSortComparator(a, b) {
+  const sortKey = document.getElementById('proj-sort')?.value || 'number';
+  if (sortKey === 'number')    return (a.number||0) - (b.number||0);
+  if (sortKey === 'name')      return (a.name||'').localeCompare(b.name||'', 'ja');
+  if (sortKey === 'startDate') return (a.startDate||'') < (b.startDate||'') ? -1 : (a.startDate||'') > (b.startDate||'') ? 1 : 0;
+  if (sortKey === 'progress') {
+    const pct = p => { const t = p.tasks||[]; return t.length ? t.filter(t=>t.status==='done').length/t.length : 0; };
+    return pct(b) - pct(a);
+  }
+  return 0;
+}
+
 function renderProjectsList() {
   const grid = document.getElementById('projects-grid');
   const titleQ  = (document.getElementById('proj-search-title')?.value||'').toLowerCase();
@@ -3434,18 +3637,8 @@ function renderProjectsList() {
   if (titleQ)  ps = ps.filter(p => p.name.toLowerCase().includes(titleQ) || (p.description||'').toLowerCase().includes(titleQ));
   if (memberQ) ps = ps.filter(p => (p.members||[]).includes(memberQ));
 
-  // Sort
-  const sortKey = document.getElementById('proj-sort')?.value || 'number';
-  ps = [...ps].sort((a, b) => {
-    if (sortKey === 'number')    return (a.number||0) - (b.number||0);
-    if (sortKey === 'name')      return (a.name||'').localeCompare(b.name||'', 'ja');
-    if (sortKey === 'startDate') return (a.startDate||'') < (b.startDate||'') ? -1 : (a.startDate||'') > (b.startDate||'') ? 1 : 0;
-    if (sortKey === 'progress') {
-      const pct = p => { const t = p.tasks||[]; return t.length ? t.filter(t=>t.status==='done').length/t.length : 0; };
-      return pct(b) - pct(a);
-    }
-    return 0;
-  });
+  // Sort（サイドバーと共通のヘルパーを使用）
+  ps = [...ps].sort(_projectSortComparator);
 
   const active   = ps.filter(p => !p.archived);
   const archived = ps.filter(p => p.archived);
