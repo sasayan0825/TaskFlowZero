@@ -3463,7 +3463,7 @@ function _renderActivityTabContent(myName) {
   let curStreak = 0;
   for (let i = 0; i <= 364; i++) {
     const d = new Date(today); d.setDate(d.getDate() - i);
-    if (byDate[d.toISOString().slice(0,10)]?.length > 0) curStreak++;
+    if (byDate[localDateStr(d)]?.length > 0) curStreak++;
     else break;
   }
 
@@ -5385,14 +5385,9 @@ function _openTaskPanelInner(taskId){
     bar.style.display = 'flex';
     // 作成者 input
     creatorIn.value = t.creator || '';
-    // 24時間以内のみ編集可
-    const editable = t.createdAtTime
-      ? (Date.now() - new Date(t.createdAtTime).getTime() < 86400000)
-      : false;
-    creatorIn.disabled = !editable;
-    creatorIn.title = editable
-      ? '作成から24時間以内のみ編集できます'
-      : '作成者は作成後24時間を過ぎると変更できません';
+
+    creatorIn.disabled = false;
+    creatorIn.title = '作成者を編集できます';
     // 作成日時
     createdEl.textContent = t.createdAtTime ? fmtDatetime(t.createdAtTime) : '';
     // datalist に担当者・メンバー補完
@@ -5494,11 +5489,8 @@ function savePanelTask(){
   const oldDesc=t.description||'';
 
   t.title=document.getElementById('panel-title').value.trim()||t.title;
-  // creator: 24時間以内かつ input が有効な場合のみ更新
   const _creatorIn = document.getElementById('panel-creator');
-  if (_creatorIn && !_creatorIn.disabled) {
-    t.creator = _creatorIn.value.trim();
-  }
+  if (_creatorIn) t.creator = _creatorIn.value.trim();
   t.status=newStatus;
   const newAssignee=document.getElementById('panel-assignee').value.trim();
   t.assignee=newAssignee;
