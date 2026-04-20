@@ -193,16 +193,47 @@
   }
 
   // ── 別プロジェクトのタスクを開く ─────────────────────────
+  // 【バグ修正】プロジェクト切り替え時にヘッダー（名前・色・番号）を正しく更新する
   function openOverdueTask(projectId, taskId) {
     var state = TaskFlow.getState();
+
     if (state.currentProjectId !== projectId) {
       var p = TaskFlow.getProject(projectId);
       if (p) {
+        // currentProjectId を更新
         state.currentProjectId = projectId;
+
+        // プロジェクトヘッダーを更新（内部の openProject 相当処理）
+        var colorBadge = document.getElementById('ph-color-badge');
+        if (colorBadge) colorBadge.style.background = p.color || '#4f8eff';
+
+        var titleEl = document.getElementById('ph-title');
+        if (titleEl) titleEl.textContent = p.name;
+
+        var descEl = document.getElementById('ph-desc');
+        if (descEl) descEl.textContent = p.description || '';
+
+        var numEl = document.getElementById('ph-project-num');
+        if (numEl) numEl.textContent = p.number ? 'P' + p.number : '';
+
+        var archBtn = document.getElementById('btn-archive-project');
+        if (archBtn) archBtn.textContent = p.archived ? '♻️ 未完了に戻す' : '📦 完了';
+
+        // ビューコンテナを切り替え
+        var projectsView = document.getElementById('projects-view');
+        if (projectsView) projectsView.style.display = 'none';
+
+        var projectDetail = document.getElementById('project-detail');
+        if (projectDetail) projectDetail.style.display = 'flex';
+
+        var myTasksView = document.getElementById('my-tasks-view');
+        if (myTasksView) myTasksView.style.display = 'none';
+
         TaskFlow.renderSidebar();
         TaskFlow.renderCurrentView();
       }
     }
+
     setTimeout(function() { TaskFlow.openTaskPanel(taskId); }, 80);
   }
 
