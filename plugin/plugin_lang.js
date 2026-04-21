@@ -42,6 +42,7 @@
     'をご使用ください。':                 'Please use Chrome or Edge.',
 
     // ── サイドバー ──────────────────────────────────────────
+    'ナビゲーション':                     'Navigation',
     'すべてのプロジェクト':               'All Projects',
     'プロジェクト一覧':                   'Project List',
     '進行中のプロジェクトがありません':   'No active projects',
@@ -84,7 +85,6 @@
     '「＋ 新規プロジェクト」から始めましょう': 'Click "＋ New Project" to get started',
     'プロジェクト':                       'Project',
     '📦 完了':                            '📦 Archive',
-    // 静的部分（動的 N件 は translateDynamic で処理）
     '完了済みプロジェクト':               'Archived Projects',
 
     // ── プロジェクトヘッダー / フィルター ────────────────────
@@ -149,9 +149,12 @@
     'プロジェクト開始から':               'From Start',
     'タスク表示':                         'Show Tasks',
     'イナズマ線':                         'Progress Line',
+    // ガント凡例
     'マイルストーン / タスク':            'Milestone / Task',
     'イナズマ線（実績進捗）':             'Progress Line',
     '今日線':                             'Today Line',
+    'タスクバー':                         'Task Bar',
+    // ガント左ヘッダー
     '完了日':                             'Completion',
     'タスク進捗詳細':                     'Task Progress',
     'マイルストーンはありません':         'No milestones',
@@ -164,7 +167,6 @@
     '見出しがありません':                 'No headings',
     '✏️ 編集':                           '✏️ Edit',
     '👁 プレビュー':                      '👁 Preview',
-    'Wiki を保存しました':               'Wiki saved',
 
     // ── タスク詳細パネル ────────────────────────────────────
     '🔗 URLコピー':                       '🔗 Copy URL',
@@ -187,6 +189,10 @@
     '詳細をMarkdownで記述...':            'Describe in Markdown...',
     '更新する':                           'Update',
     '保存済み ✓':                        'Saved ✓',
+
+    // ── コメント欄のプレースホルダー ────────────────────────
+    '投稿者名':                           'Author name',
+    'コメントをMarkdownで入力...':        'Write a comment in Markdown...',
 
     // ── 工数入力 ────────────────────────────────────────────
     '工数 (h)':                           'Hours (h)',
@@ -275,6 +281,41 @@
     '見出し':                             'Heading',
     '削除':                               'Delete',
 
+    // ── トースト（静的メッセージ） ───────────────────────────
+    '保存しました':                       'Saved',
+    '保存しました（他の変更を自動マージ）': 'Saved (auto-merged changes)',
+    '保存しました（競合を解決）':         'Saved (conflict resolved)',
+    '保存に失敗しました':                 'Save failed',
+    '新規ファイルを作成しました':         'New file created',
+    'フォルダを開けませんでした':         'Could not open folder',
+    'アクセスが拒否されました':           'Access denied',
+    '既に最新です':                       'Already up to date',
+    '更新に失敗しました':                 'Update failed',
+    'マイルストーンを更新しました':       'Milestone updated',
+    'マイルストーンを追加しました':       'Milestone added',
+    'マイルストーンを削除しました':       'Milestone deleted',
+    'マイルストーンを並び替えました':     'Milestones reordered',
+    'プロジェクトを更新しました':         'Project updated',
+    'プロジェクトを作成しました':         'Project created',
+    'プロジェクトを削除しました':         'Project deleted',
+    'コメントを投稿しました':             'Comment posted',
+    'コメントと工数を投稿しました':       'Comment & hours posted',
+    'コメントを更新しました':             'Comment updated',
+    'タスクを削除しました':               'Task deleted',
+    '日付を更新しました':                 'Date updated',
+    'リンクをコピーしました':             'Link copied',
+    'Wiki を保存しました':               'Wiki saved',
+    '旧形式を検出しました。次回保存時に分割形式へ移行します。':
+      'Legacy format detected. Will migrate on next save.',
+    '分割形式への移行が完了しました':     'Migration to split format complete',
+    '競合の解決をキャンセルしました。再度保存するまで変更は反映されません。':
+      'Conflict resolution cancelled. Changes won\'t apply until you save again.',
+    'プロジェクトを選択してください':     'Please select a project',
+    '.js ファイルをドロップしてください': 'Please drop a .js file',
+    'フォルダが設定されていません。一度モーダルを閉じて再度開いてください':
+      'No folder set. Close and reopen the modal.',
+    'フォルダが選択されていません':       'No folder selected',
+
     // ── その他 ──────────────────────────────────────────────
     'タスク':                             'Task',
     '# プロジェクト概要\n\nここにWikiをMarkdownで記述してください。\n\n## 目的\n\n## アーキテクチャ\n\n## 開発環境のセットアップ':
@@ -286,11 +327,47 @@
   try { _lang = localStorage.getItem(STORAGE_KEY) || 'ja'; } catch (e) {}
 
   // ── 動的文字列の正規表現翻訳 ─────────────────────────────
-  // DICTで完全一致しない「数値を含む動的文字列」を正規表現で変換する。
+  // DICTで完全一致しない「数値や固有名を含む動的文字列」を正規表現で変換。
   // 変換が行われた場合は変換後の文字列を、変換不要なら元の文字列を返す。
   function translateDynamic(text) {
     if (!text) return text;
     let s = text;
+
+    // ── トースト（動的メッセージ） ────────────────────────
+    // 「フォルダを読み込みました: NAME」
+    s = s.replace(/^フォルダを読み込みました: (.+)$/, 'Folder loaded: $1');
+    // 「フォルダを開きました: NAME」
+    s = s.replace(/^フォルダを開きました: (.+)$/, 'Folder opened: $1');
+    // 「競合コピー N 件を自動マージしました」
+    s = s.replace(/^競合コピー (\d+) 件を自動マージしました$/, '$1 conflict copies auto-merged');
+    // 「競合コピー N 件に手動解決が必要です」
+    s = s.replace(/^競合コピー (\d+) 件に手動解決が必要です$/, '$1 conflicts need manual resolution');
+    // 「更新しました（N件のプロジェクトに変更あり）」
+    s = s.replace(/^更新しました（(\d+)件のプロジェクトに変更あり）$/, 'Updated ($1 projects changed)');
+    // 「タスク #N を追加しました」
+    s = s.replace(/^タスク #(\d+) を追加しました$/, 'Task #$1 added');
+    // 「#N を「STATUS」に移動」
+    s = s.replace(/^#(\d+) を「(.+)」に移動$/, '#$1 moved to "$2"');
+    // 「「PROJECT」を完了にしました」
+    s = s.replace(/^「(.+)」を完了にしました$/, '"$1" archived');
+    // 「「PROJECT」を未完了に戻しました」
+    s = s.replace(/^「(.+)」を未完了に戻しました$/, '"$1" unarchived');
+    // 「CN のURLをコピーしました」
+    s = s.replace(/^(C\d+) のURLをコピーしました$/, '$1 URL copied');
+    // 「⚠️ N件の競合があります — Ctrl+S で解決してください」
+    s = s.replace(/^⚠️ (\d+)件の競合があります — Ctrl\+S で解決してください$/, '⚠️ $1 conflicts — press Ctrl+S to resolve');
+    // 「FILE を添付しました」
+    s = s.replace(/^(.+) を添付しました$/, '$1 attached');
+    // 「FILE をインストールしました」
+    s = s.replace(/^(.+) をインストールしました$/, '$1 installed');
+    // 「インストール失敗: MSG」
+    s = s.replace(/^インストール失敗: (.+)$/, 'Install failed: $1');
+    // 「保存失敗: MSG」
+    s = s.replace(/^保存失敗: (.+)$/, 'Save failed: $1');
+    // 「#N を作成しました」（プラグイン等）
+    s = s.replace(/^#(\d+) を作成しました$/, '#$1 created');
+    // 「マイルストーン → NAME に変更」（リスト並び替え時）
+    s = s.replace(/^マイルストーン → (.+) に変更$/, 'Milestone → $1 changed');
 
     // ── プロジェクト一覧 ──────────────────────────────────
     // 「📦 完了済みプロジェクト（N件）」
@@ -305,10 +382,15 @@
     s = s.replace(/ — (\d+)件のアクティビティ$/, ' — $1 activities');
 
     // ── ガント：年月ヘッダー ─────────────────────────────
-    // 「YYYY/N月」→「Mon YYYY」（ガントチャート上部の列ヘッダー）
+    // 「YYYY/N月」→「Mon YYYY」
     s = s.replace(/(\d{4})\/(\d+)月/g, function(_, year, month) {
       return (MONTHS_EN[parseInt(month, 10) - 1] || month) + ' ' + year;
     });
+
+    // ── ガント：タスク/マイルストーンのツールチップ ───────
+    // 「期限:DATE」部分を変換（例: #1 タイトル [進行中] ✓2/3 期限:2026/04/30）
+    s = s.replace(/期限:(\d{4}\/\d+\/\d+)/g, 'Due: $1');
+    // 「DATE ~ DATE (N%)」の ~ はそのまま（英語でも同様）
 
     // ── タスク詳細：編集済みバッジ ───────────────────────
     // 「編集済み YYYY/M/D HH:MM」
@@ -323,7 +405,7 @@
     // ── 汎用カウンター ───────────────────────────────────
     // 「N日」（単体 - アクティビティ統計の数値セル）
     s = s.replace(/^(\d+)日$/, '$1 days');
-    // 「N件」（汎用 - 件 を除去して数字だけにする）
+    // 「N件」（汎用 - 「件」を除去して数字だけにする）
     s = s.replace(/(\d+)件/g, '$1');
 
     return s;
@@ -337,10 +419,8 @@
       const trimmed  = original.trim();
       if (!trimmed) return;
       if (DICT[trimmed]) {
-        // 完全一致
         node.textContent = original.replace(trimmed, DICT[trimmed]);
       } else {
-        // 動的パターン（正規表現）
         const dyn = translateDynamic(trimmed);
         if (dyn !== trimmed) {
           node.textContent = original.replace(trimmed, dyn);
@@ -387,6 +467,19 @@
         '<strong>Open Another Folder</strong>: Select your shared folder<br>' +
         '<strong>New</strong>: Create a new file at a shared location';
     }
+
+    // ガント「今日線」のCSS疑似要素 content を英語に上書き
+    // ::after { content: '今日' } はJS DOMから変更できないのでCSSインジェクションで対処
+    injectGanttTodayCss();
+  }
+
+  // ── ガント今日線ラベルのCSS上書き ───────────────────────
+  function injectGanttTodayCss() {
+    if (document.getElementById('lang-gantt-today-css')) return;
+    const style = document.createElement('style');
+    style.id = 'lang-gantt-today-css';
+    style.textContent = '.today-line::after { content: "Today" !important; }';
+    document.head.appendChild(style);
   }
 
   // ── MutationObserver で動的レンダリング後も自動翻訳 ─────
