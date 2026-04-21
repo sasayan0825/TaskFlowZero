@@ -238,6 +238,9 @@
     '✏️ 自分の変更':                      '✏️ My Changes',
 
     // ── プラグイン管理UI ────────────────────────────────────
+    'プラグイン管理':                     'Plugin Manager',
+    '🔌 プラグイン管理':                  '🔌 Plugin Manager',
+    'インストール済み':                   'Installed',
     'プラグインを追加':                   'Add Plugin',
     'プラグインがありません':             'No plugins installed',
     'JSファイルをここにドロップ':         'Drop JS file here',
@@ -265,7 +268,6 @@
     // ── ツールチップ（title属性）──────────────────────────
     'TOPへ戻る':                          'Back to Top',
     '他のメンバーの変更を取得':           'Fetch latest changes',
-    'プラグイン管理':                     'Plugin Manager',
     'ドラッグで幅を変更':                 'Drag to resize',
     'このタスクのURLをコピー':            'Copy task URL',
     'このコメントのURLをコピー':          'Copy comment URL',
