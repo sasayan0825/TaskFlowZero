@@ -246,8 +246,11 @@
     'JSファイルをここにドロップ':         'Drop JS file here',
     'ファイルを選択':                     'Choose File',
     'インストール中...':                  'Installing...',
+    '保存中...':                          'Saving...',
     '💾 保存して反映':                    '💾 Save & Reload',
     '変更後はページをリロードして反映':   'Save & reload to apply changes',
+    'plugins.js を保存しました。ページをリロードして反映してください。':
+      'plugins.js saved. Reload the page to apply changes.',
     '⠿ ドラッグで読み込み順を変更できます。削除してもJSファイルは残ります。':
       '⠿ Drag to reorder. Removing from list keeps the JS file.',
 
@@ -318,6 +321,59 @@
       'No folder set. Close and reopen the modal.',
     'フォルダが選択されていません':       'No folder selected',
 
+    // ── UI・ラベル（単体） ──────────────────────────────────
+    '見積':                               'Est.',
+    '実績':                               'Actual',
+    '追加':                               'Add',
+    '項目を追加... (Enterで追加)':        'Add item... (Press Enter)',
+    '読み込み中…':                        'Loading...',
+    '匿名':                               'Anonymous',
+    '名無し':                             'Anonymous',
+    '（なし）':                           '(None)',
+    '（空）':                             '(Empty)',
+    '（見つかりません）':                 '(Not found)',
+    'はい':                               'Yes',
+    'いいえ':                             'No',
+    'マイルストーンを編集':               'Edit Milestone',
+    'プロジェクトを編集':                 'Edit Project',
+
+    // ── 空の状態（Empty States） ────────────────────────────
+    '上の「自分」で自分の名前を選択してください。': 'Please select your name from "Me" above.',
+    'メンションはありません':             'No mentions',
+    '担当タスクはありません':             'No assigned tasks',
+
+    // ── トースト（追加分） ───────────────────────────────────
+    '履歴を削除しました':                 'History cleared',
+    '保存されたフォルダがありません':     'No saved folders',
+    '履歴が見つかりません':               'History not found',
+    'ファイルを作成できませんでした':     'Could not create file',
+    'フォルダが開かれていません':         'No folder opened',
+    '保存中です。しばらくお待ちください': 'Saving... Please wait',
+    '名前を入力してください':             'Please enter a name',
+    'プロジェクト名を入力してください':   'Please enter a project name',
+    'タイトルを入力してください':         'Please enter a title',
+    'コメントを入力してください':         'Please enter a comment',
+    '画像を保存中...':                    'Saving image...',
+    '画像を貼り付けました':               'Image pasted',
+    'ファイルを保存中...':                'Saving file...',
+    '🔄 更新中...':                       '🔄 Refreshing...',
+
+    // ── 確認ダイアログ（confirm）────────────────────────────
+    '変更が保存されていません。TOPに戻りますか？':
+      'Unsaved changes. Return to TOP?',
+    'フォルダ履歴をすべて削除しますか？':
+      'Clear all folder history?',
+    'このマイルストーンを削除しますか？\n（タスクの割り当ては解除されます）':
+      'Delete this milestone?\n(Task assignments will be removed)',
+    '変更が保存されていません。閉じますか？':
+      'Unsaved changes. Close anyway?',
+    'このタスクを削除しますか？':
+      'Delete this task?',
+    'このコメントを削除しますか？\n工数が登録されている場合は合計から減算されます。':
+      'Delete this comment?\nLogged hours will be deducted.',
+    'Wikiの変更が保存されていません。切り替えますか？\n（「キャンセル」で編集を続けられます）':
+      'Unsaved Wiki changes. Switch views?\n(Click "Cancel" to continue editing)',
+
     // ── その他 ──────────────────────────────────────────────
     'タスク':                             'Task',
     '# プロジェクト概要\n\nここにWikiをMarkdownで記述してください。\n\n## 目的\n\n## アーキテクチャ\n\n## 開発環境のセットアップ':
@@ -362,6 +418,8 @@
     s = s.replace(/^(.+) を添付しました$/, '$1 attached');
     // 「FILE をインストールしました」
     s = s.replace(/^(.+) をインストールしました$/, '$1 installed');
+    // 「保存中...」（プラグイン保存ボタン - spinner textNodeとして捕捉）
+    s = s.replace(/^ 保存中\.\.\.$/, ' Saving...');
     // 「インストール失敗: MSG」
     s = s.replace(/^インストール失敗: (.+)$/, 'Install failed: $1');
     // 「保存失敗: MSG」
@@ -403,6 +461,50 @@
     s = s.replace(/^今日 (\d+:\d+)$/, 'Today $1');
     // 「N日前」
     s = s.replace(/(\d+)日前/g, '$1 days ago');
+
+    // ── 競合解決フッター ──────────────────────────────────
+    // 「N件すべて選択済み」
+    s = s.replace(/^(\d+)件すべて選択済み$/, 'All $1 selected');
+    // 「未選択: N件」
+    s = s.replace(/^未選択: (\d+)件$/, '$1 unselected');
+
+    // ── 削除確認（confirm）───────────────────────────────
+    // 「「PROJECT」を削除しますか？」
+    s = s.replace(/^「(.+)」を削除しますか？$/, 'Delete "$1"?');
+    // 「"PLUGIN" をプラグインリストから削除しますか？\n（JSファイルは削除されません）」
+    s = s.replace(/^"(.+)" をプラグインリストから削除しますか？\n（JSファイルは削除されません）$/,
+      'Remove "$1" from plugin list?\n(JS file will not be deleted)');
+
+    // ── エラー通知（toast）───────────────────────────────
+    // 「貼り付けに失敗しました: MSG」
+    s = s.replace(/^貼り付けに失敗しました: (.+)$/, 'Paste failed: $1');
+    // 「添付に失敗しました: MSG」
+    s = s.replace(/^添付に失敗しました: (.+)$/, 'Attachment failed: $1');
+    // 「プロジェクト P(N) が見つかりません」
+    s = s.replace(/^プロジェクト P(\d+) が見つかりません$/, 'Project P$1 not found');
+    // 「タスク #(N) が見つかりません」
+    s = s.replace(/^タスク #(\d+) が見つかりません$/, 'Task #$1 not found');
+
+    // ── URL・ハッシュナビゲーション関連 ────────────────────
+    // 「「FOLDER」フォルダを開いてから再度URLにアクセスしてください」
+    s = s.replace(/^「(.+)」フォルダを開いてから再度URLにアクセスしてください$/,
+      'Please open the "$1" folder and access the URL again');
+    // 「フォルダが違います（必要: A、現在: B）」
+    s = s.replace(/^フォルダが違います（必要: (.+)、現在: (.+)）$/,
+      'Wrong folder (Required: $1, Current: $2)');
+    // 「「FOLDER」フォルダへのリンクから来ています。...」（バナーテキスト）
+    s = s.replace(/^<strong>(.+)<\/strong> フォルダへのリンクから来ています。<br>下の履歴または「別のフォルダを開く」から <strong>(.+)<\/strong> を選択してください。$/,
+      'You followed a link to the <strong>$1</strong> folder.<br>Select <strong>$2</strong> from history or "Open Another Folder".');
+
+    // ── 添付ファイル：alt テキスト ───────────────────────
+    // 「（ファイルが見つかりません: KEY）」
+    s = s.replace(/^（ファイルが見つかりません: (.+)）$/, '(File not found: $1)');
+    // title属性版「フォルダ「FOLDER」が必要です」
+    s = s.replace(/^フォルダ「(.+)」が必要です$/, 'Folder "$1" is required');
+
+    // ── リンクからの起動画面（loader テキスト動的置換） ──
+    // 「「FOLDER」フォルダを開いてください」
+    s = s.replace(/^「(.+)」フォルダを開いてください$/, 'Please open the "$1" folder');
 
     // ── 汎用カウンター ───────────────────────────────────
     // 「N日」（単体 - アクティビティ統計の数値セル）
