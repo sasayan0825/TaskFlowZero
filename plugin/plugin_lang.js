@@ -1,7 +1,6 @@
 // ================================================================
 //  plugin_lang.js  - TaskFlow 言語切り替えプラグイン
 //  taskflow.html と同じフォルダに置くと自動で読み込まれます
-//  不要な場合はこのファイルを置かなければ機能は追加されません
 // ================================================================
 
 (function () {
@@ -86,6 +85,9 @@
     'プロジェクト':                       'Project',
     '📦 完了':                            '📦 Archive',
     '完了済みプロジェクト':               'Archived Projects',
+    '♻️ 未完了に戻す':                    '♻️ Unarchive',
+    '未完了に戻す':                       'Unarchive',
+    '完了にする':                         'Archive',
 
     // ── プロジェクトヘッダー / フィルター ────────────────────
     '＋ タスク追加':                      '＋ Add Task',
@@ -149,12 +151,10 @@
     'プロジェクト開始から':               'From Start',
     'タスク表示':                         'Show Tasks',
     'イナズマ線':                         'Progress Line',
-    // ガント凡例
     'マイルストーン / タスク':            'Milestone / Task',
     'イナズマ線（実績進捗）':             'Progress Line',
     '今日線':                             'Today Line',
     'タスクバー':                         'Task Bar',
-    // ガント左ヘッダー
     '完了日':                             'Completion',
     'タスク進捗詳細':                     'Task Progress',
     'マイルストーンはありません':         'No milestones',
@@ -190,9 +190,11 @@
     '更新する':                           'Update',
     '保存済み ✓':                        'Saved ✓',
 
-    // ── コメント欄のプレースホルダー ────────────────────────
+    // ── プレースホルダー / 入力 ──────────────────────────────
     '投稿者名':                           'Author name',
+    '担当者名':                           'Assignee name',
     'コメントをMarkdownで入力...':        'Write a comment in Markdown...',
+    'このURLをコピーしてください:':       'Please copy this URL:',
 
     // ── 工数入力 ────────────────────────────────────────────
     '工数 (h)':                           'Hours (h)',
@@ -265,10 +267,8 @@
     'To Do':                              'To Do',
     '未接続':                             'Disconnected',
 
-    // ── フォルダ履歴の相対日付（静的） ──────────────────────
+    // ── ツールチップ / トースト ──────────────────────────────
     '昨日':                               'Yesterday',
-
-    // ── ツールチップ（title属性）──────────────────────────
     'TOPへ戻る':                          'Back to Top',
     '他のメンバーの変更を取得':           'Fetch latest changes',
     'ドラッグで幅を変更':                 'Drag to resize',
@@ -286,7 +286,6 @@
     '見出し':                             'Heading',
     '削除':                               'Delete',
 
-    // ── トースト（静的メッセージ） ───────────────────────────
     '保存しました':                       'Saved',
     '保存しました（他の変更を自動マージ）': 'Saved (auto-merged changes)',
     '保存しました（競合を解決）':         'Saved (conflict resolved)',
@@ -310,18 +309,15 @@
     '日付を更新しました':                 'Date updated',
     'リンクをコピーしました':             'Link copied',
     'Wiki を保存しました':               'Wiki saved',
-    '旧形式を検出しました。次回保存時に分割形式へ移行します。':
-      'Legacy format detected. Will migrate on next save.',
+    '旧形式を検出しました。次回保存時に分割形式へ移行します。': 'Legacy format detected. Will migrate on next save.',
     '分割形式への移行が完了しました':     'Migration to split format complete',
-    '競合の解決をキャンセルしました。再度保存するまで変更は反映されません。':
-      'Conflict resolution cancelled. Changes won\'t apply until you save again.',
+    '競合の解決をキャンセルしました。再度保存するまで変更は反映されません。': 'Conflict resolution cancelled. Changes won\'t apply until you save again.',
     'プロジェクトを選択してください':     'Please select a project',
     '.js ファイルをドロップしてください': 'Please drop a .js file',
-    'フォルダが設定されていません。一度モーダルを閉じて再度開いてください':
-      'No folder set. Close and reopen the modal.',
+    'フォルダが設定されていません。一度モーダルを閉じて再度開いてください': 'No folder set. Close and reopen the modal.',
     'フォルダが選択されていません':       'No folder selected',
 
-    // ── UI・ラベル（単体） ──────────────────────────────────
+    // ── UI・ラベル（単体） / 空の状態 / 確認 ────────────────
     '見積':                               'Est.',
     '実績':                               'Actual',
     '追加':                               'Add',
@@ -336,13 +332,9 @@
     'いいえ':                             'No',
     'マイルストーンを編集':               'Edit Milestone',
     'プロジェクトを編集':                 'Edit Project',
-
-    // ── 空の状態（Empty States） ────────────────────────────
     '上の「自分」で自分の名前を選択してください。': 'Please select your name from "Me" above.',
     'メンションはありません':             'No mentions',
     '担当タスクはありません':             'No assigned tasks',
-
-    // ── トースト（追加分） ───────────────────────────────────
     '履歴を削除しました':                 'History cleared',
     '保存されたフォルダがありません':     'No saved folders',
     '履歴が見つかりません':               'History not found',
@@ -359,20 +351,13 @@
     '🔄 更新中...':                       '🔄 Refreshing...',
 
     // ── 確認ダイアログ（confirm）────────────────────────────
-    '変更が保存されていません。TOPに戻りますか？':
-      'Unsaved changes. Return to TOP?',
-    'フォルダ履歴をすべて削除しますか？':
-      'Clear all folder history?',
-    'このマイルストーンを削除しますか？\n（タスクの割り当ては解除されます）':
-      'Delete this milestone?\n(Task assignments will be removed)',
-    '変更が保存されていません。閉じますか？':
-      'Unsaved changes. Close anyway?',
-    'このタスクを削除しますか？':
-      'Delete this task?',
-    'このコメントを削除しますか？\n工数が登録されている場合は合計から減算されます。':
-      'Delete this comment?\nLogged hours will be deducted.',
-    'Wikiの変更が保存されていません。切り替えますか？\n（「キャンセル」で編集を続けられます）':
-      'Unsaved Wiki changes. Switch views?\n(Click "Cancel" to continue editing)',
+    '変更が保存されていません。TOPに戻りますか？': 'Unsaved changes. Return to TOP?',
+    'フォルダ履歴をすべて削除しますか？': 'Clear all folder history?',
+    'このマイルストーンを削除しますか？\n（タスクの割り当ては解除されます）': 'Delete this milestone?\n(Task assignments will be removed)',
+    '変更が保存されていません。閉じますか？': 'Unsaved changes. Close anyway?',
+    'このタスクを削除しますか？': 'Delete this task?',
+    'このコメントを削除しますか？\n工数が登録されている場合は合計から減算されます。': 'Delete this comment?\nLogged hours will be deducted.',
+    'Wikiの変更が保存されていません。切り替えますか？\n（「キャンセル」で編集を続けられます）': 'Unsaved Wiki changes. Switch views?\n(Click "Cancel" to continue editing)',
 
     // ── その他 ──────────────────────────────────────────────
     'タスク':                             'Task',
@@ -380,139 +365,111 @@
       '# Project Overview\n\nWrite your Wiki in Markdown here.\n\n## Purpose\n\n## Architecture\n\n## Development Setup',
   };
 
-  // ── 現在の言語 ────────────────────────────────────────────
   let _lang = 'ja';
   try { _lang = localStorage.getItem(STORAGE_KEY) || 'ja'; } catch (e) {}
 
   // ── 動的文字列の正規表現翻訳 ─────────────────────────────
-  // DICTで完全一致しない「数値や固有名を含む動的文字列」を正規表現で変換。
-  // 変換が行われた場合は変換後の文字列を、変換不要なら元の文字列を返す。
   function translateDynamic(text) {
     if (!text) return text;
     let s = text;
 
-    // ── トースト（動的メッセージ） ────────────────────────
-    // 「フォルダを読み込みました: NAME」
+    // トースト / ダイアログ関連
     s = s.replace(/^フォルダを読み込みました: (.+)$/, 'Folder loaded: $1');
-    // 「フォルダを開きました: NAME」
     s = s.replace(/^フォルダを開きました: (.+)$/, 'Folder opened: $1');
-    // 「競合コピー N 件を自動マージしました」
     s = s.replace(/^競合コピー (\d+) 件を自動マージしました$/, '$1 conflict copies auto-merged');
-    // 「競合コピー N 件に手動解決が必要です」
     s = s.replace(/^競合コピー (\d+) 件に手動解決が必要です$/, '$1 conflicts need manual resolution');
-    // 「更新しました（N件のプロジェクトに変更あり）」
     s = s.replace(/^更新しました（(\d+)件のプロジェクトに変更あり）$/, 'Updated ($1 projects changed)');
-    // 「タスク #N を追加しました」
     s = s.replace(/^タスク #(\d+) を追加しました$/, 'Task #$1 added');
-    // 「#N を「STATUS」に移動」
     s = s.replace(/^#(\d+) を「(.+)」に移動$/, '#$1 moved to "$2"');
-    // 「「PROJECT」を完了にしました」
     s = s.replace(/^「(.+)」を完了にしました$/, '"$1" archived');
-    // 「「PROJECT」を未完了に戻しました」
     s = s.replace(/^「(.+)」を未完了に戻しました$/, '"$1" unarchived');
-    // 「CN のURLをコピーしました」
     s = s.replace(/^(C\d+) のURLをコピーしました$/, '$1 URL copied');
-    // 「⚠️ N件の競合があります — Ctrl+S で解決してください」
     s = s.replace(/^⚠️ (\d+)件の競合があります — Ctrl\+S で解決してください$/, '⚠️ $1 conflicts — press Ctrl+S to resolve');
-    // 「FILE を添付しました」
     s = s.replace(/^(.+) を添付しました$/, '$1 attached');
-    // 「FILE をインストールしました」
     s = s.replace(/^(.+) をインストールしました$/, '$1 installed');
-    // 「保存中...」（プラグイン保存ボタン - spinner textNodeとして捕捉）
     s = s.replace(/^ 保存中\.\.\.$/, ' Saving...');
-    // 「インストール失敗: MSG」
     s = s.replace(/^インストール失敗: (.+)$/, 'Install failed: $1');
-    // 「保存失敗: MSG」
     s = s.replace(/^保存失敗: (.+)$/, 'Save failed: $1');
-    // 「#N を作成しました」（プラグイン等）
     s = s.replace(/^#(\d+) を作成しました$/, '#$1 created');
-    // 「マイルストーン → NAME に変更」（リスト並び替え時）
     s = s.replace(/^マイルストーン → (.+) に変更$/, 'Milestone → $1 changed');
-
-    // ── プロジェクト一覧 ──────────────────────────────────
-    // 「📦 完了済みプロジェクト（N件）」
+    s = s.replace(/^貼り付けに失敗しました: (.+)$/, 'Paste failed: $1');
+    s = s.replace(/^添付に失敗しました: (.+)$/, 'Attachment failed: $1');
+    s = s.replace(/^プロジェクト P(\d+) が見つかりません$/, 'Project P$1 not found');
+    s = s.replace(/^タスク #(\d+) が見つかりません$/, 'Task #$1 not found');
+    s = s.replace(/^「(.+)」フォルダを開いてから再度URLにアクセスしてください$/, 'Please open the "$1" folder and access the URL again');
+    s = s.replace(/^フォルダが違います（必要: (.+)、現在: (.+)）$/, 'Wrong folder (Required: $1, Current: $2)');
+    s = s.replace(/^<strong>(.+)<\/strong> フォルダへのリンクから来ています。<br>下の履歴または「別のフォルダを開く」から <strong>(.+)<\/strong> を選択してください。$/, 'You followed a link to the <strong>$1</strong> folder.<br>Select <strong>$2</strong> from history or "Open Another Folder".');
+    s = s.replace(/^（ファイルが見つかりません: (.+)）$/, '(File not found: $1)');
+    s = s.replace(/^フォルダ「(.+)」が必要です$/, 'Folder "$1" is required');
+    s = s.replace(/^「(.+)」フォルダを開いてください$/, 'Please open the "$1" folder');
+    s = s.replace(/^「(.+)」を削除しますか？$/, 'Delete "$1"?');
+    s = s.replace(/^"(.+)" をプラグインリストから削除しますか？\n（JSファイルは削除されません）$/, 'Remove "$1" from plugin list?\n(JS file will not be deleted)');
+    
+    // UI コンテンツ関連
     s = s.replace(/完了済みプロジェクト（(\d+)件）/g, 'Archived Projects ($1)');
-    // 「N 進行中 / N 完了」（プロジェクト一覧サブタイトル）
     s = s.replace(/(\d+) 進行中 \/ (\d+) 完了/g, '$1 Active / $2 Archived');
-
-    // ── マイタスク ────────────────────────────────────────
-    // 「N件のアクティビティ」
     s = s.replace(/(\d+)件のアクティビティ/g, '$1 activities');
-    // 「DATE — N件のアクティビティ」
     s = s.replace(/ — (\d+)件のアクティビティ$/, ' — $1 activities');
-
-    // ── ガント：年月ヘッダー ─────────────────────────────
-    // 「YYYY/N月」→「Mon YYYY」
     s = s.replace(/(\d{4})\/(\d+)月/g, function(_, year, month) {
       return (MONTHS_EN[parseInt(month, 10) - 1] || month) + ' ' + year;
     });
-
-    // ── ガント：タスク/マイルストーンのツールチップ ───────
-    // 「期限:DATE」部分を変換（例: #1 タイトル [進行中] ✓2/3 期限:2026/04/30）
     s = s.replace(/期限:(\d{4}\/\d+\/\d+)/g, 'Due: $1');
-    // 「DATE ~ DATE (N%)」の ~ はそのまま（英語でも同様）
-
-    // ── タスク詳細：編集済みバッジ ───────────────────────
-    // 「編集済み YYYY/M/D HH:MM」
     s = s.replace(/^編集済み (.+)$/, 'Edited $1');
-
-    // ── フォルダ履歴の相対日付 ───────────────────────────
-    // 「今日 HH:MM」
     s = s.replace(/^今日 (\d+:\d+)$/, 'Today $1');
-    // 「N日前」
     s = s.replace(/(\d+)日前/g, '$1 days ago');
-
-    // ── 競合解決フッター ──────────────────────────────────
-    // 「N件すべて選択済み」
     s = s.replace(/^(\d+)件すべて選択済み$/, 'All $1 selected');
-    // 「未選択: N件」
     s = s.replace(/^未選択: (\d+)件$/, '$1 unselected');
-
-    // ── 削除確認（confirm）───────────────────────────────
-    // 「「PROJECT」を削除しますか？」
-    s = s.replace(/^「(.+)」を削除しますか？$/, 'Delete "$1"?');
-    // 「"PLUGIN" をプラグインリストから削除しますか？\n（JSファイルは削除されません）」
-    s = s.replace(/^"(.+)" をプラグインリストから削除しますか？\n（JSファイルは削除されません）$/,
-      'Remove "$1" from plugin list?\n(JS file will not be deleted)');
-
-    // ── エラー通知（toast）───────────────────────────────
-    // 「貼り付けに失敗しました: MSG」
-    s = s.replace(/^貼り付けに失敗しました: (.+)$/, 'Paste failed: $1');
-    // 「添付に失敗しました: MSG」
-    s = s.replace(/^添付に失敗しました: (.+)$/, 'Attachment failed: $1');
-    // 「プロジェクト P(N) が見つかりません」
-    s = s.replace(/^プロジェクト P(\d+) が見つかりません$/, 'Project P$1 not found');
-    // 「タスク #(N) が見つかりません」
-    s = s.replace(/^タスク #(\d+) が見つかりません$/, 'Task #$1 not found');
-
-    // ── URL・ハッシュナビゲーション関連 ────────────────────
-    // 「「FOLDER」フォルダを開いてから再度URLにアクセスしてください」
-    s = s.replace(/^「(.+)」フォルダを開いてから再度URLにアクセスしてください$/,
-      'Please open the "$1" folder and access the URL again');
-    // 「フォルダが違います（必要: A、現在: B）」
-    s = s.replace(/^フォルダが違います（必要: (.+)、現在: (.+)）$/,
-      'Wrong folder (Required: $1, Current: $2)');
-    // 「「FOLDER」フォルダへのリンクから来ています。...」（バナーテキスト）
-    s = s.replace(/^<strong>(.+)<\/strong> フォルダへのリンクから来ています。<br>下の履歴または「別のフォルダを開く」から <strong>(.+)<\/strong> を選択してください。$/,
-      'You followed a link to the <strong>$1</strong> folder.<br>Select <strong>$2</strong> from history or "Open Another Folder".');
-
-    // ── 添付ファイル：alt テキスト ───────────────────────
-    // 「（ファイルが見つかりません: KEY）」
-    s = s.replace(/^（ファイルが見つかりません: (.+)）$/, '(File not found: $1)');
-    // title属性版「フォルダ「FOLDER」が必要です」
-    s = s.replace(/^フォルダ「(.+)」が必要です$/, 'Folder "$1" is required');
-
-    // ── リンクからの起動画面（loader テキスト動的置換） ──
-    // 「「FOLDER」フォルダを開いてください」
-    s = s.replace(/^「(.+)」フォルダを開いてください$/, 'Please open the "$1" folder');
-
-    // ── 汎用カウンター ───────────────────────────────────
-    // 「N日」（単体 - アクティビティ統計の数値セル）
+    s = s.replace(/^(\d+)\/(\d+)完了$/, '$1/$2 Done');
+    s = s.replace(/^(\d+) \/ (\d+) 完了 \((.+)\)$/, '$1 / $2 Done ($3)');
+    s = s.replace(/^リンク先のタスクを表示するには、<br><strong style="color:var\(--accent2\)">(.+)<\/strong> フォルダを選択する必要があります。$/, 'To view the linked task, you need to select the <br><strong style="color:var(--accent2)">$1</strong> folder.');
+    s = s.replace(/見積 ([\d.]+)h/g, 'Est $1h').replace(/実績 ([\d.]+)h/g, 'Act $1h');
+    
+    // 汎用カウンター
     s = s.replace(/^(\d+)日$/, '$1 days');
-    // 「N件」（汎用 - 「件」を除去して数字だけにする）
     s = s.replace(/(\d+)件/g, '$1');
 
     return s;
+  }
+
+  // ── グローバル翻訳関数 ────────────────────────────────
+  const t = (key) => {
+    if (_lang === 'ja' || !key) return key;
+    if (DICT[key]) return DICT[key];
+    const dyn = translateDynamic(key);
+    return dyn !== key ? dyn : key;
+  };
+
+  // ── グローバル関数のフック（ネイティブダイアログとグラフ対応）──
+  if (_lang !== 'ja') {
+    // Confirm / Prompt
+    const origConfirm = window.confirm;
+    window.confirm = function(msg) { return origConfirm(t(msg)); };
+
+    const origPrompt = window.prompt;
+    window.prompt = function(msg, def) { return origPrompt(t(msg), def); };
+
+    // Toast
+    if (typeof window.toast === 'function') {
+      const origToast = window.toast;
+      window.toast = function(msg, type) { origToast(t(msg), type); };
+    }
+
+    // Chart.js (バーンダウンチャート用)
+    if (typeof window.Chart !== 'undefined') {
+      const origChart = window.Chart;
+      window.Chart = function(ctx, config) {
+        if (config && config.data && config.data.datasets) {
+          config.data.datasets.forEach(ds => {
+            if (ds.label === '理想線') ds.label = 'Ideal';
+            if (ds.label === '実績') ds.label = 'Actual';
+          });
+        }
+        if (config && config.options?.scales?.y?.title?.text === 'ストーリーポイント') {
+          config.options.scales.y.title.text = 'Story Points';
+        }
+        return new origChart(ctx, config);
+      };
+    }
   }
 
   // ── テキストノードを再帰的に翻訳 ─────────────────────────
@@ -522,31 +479,14 @@
       const original = node.textContent;
       const trimmed  = original.trim();
       if (!trimmed) return;
-      if (DICT[trimmed]) {
-        node.textContent = original.replace(trimmed, DICT[trimmed]);
-      } else {
-        const dyn = translateDynamic(trimmed);
-        if (dyn !== trimmed) {
-          node.textContent = original.replace(trimmed, dyn);
-        }
+      
+      const translated = t(trimmed);
+      if (translated !== trimmed) {
+        node.textContent = original.replace(trimmed, translated);
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
-      // placeholder 属性
-      if (node.placeholder && DICT[node.placeholder]) {
-        node.placeholder = DICT[node.placeholder];
-      }
-      // title 属性（ツールチップ）
-      if (node.title) {
-        const tt = node.title.trim();
-        if (tt) {
-          if (DICT[tt]) {
-            node.title = DICT[tt];
-          } else {
-            const dyn = translateDynamic(tt);
-            if (dyn !== tt) node.title = dyn;
-          }
-        }
-      }
+      if (node.placeholder) node.placeholder = t(node.placeholder);
+      if (node.title) node.title = t(node.title.trim());
       node.childNodes.forEach(translateNode);
     }
   }
@@ -555,16 +495,13 @@
     if (_lang === 'ja') return;
     translateNode(document.body);
 
-    // loader-subtitle: <br>区切りの複数行テキスト
     const subtitle = document.querySelector('.loader-subtitle');
-    if (subtitle) {
-      subtitle.innerHTML =
-        'Open a folder to store your data, or<br>create a new one.<br>Changes are auto-saved per project.';
+    if (subtitle && subtitle.innerHTML.includes('データを保存するフォルダ')) {
+      subtitle.innerHTML = 'Open a folder to store your data, or<br>create a new one.<br>Changes are auto-saved per project.';
     }
 
-    // welcome-info: フォルダ履歴対応版
     const wi = document.querySelector('.welcome-info');
-    if (wi) {
+    if (wi && wi.innerHTML.includes('フォルダ履歴')) {
       wi.innerHTML =
         '💡 Use <strong>Chrome / Edge</strong>.<br>' +
         '<strong>Folder History</strong>: Instantly reopen from browser cache<br>' +
@@ -572,12 +509,9 @@
         '<strong>New</strong>: Create a new file at a shared location';
     }
 
-    // ガント「今日線」のCSS疑似要素 content を英語に上書き
-    // ::after { content: '今日' } はJS DOMから変更できないのでCSSインジェクションで対処
     injectGanttTodayCss();
   }
 
-  // ── ガント今日線ラベルのCSS上書き ───────────────────────
   function injectGanttTodayCss() {
     if (document.getElementById('lang-gantt-today-css')) return;
     const style = document.createElement('style');
@@ -586,27 +520,22 @@
     document.head.appendChild(style);
   }
 
-  // ── MutationObserver で動的レンダリング後も自動翻訳 ─────
   let _observer = null;
   function startObserver() {
     if (_observer) _observer.disconnect();
     if (_lang === 'ja') return;
     _observer = new MutationObserver((mutations) => {
-      mutations.forEach(m => {
-        m.addedNodes.forEach(n => translateNode(n));
-      });
+      mutations.forEach(m => m.addedNodes.forEach(n => translateNode(n)));
     });
     _observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  // ── 言語切り替え ──────────────────────────────────────────
   function setLang(lang) {
     _lang = lang;
     try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) {}
     location.reload();
   }
 
-  // ── ヘッダーに言語切り替えボタンを追加 ──────────────────
   function injectLangButton() {
     if (document.getElementById('lang-toggle')) return;
     const btn = document.createElement('button');
@@ -633,7 +562,6 @@
     }
   }
 
-  // ── loader 画面にも言語ボタンを表示 ──────────────────────
   function earlyInject() {
     const loaderBtns = document.querySelector('.loader-card');
     if (loaderBtns && !document.getElementById('lang-toggle-loader')) {
@@ -642,7 +570,7 @@
       btn.style.cssText = [
         'background:var(--surface2);border:1px solid var(--border);',
         'color:var(--muted);padding:5px 14px;border-radius:var(--radius);',
-        'font-size:12px;cursor:pointer;font-family:inherit;margin-top:12px',
+        'font-size:12px;cursor:pointer;font-family:inherit;margin-top:12px'
       ].join('');
       btn.textContent = _lang === 'ja' ? '🌐 Switch to English' : '🌐 日本語に切り替え';
       btn.onclick = () => setLang(_lang === 'ja' ? 'en' : 'ja');
@@ -650,7 +578,6 @@
     }
   }
 
-  // ── 初期化 ────────────────────────────────────────────────
   function init() {
     injectLangButton();
     earlyInject();
@@ -660,9 +587,7 @@
     }
   }
 
-  // ── アクティビティテキストの翻訳（英語モード時のみ）──────
   if (_lang !== 'ja') {
-
     const ACTIVITY_PATTERNS = [
       [/^ステータスを (<b>.+?<\/b>) → (<b>.+?<\/b>) に変更$/, (_, a, b) => `Changed status from ${a} to ${b}`],
       [/^担当者を (<b>.+?<\/b>) に変更（元: (<b>.+?<\/b>)）$/, (_, a, b) => `Changed assignee to ${a} (was ${b})`],
@@ -694,8 +619,8 @@
         'まだ履歴がありません':          'No history yet',
       };
       document.querySelectorAll('#comment-list > div').forEach(el => {
-        const t = el.textContent.trim();
-        if (EMPTY_MSGS[t]) el.textContent = EMPTY_MSGS[t];
+        const text = el.textContent.trim();
+        if (EMPTY_MSGS[text]) el.textContent = EMPTY_MSGS[text];
       });
     }
 
@@ -714,10 +639,7 @@
     });
   }
 
-  // TaskFlow 準備完了後に実行
-  if (window.TaskFlow) {
-    window.TaskFlow.on('ready', init);
-  }
+  if (window.TaskFlow) window.TaskFlow.on('ready', init);
   document.addEventListener('taskflow-ready', init);
 
   if (document.readyState === 'loading') {
@@ -733,14 +655,12 @@
     }
   }
 
-  // 公開API（他プラグインから利用可能）
+  // 公開API
   window.TaskFlowLang = {
     get: () => _lang,
     set: setLang,
-    t: (key) => (_lang !== 'ja' && DICT[key]) ? DICT[key] : key,
+    t: t,
     addDict: (entries) => Object.assign(DICT, entries),
   };
-
-  console.log('[plugin_lang] loaded, lang=' + _lang);
 
 })();
