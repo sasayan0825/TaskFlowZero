@@ -810,7 +810,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <select class="proj-filter-select" id="proj-search-member" onchange="renderProjectsList()">
           <option value="">担当者: 全員</option>
         </select>
-        <select class="proj-filter-select" id="proj-sort" onchange="renderProjectsList()">
+        <select class="proj-filter-select" id="proj-sort" onchange="renderProjectsList(); renderSidebar()">
           <option value="number">並び順: 番号</option>
           <option value="name">並び順: 名前</option>
           <option value="startDate">並び順: 作成日</option>
