@@ -3450,6 +3450,11 @@ function _buildActivityEvents(myName) {
           add(c.createdAt, { type:'comment', icon:'💬', text:`コメント投稿: &ldquo;${esc(snip)}&rdquo; — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
         }
       });
+      // チェックリスト操作（自分が行ったもの）
+      (t.activity || []).forEach(a => {
+        if (a.type !== 'checklist' || !a.by || a.by !== myName || !a.at) return;
+        add(a.at, { type:'checklist', icon: a.icon||'☑', text:`${a.text} — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+      });
     });
   });
   return byDate;
@@ -6117,10 +6122,11 @@ function renderTimeline(t) {
       </div>`;
     } else {
       const a = item.data;
+      const byBadge = a.by ? `<span style="font-size:11px;font-weight:600;color:var(--text);margin-left:4px">${esc(a.by)}</span>` : '';
       return `<div class="activity-item">
         <div class="activity-icon-col"><div class="activity-dot" style="font-size:10px">${a.icon||'•'}</div></div>
         <div class="activity-body">
-          <div class="activity-text">${a.text}</div>
+          <div class="activity-text">${a.text}${byBadge}</div>
           <div class="activity-date">${fmtDatetime(a.at)}</div>
         </div>
       </div>`;
@@ -6407,8 +6413,9 @@ function addChecklistItem() {
   const t = getTask(state.currentProjectId,_panelTaskId); if(!t) return;
   if(!t.checklist) t.checklist=[];
   if(!t.activity)  t.activity=[];
+  const _actBy = localStorage.getItem('taskflow-my-name') || '';
   t.checklist.push({id:uid(), text, checked:false});
-  t.activity.push({type:'checklist',icon:'☑',text:`チェックリストに追加: <b>${esc(text)}</b>`,at:new Date().toISOString()});
+  t.activity.push({type:'checklist',icon:'☑',text:`チェックリストに追加: <b>${esc(text)}</b>`,at:new Date().toISOString(),by:_actBy||undefined});
   input.value='';
   renderChecklist(t); renderTimeline(t); autoSave(state.currentProjectId);
   panelDirty=true;
@@ -6421,12 +6428,14 @@ function toggleChecklistItem(idx) {
   const item = t.checklist[idx];
   item.checked = !item.checked;
   const now = new Date().toISOString();
+  const _actBy = localStorage.getItem('taskflow-my-name') || '';
   t.activity.push({
     type:'checklist',icon:'☑',
     text: item.checked
       ? `<b>${esc(item.text)}</b> にチェックを付けた`
       : `<b>${esc(item.text)}</b> のチェックを外した`,
-    at: now
+    at: now,
+    by: _actBy || undefined
   });
   renderChecklist(t); renderTimeline(t); autoSave(state.currentProjectId);
   if (state.currentView === 'list') renderList();
@@ -6437,7 +6446,8 @@ function deleteChecklistItem(idx) {
   if(!t.checklist) return;
   if(!t.activity) t.activity=[];
   const item = t.checklist[idx];
-  t.activity.push({type:'checklist',icon:'🗑',text:`チェックリスト削除: <b>${esc(item.text)}</b>`,at:new Date().toISOString()});
+  const _actBy = localStorage.getItem('taskflow-my-name') || '';
+  t.activity.push({type:'checklist',icon:'🗑',text:`チェックリスト削除: <b>${esc(item.text)}</b>`,at:new Date().toISOString(),by:_actBy||undefined});
   t.checklist.splice(idx,1);
   panelDirty = true;
   renderChecklist(t); renderTimeline(t); autoSave(state.currentProjectId);
