@@ -478,6 +478,10 @@ html.light .meta-input[type="date"]::-webkit-calendar-picker-indicator,html.ligh
 .md-preview th,.md-preview td{border:1px solid var(--border);padding:6px 10px;text-align:left}
 .md-preview th{background:var(--surface3);font-weight:600}
 .md-preview hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+.md-preview img{max-width:100%;height:auto;border-radius:var(--radius);cursor:zoom-in;display:block;margin:4px 0}
+#md-img-lightbox{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);cursor:zoom-out;align-items:center;justify-content:center}
+#md-img-lightbox.open{display:flex}
+#md-img-lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:var(--radius);box-shadow:0 8px 40px rgba(0,0,0,.6);cursor:zoom-out}
 .comment-list{display:flex;flex-direction:column;gap:12px;margin-bottom:12px}
 .comment-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px}
 .comment-meta{display:flex;align-items:center;gap:8px;margin-bottom:6px}
@@ -617,7 +621,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 #wiki-preview th,#wiki-preview td{border:1px solid var(--border);padding:8px 12px;text-align:left}
 #wiki-preview th{background:var(--surface2);font-weight:600}
 #wiki-preview hr{border:none;border-top:1px solid var(--border);margin:20px 0}
-#wiki-preview img{max-width:100%;border-radius:var(--radius)}
+#wiki-preview img{max-width:100%;height:auto;border-radius:var(--radius);cursor:zoom-in;display:block;margin:4px 0}
 .toc-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 .toc-item{display:block;font-size:12px;color:var(--muted);padding:4px 0;cursor:pointer;text-decoration:none;transition:color .15s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4}
 .toc-item:hover{color:var(--accent2)}
@@ -1151,7 +1155,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('comment-text')" style="margin-left:4px">📎</button>
         </div>
         <textarea class="comment-text-input" id="comment-text" placeholder="コメントをMarkdownで入力..." oninput="autoResizeCmtTextarea(this);onMentionInput(event)" onkeydown="onMentionKeydown(event)" onblur="hideMentionPopup()" onpaste="handleMdPaste(event,'comment-text')"></textarea>
-        <div class="md-preview" id="comment-preview" style="min-height:60px;max-height:200px"></div>
+        <div class="md-preview" id="comment-preview" style="min-height:60px"></div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" id="comment-submit-btn" onclick="addComment()">コメントを投稿</button>
           <button class="btn btn-primary btn-sm" id="comment-update-btn" onclick="updateComment()" style="display:none">更新する</button>
@@ -6830,5 +6834,32 @@ if(!window.showDirectoryPicker){
 }
 </script>
 <div id="mention-popup"></div>
+<!-- Markdown image lightbox -->
+<div id="md-img-lightbox" onclick="closeMdLightbox()"><img id="md-img-lightbox-img" src="" alt="preview"></div>
+<script>
+function openMdLightbox(src, alt) {
+  const lb = document.getElementById('md-img-lightbox');
+  const img = document.getElementById('md-img-lightbox-img');
+  img.src = src;
+  img.alt = alt || '';
+  lb.classList.add('open');
+}
+function closeMdLightbox() {
+  document.getElementById('md-img-lightbox').classList.remove('open');
+}
+// ESC キーで閉じる
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeMdLightbox();
+});
+// 画像クリックでライトボックスを開く（イベント委譲）
+document.addEventListener('click', function(e) {
+  const img = e.target;
+  if (img.tagName !== 'IMG') return;
+  // md-preview または wiki-preview 内の画像のみ対象
+  if (!img.closest('.md-preview, #wiki-preview')) return;
+  e.stopPropagation();
+  openMdLightbox(img.src, img.alt);
+});
+</script>
 </body>
 </html>
