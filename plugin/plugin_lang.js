@@ -57,6 +57,8 @@
     '📊 アクティビティ':                  '📊 Activity',
     'プロジェクト: 全て':                  'Project: All',
     '完了以外':                           'Excluding Done',
+    'プロジェクト別実績':                 'Project Performance',
+    '⏱ プロジェクト別実績':               '⏱ Project Performance',
 
     // ── アクティビティタブ（統計カード）────────────────────
     '過去1年のアクティビティ':            'Activities (past year)',
@@ -452,6 +454,64 @@
     return dyn !== key ? dyn : key;
   };
 
+  // ── アクティビティ翻訳パターンと関数 ────────────────────────
+  // タスク詳細やマイタスクなど、後続のHTML要素（実行者のタグやタスク名のサフィックス）が
+  // 付与されている場合でも正しく先頭部分だけを置換できるよう、.replace(re, replacer) を使用します
+  const ACTIVITY_PATTERNS = [
+    [/^ステータスを (<b>.+?<\/b>) → (<b>.+?<\/b>) に変更/, 'Changed status from $1 to $2'],
+    [/^担当者を (<b>.+?<\/b>) に変更（元: (<b>.+?<\/b>)）/, 'Changed assignee to $1 (was $2)'],
+    [/^担当者を (<b>.+?<\/b>) に変更/, 'Changed assignee to $1'],
+    [/^担当者を解除（元: (<b>.+?<\/b>)）/, 'Removed assignee (was $1)'],
+    [/^期限を (<b>.+?<\/b>) → (<b>.+?<\/b>) に変更/, 'Changed due date from $1 to $2'],
+    [/^詳細内容を更新/, 'Updated description'],
+    [/^チェックリストに追加: (<b>.+?<\/b>)/, 'Added to checklist: $1'],
+    [/^チェックリスト削除: (<b>.+?<\/b>)/, 'Removed from checklist: $1'],
+    [/^(<b>.+?<\/b>) にチェックを付けた/, 'Checked $1'],
+    [/^(<b>.+?<\/b>) のチェックを外した/, 'Unchecked $1'],
+    // 以下はマイタスク固有
+    [/^タスク完了: (<b>.+?<\/b>)/, 'Task completed: $1'],
+    [/^タスク作成: (<b>.+?<\/b>)/, 'Task created: $1'],
+    [/^コメント投稿: &ldquo;(.*?)&rdquo;/, 'Posted comment: &ldquo;$1&rdquo;'],
+    [/^工数記録: (.+?)(?= — |<|$)/, (match, p1) => {
+      return 'Logged hours: ' + p1.replace(/見積/g, 'Est').replace(/実績/g, 'Act');
+    }]
+  ];
+
+  function translateActivityText(html) {
+    if (!html) return html;
+    let original = html.trim();
+    for (const [re, replacer] of ACTIVITY_PATTERNS) {
+      if (re.test(original)) {
+        return original.replace(re, replacer);
+      }
+    }
+    return html;
+  }
+
+  function translateActivityNodes() {
+    if (_lang === 'ja') return;
+
+    // タスク詳細パネル内のアクティビティ
+    document.querySelectorAll('.activity-text').forEach(el => {
+      el.innerHTML = translateActivityText(el.innerHTML);
+    });
+
+    // マイタスクのアクティビティ詳細用 (activity-detail-item 内の該当箇所)
+    document.querySelectorAll('.activity-detail-item > div:nth-child(2) > div:first-child').forEach(el => {
+      el.innerHTML = translateActivityText(el.innerHTML);
+    });
+    
+    const EMPTY_MSGS = {
+      'コメントはまだありません':     'No comments yet',
+      'アクティビティはまだありません': 'No activity yet',
+      'まだ履歴がありません':          'No history yet',
+    };
+    document.querySelectorAll('#comment-list > div').forEach(el => {
+      const text = el.textContent.trim();
+      if (EMPTY_MSGS[text]) el.textContent = EMPTY_MSGS[text];
+    });
+  }
+
   // ── グローバル関数のフック（ネイティブダイアログとグラフ・Markdown対応）──
   if (_lang !== 'ja') {
     // Confirm / Prompt
@@ -549,6 +609,7 @@
     }
 
     injectGanttTodayCss();
+    translateActivityNodes();
   }
 
   function injectGanttTodayCss() {
@@ -564,7 +625,23 @@
     if (_observer) _observer.disconnect();
     if (_lang === 'ja') return;
     _observer = new MutationObserver((mutations) => {
-      mutations.forEach(m => m.addedNodes.forEach(n => translateNode(n)));
+      let needsActivityTrans = false;
+      mutations.forEach(m => {
+        m.addedNodes.forEach(n => {
+          translateNode(n);
+          // DOMに新しく追加された要素がアクティビティ関連ならフラグを立てる
+          if (n.nodeType === Node.ELEMENT_NODE) {
+            if (n.classList && (n.classList.contains('activity-detail-item') || n.classList.contains('activity-item'))) {
+              needsActivityTrans = true;
+            } else if (n.querySelector && (n.querySelector('.activity-detail-item') || n.querySelector('.activity-item'))) {
+              needsActivityTrans = true;
+            }
+          }
+        });
+      });
+      if (needsActivityTrans) {
+        translateActivityNodes();
+      }
     });
     _observer.observe(document.body, { childList: true, subtree: true });
   }
@@ -623,59 +700,12 @@
     if (_lang !== 'ja') {
       translateAll();
       startObserver();
-    }
-  }
-
-  if (_lang !== 'ja') {
-    const ACTIVITY_PATTERNS = [
-      [/^ステータスを (<b>.+?<\/b>) → (<b>.+?<\/b>) に変更$/, (_, a, b) => `Changed status from ${a} to ${b}`],
-      [/^担当者を (<b>.+?<\/b>) に変更（元: (<b>.+?<\/b>)）$/, (_, a, b) => `Changed assignee to ${a} (was ${b})`],
-      [/^担当者を (<b>.+?<\/b>) に変更$/, (_, a) => `Changed assignee to ${a}`],
-      [/^担当者を解除（元: (<b>.+?<\/b>)）$/, (_, a) => `Removed assignee (was ${a})`],
-      [/^期限を (<b>.+?<\/b>) → (<b>.+?<\/b>) に変更$/, (_, a, b) => `Changed due date from ${a} to ${b}`],
-      [/^詳細内容を更新$/, () => 'Updated description'],
-      [/^チェックリストに追加: (<b>.+?<\/b>)$/, (_, a) => `Added to checklist: ${a}`],
-      [/^チェックリスト削除: (<b>.+?<\/b>)$/, (_, a) => `Removed from checklist: ${a}`],
-      [/^(<b>.+?<\/b>) にチェックを付けた$/, (_, a) => `Checked ${a}`],
-      [/^(<b>.+?<\/b>) のチェックを外した$/, (_, a) => `Unchecked ${a}`],
-    ];
-
-    function translateActivityText(html) {
-      for (const [re, fn] of ACTIVITY_PATTERNS) {
-        const m = html.match(re);
-        if (m) return fn(...m);
+      if (window.TaskFlow) {
+        window.TaskFlow.on('task-open', () => setTimeout(translateActivityNodes, 150));
+        window.TaskFlow.on('task-save', () => setTimeout(translateActivityNodes, 50));
+        window.TaskFlow.on('view-change', () => setTimeout(translateActivityNodes, 50));
       }
-      return html;
     }
-
-    function translateActivityNodes() {
-      document.querySelectorAll('.activity-text').forEach(el => {
-        el.innerHTML = translateActivityText(el.innerHTML);
-      });
-      const EMPTY_MSGS = {
-        'コメントはまだありません':     'No comments yet',
-        'アクティビティはまだありません': 'No activity yet',
-        'まだ履歴がありません':          'No history yet',
-      };
-      document.querySelectorAll('#comment-list > div').forEach(el => {
-        const text = el.textContent.trim();
-        if (EMPTY_MSGS[text]) el.textContent = EMPTY_MSGS[text];
-      });
-    }
-
-    if (window.TaskFlow) {
-      TaskFlow.on('task-open', () => setTimeout(translateActivityNodes, 150));
-      TaskFlow.on('task-save', () => setTimeout(translateActivityNodes, 50));
-    }
-
-    document.addEventListener('taskflow-ready', function () {
-      const target = document.getElementById('comment-list');
-      if (target) {
-        new MutationObserver(() => {
-          if (_lang !== 'ja') translateActivityNodes();
-        }).observe(target, { childList: true });
-      }
-    });
   }
 
   if (window.TaskFlow) window.TaskFlow.on('ready', init);
