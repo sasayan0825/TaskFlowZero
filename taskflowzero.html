@@ -3179,7 +3179,7 @@ function renderSidebar() {
   document.getElementById('nav-all').className = 'sidebar-item'+(!state.currentProjectId && !isMyTasks?' active':'');
   document.getElementById('nav-my-tasks').className = 'sidebar-item'+(isMyTasks?' active':'');
   // メンション・担当タスクバッジ更新
-  const myName = localStorage.getItem('taskflow-my-name')||'';
+  const myName = localStorage.getItem(_myNameKey())||'';
   const badgeWrap    = document.getElementById('my-tasks-badges');
   const mentionBadge = document.getElementById('my-mention-badge');
   const taskBadge    = document.getElementById('my-task-badge');
@@ -3246,7 +3246,7 @@ function sortMyTasks(col) {
 
 function renderMyTasks() {
   const myName = (document.getElementById('my-name-select')?.value) ||
-                 localStorage.getItem('taskflow-my-name') || '';
+                 localStorage.getItem(_myNameKey()) || '';
   const body = document.getElementById('my-tasks-body');
 
   if (!myName) {
@@ -3648,16 +3648,21 @@ function showMyTasks() {
   renderMyTasks();
 }
 
+// フォルダごとに「自分」の名前を分けるためのキー生成
+function _myNameKey() {
+  return 'taskflow-my-name-' + (state.rootDirHandle?.name || '');
+}
+
 function onMyNameChange() {
   const name = document.getElementById('my-name-select').value;
-  try { localStorage.setItem('taskflow-my-name', name); } catch(e) {}
+  try { localStorage.setItem(_myNameKey(), name); } catch(e) {}
   renderSidebar();
   renderMyTasks();
 }
 
 function _populateMyNameSelect() {
   const sel = document.getElementById('my-name-select');
-  const saved = localStorage.getItem('taskflow-my-name') || '';
+  const saved = localStorage.getItem(_myNameKey()) || '';
   const members  = (state.data.projects || []).flatMap(p => p.members || []);
   const assignees = (state.data.projects || []).flatMap(p => (p.tasks||[]).map(t=>t.assignee).filter(Boolean));
   const all = [...new Set([...members, ...assignees])].sort();
@@ -5339,7 +5344,7 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-milestone').value='';
   document.getElementById('tm-description').value='';
   // 作成者: マイタスクで設定された名前を初期値にセット（変更可）
-  const _myName = localStorage.getItem('taskflow-my-name') || '';
+  const _myName = localStorage.getItem(_myNameKey()) || '';
   document.getElementById('tm-creator').value = _myName;
   // 作成者 datalist を担当者候補と共有
   const _tmCreatorDl = document.getElementById('tm-creator-dl');
@@ -5474,7 +5479,7 @@ function _openTaskPanelInner(taskId){
     if (!caInput) return;
     // 既に値が入っている場合（前回投稿者を維持）はそのまま
     if (caInput.value) return;
-    const savedName = localStorage.getItem('taskflow-my-name') || '';
+    const savedName = localStorage.getItem(_myNameKey()) || '';
     caInput.value = savedName;
   })();
   document.getElementById('panel-status').value=t.status;
@@ -6457,7 +6462,7 @@ function addChecklistItem() {
   const t = getTask(state.currentProjectId,_panelTaskId); if(!t) return;
   if(!t.checklist) t.checklist=[];
   if(!t.activity)  t.activity=[];
-  const _actBy = localStorage.getItem('taskflow-my-name') || '';
+  const _actBy = localStorage.getItem(_myNameKey()) || '';
   t.checklist.push({id:uid(), text, checked:false});
   t.activity.push({type:'checklist',icon:'☑',text:`チェックリストに追加: <b>${esc(text)}</b>`,at:new Date().toISOString(),by:_actBy||undefined});
   input.value='';
@@ -6472,7 +6477,7 @@ function toggleChecklistItem(idx) {
   const item = t.checklist[idx];
   item.checked = !item.checked;
   const now = new Date().toISOString();
-  const _actBy = localStorage.getItem('taskflow-my-name') || '';
+  const _actBy = localStorage.getItem(_myNameKey()) || '';
   t.activity.push({
     type:'checklist',icon:'☑',
     text: item.checked
@@ -6490,7 +6495,7 @@ function deleteChecklistItem(idx) {
   if(!t.checklist) return;
   if(!t.activity) t.activity=[];
   const item = t.checklist[idx];
-  const _actBy = localStorage.getItem('taskflow-my-name') || '';
+  const _actBy = localStorage.getItem(_myNameKey()) || '';
   t.activity.push({type:'checklist',icon:'🗑',text:`チェックリスト削除: <b>${esc(item.text)}</b>`,at:new Date().toISOString(),by:_actBy||undefined});
   t.checklist.splice(idx,1);
   panelDirty = true;
