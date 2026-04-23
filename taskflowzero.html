@@ -3444,7 +3444,7 @@ function _buildActivityEvents(myName) {
           const parts = [];
           if (c.effortLog.estimated) parts.push(`見積 ${c.effortLog.estimated}h`);
           if (c.effortLog.actual)    parts.push(`実績 ${c.effortLog.actual}h`);
-          add(c.createdAt, { type:'effort', icon:'⏱', text:`工数記録: ${parts.join(' / ')} — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+          add(c.createdAt, { type:'effort', icon:'⏱', text:`工数記録: ${parts.join(' / ')} — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc, actual: c.effortLog.actual || 0 });
         } else {
           const snip = (c.text||'').slice(0,40) + ((c.text||'').length>40?'…':'');
           add(c.createdAt, { type:'comment', icon:'💬', text:`コメント投稿: &ldquo;${esc(snip)}&rdquo; — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
@@ -3571,10 +3571,50 @@ function _renderActivityTabContent(myName) {
     const evts = byDate[_myActivitySelDate] || [];
     const typeOrder = { complete:0, create:1, effort:2, comment:3 };
     const sorted = [...evts].sort((a,b) => (typeOrder[a.type]??9) - (typeOrder[b.type]??9));
+
+    // ── プロジェクト別実績集計 ──────────────────────────────────────
+    const projMap = new Map(); // pid -> { pname, pc, actual, complete, create, comment, checklist }
+    evts.forEach(ev => {
+      if (!projMap.has(ev.pid)) projMap.set(ev.pid, { pname: ev.pname, pc: ev.pc, actual: 0, complete: 0, create: 0, comment: 0, checklist: 0 });
+      const r = projMap.get(ev.pid);
+      if (ev.type === 'effort'    && ev.actual) r.actual   += ev.actual;
+      if (ev.type === 'complete')               r.complete += 1;
+      if (ev.type === 'create')                 r.create   += 1;
+      if (ev.type === 'comment')                r.comment  += 1;
+      if (ev.type === 'checklist')              r.checklist+= 1;
+    });
+    const _th = `padding:4px 10px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);white-space:nowrap`;
+    const _td = `padding:5px 10px;border-bottom:1px solid var(--border);vertical-align:middle`;
+    const projSummaryHtml = projMap.size ? `
+      <div style="margin-bottom:14px;padding:10px 14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">&#x23F1; プロジェクト別実績</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr>
+            <th style="${_th};text-align:left">プロジェクト</th>
+            <th style="${_th};text-align:center">実績</th>
+            <th style="${_th};text-align:center">&#x2705;</th>
+            <th style="${_th};text-align:center">&#x2795;</th>
+            <th style="${_th};text-align:center">&#x1F4AC;</th>
+            <th style="${_th};text-align:center">&#x2611;</th>
+          </tr></thead>
+          <tbody>${[...projMap.entries()].map(([,{pname,pc,actual,complete,create,comment,checklist}]) => `
+            <tr>
+              <td style="${_td}"><span style="font-size:11px;padding:1px 7px;border-radius:3px;font-weight:600;background:${pc}22;color:${pc};white-space:nowrap">${esc(pname)}</span></td>
+              <td style="${_td};text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:${actual>0?'var(--accent2)':'var(--muted)'}">${actual>0?actual+'H':'ー'}</td>
+              <td style="${_td};text-align:center;color:var(--muted)">${complete  >0?complete  :'<span style="opacity:.3">—</span>'}</td>
+              <td style="${_td};text-align:center;color:var(--muted)">${create    >0?create    :'<span style="opacity:.3">—</span>'}</td>
+              <td style="${_td};text-align:center;color:var(--muted)">${comment   >0?comment   :'<span style="opacity:.3">—</span>'}</td>
+              <td style="${_td};text-align:center;color:var(--muted)">${checklist >0?checklist :'<span style="opacity:.3">—</span>'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : '';
+
     detailHtml = `<div style="margin-top:16px">
       <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">
         ${_myActivitySelDate} &nbsp;—&nbsp; ${evts.length}件のアクティビティ
       </div>
+      ${projSummaryHtml}
       ${sorted.length ? sorted.map(ev => `
         <div class="activity-detail-item" onclick="openProject('${ev.pid}');setTimeout(()=>openTaskPanel('${ev.tid}'),150)">
           <span style="font-size:15px;flex-shrink:0;margin-top:1px">${ev.icon}</span>
