@@ -453,6 +453,11 @@ html.light .meta-input[type="date"]::-webkit-calendar-picker-indicator,html.ligh
 .mention-item .mention-avatar{width:22px;height:22px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent2);flex-shrink:0}
 .mention-badge{display:inline-block;background:rgba(122,167,255,.18);color:var(--accent2);border:1px solid rgba(122,167,255,.35);border-radius:4px;padding:0 5px;font-size:.9em;font-weight:600;white-space:nowrap}
 .md-toolbar-sep{width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0}
+#md-table-picker{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:9100;padding:8px;display:none;flex-direction:column;align-items:center;gap:6px}
+#md-table-picker-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.md-tp-cell{width:18px;height:18px;border-radius:3px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;transition:background .08s,border-color .08s}
+.md-tp-cell.active{background:rgba(79,142,255,.35);border-color:rgba(79,142,255,.7)}
+#md-table-picker-label{font-size:11px;color:var(--muted);height:14px}
 .desc-textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;padding:12px;resize:vertical;min-height:200px;outline:none;transition:border-color .15s}
 .desc-textarea:focus{border-color:var(--accent)}
 .md-preview{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;min-height:40px;display:none;font-size:13px;line-height:1.7;overflow-y:visible;height:auto}
@@ -977,6 +982,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('wiki-textarea','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
             <button class="md-btn-fmt" title="リスト" onclick="insertMd('wiki-textarea','\n- ','','項目')">≡</button>
             <button class="md-btn-fmt" title="見出し" onclick="insertMd('wiki-textarea','## ','','見出し')">H</button>
+            <div class="md-toolbar-sep"></div>
+            <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('wiki-textarea','~~','~~','テキスト')"><s>S</s></button>
+            <button class="md-btn-fmt" title="引用" onclick="insertMd('wiki-textarea','\n> ','','引用テキスト')">❝</button>
+            <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'wiki-textarea')">⊞</button>
             <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('wiki-textarea')" style="margin-left:4px">📎</button>
           </div>
           <div id="wiki-content-area">
@@ -1090,6 +1099,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('panel-desc','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
         <button class="md-btn-fmt" title="リスト" onclick="insertMd('panel-desc','\n- ','','項目')">≡</button>
         <button class="md-btn-fmt" title="見出し" onclick="insertMd('panel-desc','## ','','見出し')">H</button>
+        <div class="md-toolbar-sep"></div>
+        <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('panel-desc','~~','~~','テキスト')"><s>S</s></button>
+        <button class="md-btn-fmt" title="引用" onclick="insertMd('panel-desc','\n> ','','引用テキスト')">❝</button>
+        <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'panel-desc')">⊞</button>
         <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('panel-desc')" style="margin-left:4px">📎</button>
         <div style="flex:1"></div>
       </div>
@@ -1131,6 +1144,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('comment-text','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
           <button class="md-btn-fmt" title="リスト" onclick="insertMd('comment-text','\n- ','','項目')">≡</button>
           <button class="md-btn-fmt" title="見出し" onclick="insertMd('comment-text','## ','','見出し')">H</button>
+          <div class="md-toolbar-sep"></div>
+          <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('comment-text','~~','~~','テキスト')"><s>S</s></button>
+          <button class="md-btn-fmt" title="引用" onclick="insertMd('comment-text','\n> ','','引用テキスト')">❝</button>
+          <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'comment-text')">⊞</button>
           <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('comment-text')" style="margin-left:4px">📎</button>
         </div>
         <textarea class="comment-text-input" id="comment-text" placeholder="コメントをMarkdownで入力..." oninput="autoResizeCmtTextarea(this);onMentionInput(event)" onkeydown="onMentionKeydown(event)" onblur="hideMentionPopup()" onpaste="handleMdPaste(event,'comment-text')"></textarea>
@@ -1262,6 +1279,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('tm-description','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
           <button class="md-btn-fmt" title="リスト" onclick="insertMd('tm-description','\n- ','','項目')">≡</button>
           <button class="md-btn-fmt" title="見出し" onclick="insertMd('tm-description','## ','','見出し')">H</button>
+          <div class="md-toolbar-sep"></div>
+          <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('tm-description','~~','~~','テキスト')"><s>S</s></button>
+          <button class="md-btn-fmt" title="引用" onclick="insertMd('tm-description','\n> ','','引用テキスト')">❝</button>
+          <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'tm-description')">⊞</button>
           <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('tm-description')" style="margin-left:4px">📎</button>
         </div>
       </label>
@@ -2381,6 +2402,7 @@ async function manualRefresh() {
   if (btn) { btn.disabled = true; btn.textContent = '🔄 更新中...'; }
 
   try {
+    await initFileCache();
     // 改善B: ファイルの lastModified を比較し、変更されたプロジェクトのみ dirty に追加。
     // 未変更ファイルの JSON 読み込み・マージをスキップしてアクセス負荷を軽減する。
     let changedCount = 0;
@@ -5891,6 +5913,86 @@ function insertMd(taId, before, after, placeholder) {
   if (taId === 'panel-desc') panelDirty = true;
   if (taId === 'comment-text') autoResizeCmtTextarea(ta);
   if (taId === 'wiki-textarea') { const ev = new Event('input'); ta.dispatchEvent(ev); }
+}
+
+// ── Markdown テーブル挿入────────────────────────────────
+function insertTable(taId, cols, rows) {
+  const ta = document.getElementById(taId);
+  if (!ta || ta.style.display === 'none') return;
+  const header = '| ' + Array.from({length: cols}, (_, i) => `列${i + 1}`).join(' | ') + ' |';
+  const sep    = '|' + Array(cols).fill('-----|').join('');
+  const row    = '| ' + Array(cols).fill('　　').join(' | ') + ' |';
+  const table  = '\n' + header + '\n' + sep + '\n' + Array(rows).fill(row).join('\n') + '\n';
+  const s = ta.selectionStart;
+  ta.value = ta.value.slice(0, s) + table + ta.value.slice(s);
+  ta.setSelectionRange(s + table.length, s + table.length);
+  ta.focus();
+  if (taId === 'panel-desc') panelDirty = true;
+  if (taId === 'comment-text') autoResizeCmtTextarea(ta);
+  if (taId === 'wiki-textarea') { const ev = new Event('input'); ta.dispatchEvent(ev); }
+}
+
+function showTablePicker(e, taId) {
+  e.stopPropagation();
+  const ROWS = 5, COLS = 5;
+  let picker = document.getElementById('md-table-picker');
+  // 既存ピッカーが同じtaId向けなら閉じる（トグル）
+  if (picker && picker.dataset.taId === taId && picker.style.display === 'flex') {
+    picker.style.display = 'none';
+    return;
+  }
+  if (!picker) {
+    picker = document.createElement('div');
+    picker.id = 'md-table-picker';
+    const grid = document.createElement('div');
+    grid.id = 'md-table-picker-grid';
+    for (let r = 1; r <= ROWS; r++) {
+      for (let c = 1; c <= COLS; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'md-tp-cell';
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        cell.addEventListener('mouseover', () => _tpHighlight(r, c));
+        cell.addEventListener('click', () => {
+          picker.style.display = 'none';
+          insertTable(picker.dataset.taId, c, r);
+        });
+        grid.appendChild(cell);
+      }
+    }
+    const label = document.createElement('div');
+    label.id = 'md-table-picker-label';
+    label.textContent = '';
+    picker.appendChild(grid);
+    picker.appendChild(label);
+    document.body.appendChild(picker);
+    // 外クリックで閉じる
+    document.addEventListener('click', (ev) => {
+      if (picker.style.display === 'flex' && !picker.contains(ev.target)) {
+        picker.style.display = 'none';
+      }
+    });
+  }
+  picker.dataset.taId = taId;
+  _tpHighlight(0, 0);
+  // ボタン位置の直下に表示
+  const rect = e.currentTarget.getBoundingClientRect();
+  picker.style.display = 'flex';
+  const pw = picker.offsetWidth || 120;
+  let left = rect.left;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  picker.style.left = left + 'px';
+  picker.style.top  = (rect.bottom + 4) + 'px';
+}
+
+function _tpHighlight(selR, selC) {
+  const grid = document.getElementById('md-table-picker-grid');
+  const label = document.getElementById('md-table-picker-label');
+  if (!grid) return;
+  grid.querySelectorAll('.md-tp-cell').forEach(cell => {
+    cell.classList.toggle('active', +cell.dataset.r <= selR && +cell.dataset.c <= selC);
+  });
+  label.textContent = (selR && selC) ? `${selC} × ${selR} の表` : '';
 }
 
 // Ctrl+B / Ctrl+I ショートカット（全 MD textarea に適用）
