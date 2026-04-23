@@ -278,14 +278,26 @@
     'ドラッグで並び替え':                 'Drag to reorder',
     'クリックで編集':                     'Click to edit',
     '作成から24時間以内のみ編集できます': 'Editable within 24h of creation',
+    
+    // Markdown書式ツールチップ & プレースホルダー
     'ファイル・画像を添付':               'Attach file / image',
     '太字 (Ctrl+B)':                      'Bold (Ctrl+B)',
     '斜体 (Ctrl+I)':                      'Italic (Ctrl+I)',
     'インラインコード':                   'Inline code',
     'リスト':                             'List',
     '見出し':                             'Heading',
+    '取り消し線':                         'Strikethrough',
+    '引用':                               'Quote',
+    '表を挿入':                           'Insert table',
+    '太字':                               'Bold',
+    '斜体':                               'Italic',
+    'コード':                             'Code',
+    '項目':                               'Item',
+    'テキスト':                           'Text',
+    '引用テキスト':                       'Quote text',
+    '列':                                 'Col ',
+    
     '削除':                               'Delete',
-
     '保存しました':                       'Saved',
     '保存しました（他の変更を自動マージ）': 'Saved (auto-merged changes)',
     '保存しました（競合を解決）':         'Saved (conflict resolved)',
@@ -423,6 +435,7 @@
     s = s.replace(/^(\d+) \/ (\d+) 完了 \((.+)\)$/, '$1 / $2 Done ($3)');
     s = s.replace(/^リンク先のタスクを表示するには、<br><strong style="color:var\(--accent2\)">(.+)<\/strong> フォルダを選択する必要があります。$/, 'To view the linked task, you need to select the <br><strong style="color:var(--accent2)">$1</strong> folder.');
     s = s.replace(/見積 ([\d.]+)h/g, 'Est $1h').replace(/実績 ([\d.]+)h/g, 'Act $1h');
+    s = s.replace(/^(\d+) × (\d+) の表$/, '$1 × $2 Table');
     
     // 汎用カウンター
     s = s.replace(/^(\d+)日$/, '$1 days');
@@ -439,7 +452,7 @@
     return dyn !== key ? dyn : key;
   };
 
-  // ── グローバル関数のフック（ネイティブダイアログとグラフ対応）──
+  // ── グローバル関数のフック（ネイティブダイアログとグラフ・Markdown対応）──
   if (_lang !== 'ja') {
     // Confirm / Prompt
     const origConfirm = window.confirm;
@@ -468,6 +481,32 @@
           config.options.scales.y.title.text = 'Story Points';
         }
         return new origChart(ctx, config);
+      };
+    }
+
+    // Insert Markdown (insertMd) - プレースホルダーを翻訳
+    if (typeof window.insertMd === 'function') {
+      const origInsertMd = window.insertMd;
+      window.insertMd = function(taId, before, after, placeholder) {
+        origInsertMd(taId, before, after, t(placeholder));
+      };
+    }
+
+    // Insert Table (insertTable) - ヘッダーの「列」を翻訳し、イベントを発火
+    if (typeof window.insertTable === 'function') {
+      window.insertTable = function(taId, cols, rows) {
+        const ta = document.getElementById(taId);
+        if (!ta || ta.style.display === 'none') return;
+        const colWord = t('列');
+        const header = '| ' + Array.from({length: cols}, (_, i) => `${colWord}${i + 1}`).join(' | ') + ' |';
+        const sep    = '|' + Array(cols).fill('-----|').join('');
+        const row    = '| ' + Array(cols).fill('  ').join(' | ') + ' |';
+        const table  = '\n' + header + '\n' + sep + '\n' + Array(rows).fill(row).join('\n') + '\n';
+        const s = ta.selectionStart;
+        ta.value = ta.value.slice(0, s) + table + ta.value.slice(s);
+        ta.setSelectionRange(s + table.length, s + table.length);
+        ta.focus();
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
       };
     }
   }
