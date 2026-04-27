@@ -492,6 +492,8 @@ pre code.hljs{color:var(--text)}
 .hljs-title{color:#d2a8ff}
 .hljs-attr,.hljs-variable,.hljs-name{color:#7ee787}
 .hljs-meta{color:#e3b341}
+.hljs-addition{color:#7ee787;background:rgba(46,160,67,.15)}
+.hljs-deletion{color:#ff7b72;background:rgba(248,81,73,.15)}
 .hljs-tag{color:var(--text)}
 html.light .hljs-keyword,html.light .hljs-selector-tag{color:#cf222e}
 html.light .hljs-string,html.light .hljs-attr-value{color:#0a3069}
@@ -501,6 +503,8 @@ html.light .hljs-built_in,html.light .hljs-type{color:#953800}
 html.light .hljs-title{color:#8250df}
 html.light .hljs-attr,html.light .hljs-variable,html.light .hljs-name{color:#116329}
 html.light .hljs-meta{color:#953800}
+html.light .hljs-addition{color:#116329;background:rgba(46,160,67,.12)}
+html.light .hljs-deletion{color:#cf222e;background:rgba(207,34,46,.1)}
 html.light .hljs-tag{color:var(--text)}
 .md-preview ul,.md-preview ol{padding-left:20px;margin-bottom:8px}
 .md-preview li{margin-bottom:4px}
@@ -2462,6 +2466,25 @@ async function manualRefresh() {
         _dirtyProjects.add(p.id);
         changedCount++;
       }
+    }
+
+    // 他のユーザーが追加した新規プロジェクトファイルを検出
+    const existingIds = new Set(state.data.projects.map(p => p.id));
+    for await (const entry of state.rootDirHandle.values()) {
+      if (entry.kind !== 'file') continue;
+      if (!/^project_P\d+\.json$/.test(entry.name)) continue;
+      try {
+        const file = await entry.getFile();
+        const newProj = JSON.parse(await file.text());
+        if (newProj && newProj.id && !existingIds.has(newProj.id)) {
+          _migrateProjectFields([newProj]);
+          state.data.projects.push(newProj);
+          _baseSnapshots[newProj.id] = deepCopy(newProj);
+          _fileLastModified[newProj.id] = file.lastModified;
+          existingIds.add(newProj.id);
+          changedCount++;
+        }
+      } catch(e) { /* 読み込み失敗は無視 */ }
     }
 
     if (changedCount === 0) {
@@ -5723,8 +5746,10 @@ async function saveAttachment(projectId, file) {
   const filesDir = await state.rootDirHandle.getDirectoryHandle('files', { create: true });
   const pDir     = await filesDir.getDirectoryHandle(pKey, { create: true });
 
-  // 重複しないファイル名を生成
-  const ts   = new Date().toISOString().replace(/[-:T]/g,'').slice(0,12);
+  // 重複しないファイル名を生成（ミリ秒まで含めて衝突を防ぐ）
+  const now  = new Date();
+  const ts   = now.toISOString().replace(/[-:T]/g,'').slice(0,14)
+              + String(now.getMilliseconds()).padStart(3,'0');
   const safe = file.name.replace(/[\\/:*?"<>|]/g, '_');
   const fname = `${ts}_${safe}`;
 
@@ -6123,6 +6148,22 @@ function _selfHighlight(raw, lang) {
   const A = {js:'javascript',ts:'typescript','c++':'cpp',sh:'bash',shell:'bash',py:'python',rb:'ruby',yml:'yaml'};
   const L = A[lang] || lang || 'plaintext';
 
+  // diff
+  if (L === 'diff') {
+    const lines = raw.split('\n');
+    if (lines[lines.length - 1] === '') lines.pop(); // 末尾の空行を除去
+    return lines.map((line, i, arr) => {
+      const nl  = i < arr.length - 1 ? '\n' : '';
+      const e   = esc(line);
+      // 着色行: \n をspan内に含めることで背景色が行末まで伸びる
+      if (/^\+\+\+|^---/.test(line)) return w('hljs-title',    e) + nl;
+      if (/^@@/.test(line))          return w('hljs-meta',     e) + nl;
+      if (/^\+/.test(line))          return '<span class="hljs-addition">' + e + nl + '</span>';
+      if (/^-/.test(line))           return '<span class="hljs-deletion">' + e + nl + '</span>';
+      return e + nl;
+    }).join('');
+  }
+
   // JSON
   if (L === 'json') {
     return esc(raw)
@@ -6267,6 +6308,7 @@ const MD_CODE_LANGS = [
   {id:'ruby',       label:'Ruby'},
   {id:'php',        label:'PHP'},
   {id:'yaml',       label:'YAML'},
+  {id:'diff',       label:'Diff'},
 ];
 
 function showCodePicker(e, taId) {
