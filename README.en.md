@@ -39,11 +39,11 @@ Select a shared folder and everyone can read and edit the same data. Conflicts f
 
 | View | Description |
 |---|---|
-| List | GitHub Issues-style, grouped by milestone |
+| List | GitHub Issues-style, grouped by milestone, drag to reorder, checklist progress column |
 | Kanban | Drag cards across status columns |
 | Gantt | Drag bars to adjust dates, with progress lightning line |
 | Burndown | Visualize sprint progress by story points |
-| Wiki | Write specs and docs in Markdown |
+| Wiki | Write specs and docs in Markdown, auto-saved on preview |
 
 ---
 
@@ -51,12 +51,14 @@ Select a shared folder and everyone can read and edit the same data. Conflicts f
 
 ### Personal use (minimal setup)
 
-Open `taskflowzero.html` in Chrome or Edge, then click **「📁 新規作成」** to select a folder.
+Open `taskflowzero.html` in Chrome or Edge, then click **✨ New** to select a folder.
 
 ```
 any-folder/
 ├── taskflowzero.html    ← open this (can live outside the data folder)
-└── project_P1.json      ← auto-created when you add a project
+├── project_P1.json      ← auto-created when you add a project
+└── files/               ← auto-created when you attach a file
+    └── P1/
 ```
 
 ### Team sharing
@@ -67,7 +69,10 @@ Select a **shared folder** (OneDrive, NAS, file server, etc.) and everyone point
 shared-folder/  (OneDrive / NAS / file server)
 ├── project_P1.json      ← one file per project, auto-created
 ├── project_P2.json
-└── project_P3.json      ← independent files = fewer conflicts
+├── project_P3.json      ← independent files = fewer conflicts
+└── files/               ← attachments (auto-created)
+    ├── P1/
+    └── P2/
 ```
 
 > Because each project lives in its own JSON file, **two people editing different projects at the same time will never conflict**. If they edit the same project simultaneously, 3-way merge handles it automatically or prompts for manual resolution.
@@ -85,6 +90,31 @@ any-folder/
 
 ---
 
+## Highlights
+
+### 👤 My Tasks
+A cross-project dashboard showing all tasks assigned to you, @mentions directed at you, and related activity — all in one place. Unread mention counts and assigned task counts appear as badges in the sidebar.
+
+### @Mentions
+Type `@` in any comment, task description, or Wiki to trigger member autocomplete. Mentioned members are notified in the My Tasks screen.
+
+### 📝 Markdown Toolbar
+Every text area — comments, task descriptions, Wiki, and the task creation modal — has a formatting toolbar with **Bold (Ctrl+B), Italic (Ctrl+I), Code, List, and Heading** buttons.
+
+### 📎 File & Image Attachments
+Click the 📎 button to attach files or images. Attachments are saved to `files/P{n}/` inside your data folder. Images render inline; other files appear as download links.
+
+### ⏱ Effort Tracking
+Log estimated and actual hours per comment via the **＋ Add Effort** button in the comment area. Hours accumulate as a running history on each task.
+
+### 📁 Folder History
+The launch screen shows up to 10 recently opened folders. One click to reopen — no folder picker required.
+
+### 🔗 Comment Anchor Links
+URLs support the format `#[FolderName-]P1-42-C3`, letting you share a link that jumps directly to a specific comment.
+
+---
+
 ## Screenshots
 
 | | |
@@ -93,6 +123,8 @@ any-folder/
 | Project List | Gantt Chart |
 | ![Task Detail](.github/screenshots/task.png) | ![Wiki](.github/screenshots/wiki.png) |
 | Task Detail | Wiki |
+| ![Burndown](.github/screenshots/burndown.png) | ![My Tasks](.github/screenshots/my_tasks.png) |
+| Burndown Chart | My Tasks |
 
 ---
 
@@ -105,7 +137,6 @@ Extend functionality by editing `plugin/plugins.js` — no changes to the main H
 | `plugin_lang.js` | Switch UI language between Japanese and English |
 | `plugin_csv_export.js` | Export task list to CSV |
 | `plugin_overdue_badge.js` | Show overdue task count in the sidebar |
-| `plugin_summary.js` | Add a Summary view tab to each project |
 
 ### Plugin Manager UI
 
@@ -143,11 +174,13 @@ Managing IDs and passwords inside the app would only add overhead and introduce 
 ## Tech Stack
 
 - **Frontend:** Vanilla HTML / CSS / JavaScript (no frameworks)
-- **Storage:** File System Access API (folder selection) + IndexedDB (remembers last folder)
+- **Storage:** File System Access API (folder selection) + IndexedDB (folder history, up to 10 entries)
 - **Data format:** One JSON file per project (`project_P1.json`, `project_P2.json` ...)
-- **Markdown:** [marked.js](https://marked.js.org/)
-- **Charts:** [Chart.js](https://www.chartjs.org/)
-- **Dependencies:** Only the two above (CDN or local files)
+- **Attachments:** Saved to `files/P{n}/`, managed via the `tfz://` protocol
+- **Markdown:** [marked.js](https://marked.js.org/) (CDN or local file)
+- **Charts:** [Chart.js](https://www.chartjs.org/) (CDN or local file)
+- **Syntax highlighting:** [highlight.js](https://highlightjs.org/) (CDN with automatic fallback to built-in highlighter)
+- **Fonts:** Google Fonts — Outfit / Noto Sans JP / JetBrains Mono (falls back to system fonts if unavailable)
 
 ---
 
