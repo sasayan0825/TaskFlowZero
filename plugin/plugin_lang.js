@@ -280,6 +280,10 @@
     'ドラッグで並び替え':                 'Drag to reorder',
     'クリックで編集':                     'Click to edit',
     '作成から24時間以内のみ編集できます': 'Editable within 24h of creation',
+    'メンション数':                       'Mention count',
+    '担当タスク数':                       'Assigned tasks',
+    '履歴から削除':                       'Remove from history',
+    '✅ コピー完了':                      '✅ Copied',
     
     // Markdown書式ツールチップ & プレースホルダー
     'ファイル・画像を添付':               'Attach file / image',
@@ -291,6 +295,8 @@
     '取り消し線':                         'Strikethrough',
     '引用':                               'Quote',
     '表を挿入':                           'Insert table',
+    'コードブロック':                     'Code Block',
+    '言語を選択':                         'Select Language',
     '太字':                               'Bold',
     '斜体':                               'Italic',
     'コード':                             'Code',
