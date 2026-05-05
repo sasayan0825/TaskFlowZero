@@ -977,6 +977,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <option value="90" selected>3ヶ月</option>
             <option value="180">6ヶ月</option>
             <option value="365">1年</option>
+            <option value="auto">プロジェクト全期間</option>
           </select>
           <select class="filter-select" id="gantt-start-mode" onchange="renderGantt()">
             <option value="project">プロジェクト開始から</option>
@@ -4504,8 +4505,21 @@ function getProjectDateRange(p) {
 function renderGantt() {
   const p = getProject(state.currentProjectId); if(!p) return;
   const ms = p.milestones||[];
-  const rangeDays = parseInt(document.getElementById('gantt-range').value)||90;
   const startMode = document.getElementById('gantt-start-mode').value;
+  const _ganttRangeVal = document.getElementById('gantt-range').value;
+  let rangeDays;
+  if (_ganttRangeVal === 'auto') {
+    // プロジェクト内のタスク・MSから最大終了日を求め、その月末まで表示
+    const _autoRange = getProjectDateRange(p);
+    const _autoStart = startMode === 'today' ? today() : _autoRange.startDate;
+    const _autoEndD = new Date(_autoRange.endDate + 'T00:00:00');
+    // 翌月1日の前日 = 当月末
+    const _monthEnd = new Date(_autoEndD.getFullYear(), _autoEndD.getMonth() + 1, 0);
+    const _startMs = new Date(_autoStart + 'T00:00:00').getTime();
+    rangeDays = Math.max(30, Math.round((_monthEnd.getTime() - _startMs) / 86400000) + 1);
+  } else {
+    rangeDays = parseInt(_ganttRangeVal) || 90;
+  }
   const showTasks = document.getElementById('gantt-show-tasks').checked;
   const showInazuma = document.getElementById('gantt-inazuma').checked;
 
