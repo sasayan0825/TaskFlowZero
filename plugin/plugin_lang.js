@@ -149,6 +149,7 @@
     '3ヶ月':                             '3 Months',
     '6ヶ月':                             '6 Months',
     '1年':                               '1 Year',
+    'プロジェクト全期間':                 'Full Project Range',
     '今日から':                           'From Today',
     'プロジェクト開始から':               'From Start',
     'タスク表示':                         'Show Tasks',
