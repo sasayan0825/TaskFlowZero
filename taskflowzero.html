@@ -855,10 +855,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       </div>
       <div id="projects-search-bar">
         <input class="proj-search-input" id="proj-search-title" placeholder="🔍 プロジェクト名で検索..." oninput="renderProjectsList()">
-        <select class="proj-filter-select" id="proj-search-member" onchange="renderProjectsList()">
+        <select class="proj-filter-select" id="proj-search-member" onchange="renderProjectsList();saveProjectListPrefs()">
           <option value="">担当者: 全員</option>
         </select>
-        <select class="proj-filter-select" id="proj-sort" onchange="renderProjectsList(); renderSidebar()">
+        <select class="proj-filter-select" id="proj-sort" onchange="renderProjectsList(); renderSidebar(); saveProjectListPrefs()">
           <option value="number">並び順: 番号</option>
           <option value="name">並び順: 名前</option>
           <option value="startDate">並び順: 作成日</option>
@@ -3716,6 +3716,27 @@ function _myNameKey() {
   return 'taskflow-my-name-' + (state.rootDirHandle?.name || '');
 }
 
+// ── プロジェクト一覧フィルター設定の保存・復元 ────────────────────
+function _projListPrefKey(name) {
+  return 'taskflow-proj-' + name + '-' + (state.rootDirHandle?.name || '');
+}
+function saveProjectListPrefs() {
+  try {
+    const member = document.getElementById('proj-search-member')?.value || '';
+    const sort   = document.getElementById('proj-sort')?.value           || 'number';
+    localStorage.setItem(_projListPrefKey('member'), member);
+    localStorage.setItem(_projListPrefKey('sort'),   sort);
+  } catch(e) {}
+}
+function restoreProjectListSortPref() {
+  // 並び順（static options）: render前に復元可能
+  try {
+    const sort   = localStorage.getItem(_projListPrefKey('sort'));
+    const sortEl = document.getElementById('proj-sort');
+    if (sort && sortEl) sortEl.value = sort;
+  } catch(e) {}
+}
+
 function onMyNameChange() {
   const name = document.getElementById('my-name-select').value;
   try { localStorage.setItem(_myNameKey(), name); } catch(e) {}
@@ -3738,6 +3759,7 @@ function showProjectsList() {
   document.getElementById('projects-view').style.display='block';
   document.getElementById('project-detail').style.display='none';
   document.getElementById('my-tasks-view').style.display='none';
+  restoreProjectListSortPref();
   renderSidebar();
   renderProjectsList();
 }
@@ -3764,7 +3786,7 @@ function renderProjectsList() {
   // Populate member dropdown
   const memberSel = document.getElementById('proj-search-member');
   if (memberSel) {
-    const cur = memberSel.value;
+    const cur = memberSel.value || (() => { try { return localStorage.getItem(_projListPrefKey('member')) || ''; } catch(e) { return ''; } })();
     const allMembers = [...new Set(state.data.projects.flatMap(p=>p.members||[]))].sort();
     memberSel.innerHTML = '<option value="">担当者: 全員</option>' +
       allMembers.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
@@ -4512,7 +4534,11 @@ function renderGantt() {
     // プロジェクト内のタスク・MSから最大終了日を求め、その月末まで表示
     const _autoRange = getProjectDateRange(p);
     const _autoStart = startMode === 'today' ? today() : _autoRange.startDate;
-    const _autoEndD = new Date(_autoRange.endDate + 'T00:00:00');
+    // プロジェクト終了日も候補に加え、より未来の日付を採用
+    const _endCandidates = [_autoRange.endDate];
+    if (p.endDate) _endCandidates.push(p.endDate);
+    const _autoEndStr = _endCandidates.sort().pop();
+    const _autoEndD = new Date(_autoEndStr + 'T00:00:00');
     // 翌月1日の前日 = 当月末
     const _monthEnd = new Date(_autoEndD.getFullYear(), _autoEndD.getMonth() + 1, 0);
     const _startMs = new Date(_autoStart + 'T00:00:00').getTime();
