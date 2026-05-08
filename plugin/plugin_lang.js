@@ -149,7 +149,6 @@
     '3ヶ月':                             '3 Months',
     '6ヶ月':                             '6 Months',
     '1年':                               '1 Year',
-    'プロジェクト全期間':                 'Full Project Range',
     '今日から':                           'From Today',
     'プロジェクト開始から':               'From Start',
     'タスク表示':                         'Show Tasks',
@@ -437,6 +436,8 @@
     s = s.replace(/期限:(\d{4}\/\d+\/\d+)/g, 'Due: $1');
     s = s.replace(/^編集済み (.+)$/, 'Edited $1');
     s = s.replace(/^今日 (\d+:\d+)$/, 'Today $1');
+    // フォルダ履歴の「アクセス許可あり · 今日 08:47」などの複合文字列
+    s = s.replace(/^(✅ アクセス許可あり|🔑 許可が必要) · (.+)$/, (_, status, date) => t(status) + ' · ' + t(date));
     s = s.replace(/(\d+)日前/g, '$1 days ago');
     s = s.replace(/^(\d+)件すべて選択済み$/, 'All $1 selected');
     s = s.replace(/^未選択: (\d+)件$/, '$1 unselected');
@@ -599,8 +600,8 @@
 
   function translateAll() {
     if (_lang === 'ja') return;
-    translateNode(document.body);
 
+    // translateNode より先に実行しないと strong 内が翻訳済みになり条件がfalseになる
     const subtitle = document.querySelector('.loader-subtitle');
     if (subtitle && subtitle.innerHTML.includes('データを保存するフォルダ')) {
       subtitle.innerHTML = 'Open a folder to store your data, or<br>create a new one.<br>Changes are auto-saved per project.';
@@ -609,11 +610,13 @@
     const wi = document.querySelector('.welcome-info');
     if (wi && wi.innerHTML.includes('フォルダ履歴')) {
       wi.innerHTML =
-        '💡 Use <strong>Chrome / Edge</strong>.<br>' +
-        '<strong>Folder History</strong>: Instantly reopen from browser cache<br>' +
-        '<strong>Open Another Folder</strong>: Select your shared folder<br>' +
-        '<strong>New</strong>: Create a new file at a shared location';
+        '💡 <strong>Chrome / Edge</strong>: Please use Chrome or Edge.<br>' +
+        '<strong>Folder History</strong>: Instantly restore previously opened folders<br>' +
+        '<strong>Open Another Folder</strong>: Select and open a shared folder<br>' +
+        '<strong>New File</strong>: Create a file by specifying a storage location (shared folder)';
     }
+
+    translateNode(document.body);
 
     injectGanttTodayCss();
     translateActivityNodes();
