@@ -134,6 +134,8 @@ html.light .modal{box-shadow:0 8px 32px rgba(0,0,0,.18)}
 #plugin-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:var(--radius);font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:5px}
 #plugin-btn:hover{background:var(--surface3)}
 @keyframes plugin-spin{to{transform:rotate(360deg)}}
+@keyframes tfViewEnter{from{opacity:0}to{opacity:1}}
+.view-enter{animation:tfViewEnter 0.25s ease backwards}
 .plugin-spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:plugin-spin .7s linear infinite;flex-shrink:0}
 .plugin-drop-zone.loading{pointer-events:none;opacity:.6}
 .plugin-drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;color:var(--muted);font-size:13px;transition:all .15s;cursor:pointer}
@@ -3295,6 +3297,8 @@ function switchMyTasksTab(tab) {
   _myTasksTab = tab;
   if (tab !== 'activity') _myActivitySelDate = null;
   renderMyTasks();
+  // タブボタンを除いたコンテンツ部分だけをフェードイン
+  _viewFadeIn(document.getElementById('my-tasks-content'));
 }
 
 function sortMyTasks(col) {
@@ -3466,7 +3470,7 @@ function renderMyTasks() {
     contentHtml = _renderActivityTabContent(myName);
   }
 
-  body.innerHTML = tabsHtml + contentHtml;
+  body.innerHTML = tabsHtml + `<div id="my-tasks-content">${contentHtml}</div>`;
 
   // フィルター値を復元
   if (_myTasksTab === 'mention') {
@@ -3701,11 +3705,26 @@ function _renderActivityTabContent(myName) {
 }
 // ── /アクティビティタブ ───────────────────────────────────────────
 
+// ビュー切り替え時のフェードインアニメーションをトリガーする
+// 表示直後に opacity:0 で即隠し → rAFでinline opacityを解除してアニメーション開始
+// （先に隠すことで display:block 後の一瞬の点灯＝ちらつきを防ぐ）
+function _viewFadeIn(el) {
+  if (!el) return;
+  el.style.opacity = '0';
+  el.classList.remove('view-enter');
+  requestAnimationFrame(() => {
+    el.style.opacity = '';
+    el.classList.add('view-enter');
+  });
+}
+
 function showMyTasks() {
   state.currentProjectId = null;
   document.getElementById('projects-view').style.display = 'none';
   document.getElementById('project-detail').style.display = 'none';
-  document.getElementById('my-tasks-view').style.display = 'block';
+  const mtv = document.getElementById('my-tasks-view');
+  mtv.style.display = 'block';
+  _viewFadeIn(mtv);
   renderSidebar();
   _populateMyNameSelect();
   renderMyTasks();
@@ -3756,7 +3775,9 @@ function _populateMyNameSelect() {
 
 function showProjectsList() {
   state.currentProjectId = null;
-  document.getElementById('projects-view').style.display='block';
+  const pv = document.getElementById('projects-view');
+  pv.style.display='block';
+  _viewFadeIn(pv);
   document.getElementById('project-detail').style.display='none';
   document.getElementById('my-tasks-view').style.display='none';
   restoreProjectListSortPref();
@@ -3879,7 +3900,9 @@ function openProject(id) {
   state.currentProjectId = id;
   const p = getProject(id);
   document.getElementById('projects-view').style.display='none';
-  document.getElementById('project-detail').style.display='flex';
+  const pd = document.getElementById('project-detail');
+  pd.style.display='flex';
+  _viewFadeIn(pd);
   document.getElementById('my-tasks-view').style.display='none';
   document.getElementById('ph-color-badge').style.background = p.color||'#4f8eff';
   document.getElementById('ph-title').textContent = p.name;
@@ -3923,9 +3946,10 @@ function switchView(view) {
   const builtinEl = document.getElementById(view+'-view');
   if (builtinEl) {
     builtinEl.style.display = view==='kanban'?'flex':view==='gantt'||view==='wiki'?'flex':'block';
+    _viewFadeIn(builtinEl);
   } else {
     const customEl = document.getElementById('plugin-view-'+view);
-    if (customEl) customEl.style.display = 'flex';
+    if (customEl) { customEl.style.display = 'flex'; _viewFadeIn(customEl); }
   }
 
   // フィルターバー: カスタムビューは各自で制御（デフォルト非表示）
