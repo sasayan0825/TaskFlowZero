@@ -5845,7 +5845,8 @@ function linkifyTfz(html) {
   // <a href="tfz://..."> → ダウンロードリンク
   html = html.replace(/href="tfz:\/\/([^"]+)"/g, (_, key) => {
     const url = tfzResolve(key);
-    const fname = key.split('/').pop() || key;
+    const rawFname = key.split('/').pop() || key;
+    const fname = rawFname.replace(/^\d{17}_/, '');
     return url
       ? `href="${url}" download="${fname}" data-tfz="${key}"`
       : `href="#" data-tfz-missing="${key}" onclick="return false"`;
