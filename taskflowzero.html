@@ -5559,6 +5559,11 @@ function saveNewTask(){
 // TASK PANEL
 // ═══════════════════════════════════════
 function openTaskPanel(taskId){
+  // コメント入力途中で別タスクへ切り替える場合は確認
+  if(taskId !== _panelTaskId){
+    const _cmtText = document.getElementById('comment-text');
+    if(_cmtText && _cmtText.value.trim() && !confirm('コメントの入力内容が破棄されます。続けますか？'))return;
+  }
   // クールダウン内なら即座に開く（ネットワークI/O待ちを回避）
   if (Object.keys(_baseSnapshots).length === 0 || panelDirty || (Date.now() - _lastFetchAt < _FETCH_COOLDOWN_MS)) {
     _openTaskPanelInner(taskId);
@@ -5584,6 +5589,16 @@ function _openTaskPanelInner(taskId){
   if(!t.checklist) t.checklist=[];
   if(!t.activity)  t.activity=[];
   updateFilters();
+  // ── 前タスクの入力残留をクリア ────────────────────────────
+  document.getElementById('panel-new-label').value = '';
+  const _prevCmtTa = document.getElementById('comment-text');
+  if (_prevCmtTa) { _prevCmtTa.value = ''; _prevCmtTa.style.height = '70px'; }
+  if (_editingCommentIdx !== -1) {
+    _editingCommentIdx = -1;
+    document.getElementById('comment-submit-btn').style.display  = '';
+    document.getElementById('comment-update-btn').style.display  = 'none';
+    document.getElementById('comment-cancel-edit-btn').style.display = 'none';
+  }
   document.getElementById('panel-task-num').textContent='#'+(t.number||'?');
   document.getElementById('panel-title').value=t.title;
 
@@ -5751,6 +5766,11 @@ function savePanelTask(){
 
 function closeTaskPanel(){
   if(panelDirty&&!confirm('変更が保存されていません。閉じますか？'))return;
+  const _cmtText = document.getElementById('comment-text');
+  if(_cmtText && _cmtText.value.trim() && !confirm('コメントの入力内容が破棄されます。閉じますか？'))return;
+  // 確認OKの場合はコメント欄をクリアしてから閉じる
+  if(_cmtText){ _cmtText.value = ''; _cmtText.style.height = '70px'; }
+  _editingCommentIdx = -1;
   document.getElementById('task-panel').classList.remove('open');
   document.getElementById('panel-backdrop').classList.remove('show');
   _panelTaskId=null; _panelProjectId=null; panelDirty=false;
