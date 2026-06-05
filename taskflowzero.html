@@ -5591,6 +5591,7 @@ function _openTaskPanelInner(taskId){
   updateFilters();
   // ── 前タスクの入力残留をクリア ────────────────────────────
   document.getElementById('panel-new-label').value = '';
+  document.getElementById('checklist-new-item').value = '';
   const _prevCmtTa = document.getElementById('comment-text');
   if (_prevCmtTa) { _prevCmtTa.value = ''; _prevCmtTa.style.height = '70px'; }
   if (_editingCommentIdx !== -1) {
