@@ -70,6 +70,13 @@
     'クリックで詳細表示':                 'Click for details',
     '少ない':                             'Less',
     '多い':                               'More',
+    '今年':                               'This Year',
+    '前の年':                             'Previous year',
+    '次の年':                             'Next year',
+
+    // ── バーンダウン（マイルストーン警告）──────────────────
+    '⚠️ マイルストーンに期間が設定されていないため、プロジェクト全体の期間で表示しています':
+      '⚠️ No date range set for this milestone — showing the full project period instead.',
 
     // ── 月名（ヒートマップ・短形式）───────────────────────
     '1月':  'Jan',  '2月':  'Feb',  '3月':  'Mar',  '4月':  'Apr',
@@ -150,6 +157,7 @@
     '6ヶ月':                             '6 Months',
     '1年':                               '1 Year',
     '今日から':                           'From Today',
+    'プロジェクト全期間':                 'Full Project',
     'プロジェクト開始から':               'From Start',
     'タスク表示':                         'Show Tasks',
     'イナズマ線':                         'Progress Line',
@@ -306,6 +314,7 @@
     '列':                                 'Col ',
     
     '削除':                               'Delete',
+    'フォルダの取得に失敗しました':       'Failed to retrieve folder',
     '保存しました':                       'Saved',
     '保存しました（他の変更を自動マージ）': 'Saved (auto-merged changes)',
     '保存しました（競合を解決）':         'Saved (conflict resolved)',
@@ -433,7 +442,18 @@
     s = s.replace(/(\d{4})\/(\d+)月/g, function(_, year, month) {
       return (MONTHS_EN[parseInt(month, 10) - 1] || month) + ' ' + year;
     });
-    s = s.replace(/期限:(\d{4}\/\d+\/\d+)/g, 'Due: $1');
+    // アクティビティ統計カード ラベル（例: "2025年のアクティビティ", "2025年 最長連続"）
+    s = s.replace(/^(\d{4})年のアクティビティ$/, 'Activities ($1)');
+    s = s.replace(/^(\d{4})年 最長連続$/, 'Longest Streak ($1)');
+    // 年ナビゲーションの「2025年」ラベル
+    s = s.replace(/^(\d{4})年$/, '$1');
+    // アクティビティ詳細ヘッダー（例: "2025-06-09 — 3件のアクティビティ"）
+    s = s.replace(/^(\d{4}-\d{2}-\d{2}) &nbsp;—&nbsp; (\d+)件のアクティビティ$/, '$1 &nbsp;—&nbsp; $2 activities');
+    // ファイル添付トースト
+    s = s.replace(/^(\d+)件のファイルを保存中\.\.\.$/, 'Saving $1 file(s)...');
+    s = s.replace(/^(\d+)件のファイルを添付しました$/, '$1 file(s) attached');
+    s = s.replace(/^(.+) の添付に失敗: (.+)$/, 'Attachment failed for $1: $2');
+    s = s.replace(/^期限:(\d{4}\/\d+\/\d+)/g, 'Due: $1');
     s = s.replace(/^編集済み (.+)$/, 'Edited $1');
     s = s.replace(/^今日 (\d+:\d+)$/, 'Today $1');
     // フォルダ履歴の「アクセス許可あり · 今日 08:47」などの複合文字列
@@ -508,7 +528,17 @@
     document.querySelectorAll('.activity-detail-item > div:nth-child(2) > div:first-child').forEach(el => {
       el.innerHTML = translateActivityText(el.innerHTML);
     });
-    
+
+    // アクティビティ詳細ヘッダー「2025-06-09 — 3件のアクティビティ」
+    document.querySelectorAll('[data-activity-header]').forEach(el => {
+      el.innerHTML = translateDynamic(el.innerHTML.trim());
+    });
+
+    // プロジェクト別実績テーブルヘッダー
+    document.querySelectorAll('[data-proj-perf-header]').forEach(el => {
+      el.textContent = t(el.textContent.trim());
+    });
+
     const EMPTY_MSGS = {
       'コメントはまだありません':     'No comments yet',
       'アクティビティはまだありません': 'No activity yet',
@@ -643,7 +673,9 @@
           if (n.nodeType === Node.ELEMENT_NODE) {
             if (n.classList && (n.classList.contains('activity-detail-item') || n.classList.contains('activity-item'))) {
               needsActivityTrans = true;
-            } else if (n.querySelector && (n.querySelector('.activity-detail-item') || n.querySelector('.activity-item'))) {
+            } else if (n.querySelector && (n.querySelector('.activity-detail-item') || n.querySelector('.activity-item') || n.querySelector('[data-activity-header]') || n.querySelector('[data-proj-perf-header]'))) {
+              needsActivityTrans = true;
+            } else if (n.hasAttribute && (n.hasAttribute('data-activity-header') || n.hasAttribute('data-proj-perf-header'))) {
               needsActivityTrans = true;
             }
           }
