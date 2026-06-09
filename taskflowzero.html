@@ -3738,7 +3738,7 @@ function _renderActivityTabContent(myName) {
     const _td = `padding:5px 10px;border-bottom:1px solid var(--border);vertical-align:middle`;
     const projSummaryHtml = projMap.size ? `
       <div style="margin-bottom:14px;padding:10px 14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
-        <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">&#x23F1; プロジェクト別実績</div>
+        <div data-proj-perf-header style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">&#x23F1; プロジェクト別実績</div>
         <table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead><tr>
             <th style="${_th};text-align:left">プロジェクト</th>
@@ -3762,7 +3762,7 @@ function _renderActivityTabContent(myName) {
       </div>` : '';
 
     detailHtml = `<div style="margin-top:16px">
-      <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">
+      <div data-activity-header style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">
         ${_myActivitySelDate} &nbsp;—&nbsp; ${evts.length}件のアクティビティ
       </div>
       ${projSummaryHtml}
