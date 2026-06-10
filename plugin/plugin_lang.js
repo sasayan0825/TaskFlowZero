@@ -442,7 +442,8 @@
     s = s.replace(/(\d{4})\/(\d+)月/g, function(_, year, month) {
       return (MONTHS_EN[parseInt(month, 10) - 1] || month) + ' ' + year;
     });
-    // アクティビティ統計カード ラベル（例: "2025年のアクティビティ", "2025年 最長連続"）
+    // バーンダウン マイルストーン期間ラベル（例: "📅 高優先度対応 の期間 (3/10 – 6/9)"）
+    s = s.replace(/^📅 (.+) の期間 \((.+)\)$/, '📅 $1 ($2)');
     s = s.replace(/^(\d{4})年のアクティビティ$/, 'Activities ($1)');
     s = s.replace(/^(\d{4})年 最長連続$/, 'Longest Streak ($1)');
     // 年ナビゲーションの「2025年」ラベル
@@ -667,6 +668,16 @@
     _observer = new MutationObserver((mutations) => {
       let needsActivityTrans = false;
       mutations.forEach(m => {
+        // characterData: textContent の直接変更（burndown-period-notice など）
+        if (m.type === 'characterData') {
+          const el = m.target.parentElement;
+          if (el && el.id === 'burndown-period-notice') {
+            const orig = m.target.textContent;
+            const trans = translateDynamic(orig);
+            if (trans !== orig) m.target.textContent = trans;
+          }
+          return;
+        }
         m.addedNodes.forEach(n => {
           translateNode(n);
           // DOMに新しく追加された要素がアクティビティ関連ならフラグを立てる
@@ -685,7 +696,7 @@
         translateActivityNodes();
       }
     });
-    _observer.observe(document.body, { childList: true, subtree: true });
+    _observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
 
   function setLang(lang) {
