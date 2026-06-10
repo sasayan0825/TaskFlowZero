@@ -180,6 +180,8 @@
 
     // ── タスク詳細パネル ────────────────────────────────────
     '🔗 URLコピー':                       '🔗 Copy URL',
+    'このタスクを参照しているタスク':     'Tasks referencing this task',
+    '💬 コメントより':                    '💬 From comment',
     '詳細':                               'Details',
     '(Markdown対応)':                     '(Markdown supported)',
     'コメント / アクティビティ':          'Comments / Activity',
