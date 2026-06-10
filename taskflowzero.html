@@ -1164,6 +1164,12 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       <div class="md-preview" id="panel-desc-preview"></div>
     </div>
 
+    <!-- バックリンク（被参照タスク） -->
+    <div id="panel-backlinks" style="display:none;margin-bottom:20px">
+      <div class="section-title">このタスクを参照しているタスク <div class="section-title-line"></div></div>
+      <div id="panel-backlinks-list"></div>
+    </div>
+
     <!-- チェックリスト -->
     <div style="margin-bottom:20px">
       <div class="section-title">チェックリスト <span id="checklist-count-label" style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0"></span><div class="section-title-line"></div></div>
@@ -5778,8 +5784,76 @@ function _openTaskPanelInner(taskId){
       history.replaceState(null, '', newHash);
     }
   }
+  renderBacklinks(t, p);
   // プラグインへ task-open イベントを通知
   if (window.TaskFlow) window.TaskFlow.emit('task-open', { task: t, project: p });
+}
+
+function renderBacklinks(t, p) {
+  const wrap = document.getElementById('panel-backlinks');
+  const list = document.getElementById('panel-backlinks-list');
+  if (!wrap || !list) return;
+
+  // 現在のタスクのハッシュパターンを構築（フォルダあり・なし両対応）
+  const folder = state.rootDirHandle ? state.rootDirHandle.name : null;
+  // 例: #MyFolder-P2-5 または #P2-5
+  const hashWithFolder    = folder ? `#${folder}-P${p.number}-${t.number}` : null;
+  const hashWithoutFolder = `#P${p.number}-${t.number}`;
+
+  // descriptionに自タスクへの参照を含む他タスクを収集
+  // 境界チェック: #P2-5 が #P2-50 にマッチしないよう \b を使用
+  const refPatternWithFolder    = hashWithFolder    ? new RegExp('#' + escapeRegExp(hashWithFolder.slice(1))    + '\\b', 'i') : null;
+  const refPatternWithoutFolder = new RegExp('#' + escapeRegExp(hashWithoutFolder.slice(1)) + '\\b', 'i');
+
+  // { task, sources: ['desc'|'comment'] } の形で収集
+  const backlinkers = [];
+  for (const task of p.tasks) {
+    if (task.id === t.id) continue;           // 自分自身は除外
+    const sources = [];
+    const desc = task.description || '';
+    const matchesFn = str =>
+      (refPatternWithFolder && refPatternWithFolder.test(str)) ||
+      refPatternWithoutFolder.test(str);
+
+    if (matchesFn(desc)) sources.push('desc');
+
+    const hasCommentRef = (task.comments || []).some(c => matchesFn(c.text || ''));
+    if (hasCommentRef) sources.push('comment');
+
+    if (sources.length > 0) backlinkers.push({ task, sources });
+  }
+
+  if (backlinkers.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = '';
+  list.innerHTML = backlinkers.map(({ task: bt, sources }) => {
+    const hash = buildTaskHash(p, bt);
+    const statusInfo = STATUSES.find(s => s.id === bt.status);
+    const statusDot = statusInfo
+      ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusInfo.color};margin-right:5px;flex-shrink:0"></span>`
+      : '';
+    const sourceLabel = sources.includes('comment') && !sources.includes('desc')
+      ? `<span style="font-size:10px;color:var(--muted);flex-shrink:0">💬 コメントより</span>`
+      : sources.includes('comment')
+      ? `<span style="font-size:10px;color:var(--muted);flex-shrink:0">💬</span>`
+      : '';
+    return `<div style="display:flex;align-items:center;gap:4px;padding:5px 0;border-bottom:1px solid var(--border)">
+      ${statusDot}
+      <a href="javascript:void(0)"
+         onclick="navigateToHash('${hash.replace(/'/g, "\\'")}')"
+         style="font-family:'JetBrains Mono',monospace;font-size:.85em;color:var(--accent);background:rgba(79,142,255,.1);border:1px solid rgba(79,142,255,.25);border-radius:3px;padding:0 4px;text-decoration:none;flex-shrink:0"
+      >${hash}</a>
+      <span style="font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(bt.title)}</span>
+      ${sourceLabel}
+    </div>`;
+  }).join('');
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function renderStatusBadge(status){
