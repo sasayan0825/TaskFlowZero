@@ -542,9 +542,12 @@ html.light .hljs-tag{color:var(--text)}
 .panel-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
 
 /* MODALS */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:800;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
-.modal-overlay.show{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:800;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);opacity:0;transition:opacity 0.22s ease}
+.modal-overlay.modal-visible{opacity:1}
+.modal-overlay.modal-closing{opacity:0;pointer-events:none}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow);transform:translateY(14px) scale(0.98);opacity:0;transition:transform 0.24s cubic-bezier(0.34,1.3,0.64,1),opacity 0.22s ease}
+.modal-overlay.modal-visible .modal{transform:translateY(0) scale(1);opacity:1}
+.modal-overlay.modal-closing .modal{transform:translateY(8px) scale(0.98);opacity:0;transition:transform 0.18s ease,opacity 0.18s ease}
 .modal.wide{width:640px}
 .modal-title{font-family:'Outfit',sans-serif;font-size:18px;font-weight:600;margin-bottom:20px}
 .form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
@@ -994,9 +997,11 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <label style="font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer">
             <input type="checkbox" id="gantt-show-tasks" onchange="renderGantt()" checked> タスク表示
           </label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer">
-            <input type="checkbox" id="gantt-inazuma" onchange="renderGantt()" checked> イナズマ線
-          </label>
+          <select class="filter-select" id="gantt-inazuma" onchange="renderGantt()">
+            <option value="none">イナズマ線：なし</option>
+            <option value="milestone" selected>イナズマ線：マイルストーン</option>
+            <option value="task">イナズマ線：タスク</option>
+          </select>
           <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openTaskModal()">＋ タスク追加</button>
         </div>
         <div id="gantt-container">
@@ -1013,7 +1018,8 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div class="legend-item"><div class="legend-dot" style="height:8px;border-radius:2px;background:rgba(79,142,255,.7)"></div> マイルストーン</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(79,142,255,.4)"></div> タスクバー</div>
           <div class="legend-item"><div class="legend-dot" style="background:var(--accent);height:2px"></div> 今日線</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;height:2px"></div> イナズマ線（実績進捗）</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;height:2px"></div> イナズマ線（マイルストーン）</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#fb923c;height:2px"></div> イナズマ線（タスク）</div>
           <div class="legend-item"><div class="legend-dot" style="background:var(--green);opacity:.5"></div> 完了塗り</div>
         </div>
       </div>
@@ -1719,7 +1725,7 @@ async function writePluginsToDir(dirHandle, plugins) {
 async function openPluginModal() {
   _pluginDirty = false;
   document.getElementById('plugin-save-btn').style.display = 'none';
-  document.getElementById('plugin-modal').classList.add('show');
+  openModal('plugin-modal');
   document.getElementById('plugin-list').innerHTML =
     '<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">読み込み中...</div>';
 
@@ -1763,7 +1769,7 @@ async function openPluginModal() {
 }
 
 function closePluginModal() {
-  document.getElementById('plugin-modal').classList.remove('show');
+  closeModal('plugin-modal');
 }
 
 // selectPluginFolder は openPluginModal 内に統合
@@ -4645,6 +4651,7 @@ function renderBurndown() {
 // ═══════════════════════════════════════
 const GANTT_ROW_H = 40;
 const GANTT_LEFT_W = 260;
+const _ganttCollapsed = new Set(); // 閉じているマイルストーンIDを保持
 
 
 // プロジェクト内のタスク・マイルストーンから最小開始日・最大終了日を算出
@@ -4686,7 +4693,7 @@ function renderGantt() {
     rangeDays = parseInt(_ganttRangeVal) || 90;
   }
   const showTasks = document.getElementById('gantt-show-tasks').checked;
-  const showInazuma = document.getElementById('gantt-inazuma').checked;
+  const showInazuma = document.getElementById('gantt-inazuma').value;
 
   // Determine gantt start date
   let ganttStart;
@@ -4720,7 +4727,8 @@ function renderGantt() {
   buildGridLines(rightRows, ganttStart, rangeDays, gStartMs, totalW);
 
   // イナズマ線 points collection
-  const inazumaPoints = [];
+  const inazumaPoints = [];      // マイルストーン用
+  const inazumaTaskPoints = [];  // タスク用
 
   let rowIndex = 0;
 
@@ -4772,7 +4780,7 @@ function renderGantt() {
         rightEl.appendChild(bar);
 
         // イナズマ線 point for this milestone
-        if (showInazuma) {
+        if (showInazuma === 'milestone') {
           const todayMs = new Date().setHours(0,0,0,0);
           let progressDate;
           if (pct >= 1 && barEnd < todayMs) {
@@ -4800,7 +4808,9 @@ function renderGantt() {
       const taskLeftContainer = document.createElement('div');
       taskLeftContainer.id = 'gtask-left-'+m.id;
 
-      mTasks.forEach(t => {
+      const isCollapsed = _ganttCollapsed.has(m.id);
+      if (!isCollapsed) {
+        mTasks.forEach(t => {
         // Left
         const s = STATUSES.find(x=>x.id===t.status)||STATUSES[0];
         const tLeft = document.createElement('div');
@@ -4839,15 +4849,40 @@ function renderGantt() {
             const clInfo = clTotal>0 ? ` ✓${clDone}/${clTotal}` : '';
             tBar.title=`#${t.number} ${t.title} [${s.label}]${clInfo}${t.dueDate?' 期限:'+fmtFull(t.dueDate):''}`;
             tRight.appendChild(tBar);
+
+            // タスクイナズマ線ポイント収集
+            if (showInazuma === 'task') {
+              const todayMs = new Date().setHours(0,0,0,0);
+              let progressDate;
+              if (taskPct >= 1 && bE < todayMs) {
+                progressDate = todayMs;
+              } else if (taskPct === 0 && bS > todayMs) {
+                progressDate = todayMs;
+              } else {
+                progressDate = bS + (bE - bS) * taskPct;
+              }
+              const px = Math.min(totalW, (progressDate-gStartMs)/86400000*DAY_W+DAY_W/2);
+              const py = rowIndex*GANTT_ROW_H+GANTT_ROW_H/2;
+              inazumaTaskPoints.push({x:px, y:py});
+            }
           }
         }
         taskContainer.appendChild(tRight);
         rowIndex++;
-      });
+      }); // mTasks.forEach
+      } // if (!isCollapsed)
 
       // Tasks container syncs scroll with left
       leftRows.appendChild(taskLeftContainer);
       rightRows.appendChild(taskContainer);
+
+      // 閉じ状態を復元
+      if (isCollapsed) {
+        taskContainer.style.display = 'none';
+        taskLeftContainer.style.display = 'none';
+        const btn = document.getElementById('gexp-'+m.id);
+        if (btn) btn.textContent = '▶';
+      }
     }
   });
 
@@ -4885,6 +4920,22 @@ function renderGantt() {
             const b=createGanttBar({x1:tx1,w:tw,color:s.color,opacity:t.status==='done'?0.9:0.5,label:t.title,pct:uPct,
               entityType:'task',entityId:t.id,startDate:t.startDate||addDays(t.dueDate,-3),endDate:t.dueDate,isTask:true});
             tRight.appendChild(b);
+
+            // タスクイナズマ線ポイント収集（未割り当て）
+            if (showInazuma === 'task') {
+              const todayMs = new Date().setHours(0,0,0,0);
+              let progressDate;
+              if (uPct >= 1 && bE < todayMs) {
+                progressDate = todayMs;
+              } else if (uPct === 0 && bS > todayMs) {
+                progressDate = todayMs;
+              } else {
+                progressDate = bS + (bE - bS) * uPct;
+              }
+              const px = Math.min(totalW, (progressDate-gStartMs)/86400000*DAY_W+DAY_W/2);
+              const py = rowIndex*GANTT_ROW_H+GANTT_ROW_H/2;
+              inazumaTaskPoints.push({x:px, y:py});
+            }
           }
         }
         rightRows.appendChild(tRight);
@@ -4894,8 +4945,19 @@ function renderGantt() {
   }
 
   // Draw イナズマ線
-  if (showInazuma && inazumaPoints.length >= 2) {
+  const drawPoints = showInazuma === 'milestone' ? inazumaPoints
+                   : showInazuma === 'task'      ? inazumaTaskPoints
+                   : [];
+  const inazumaColor = showInazuma === 'task' ? '#fb923c' : '#f59e0b';
+  if (drawPoints.length >= 1) {
     const totalHeight = rowIndex * GANTT_ROW_H;
+    // 始点・終点を今日線のx・チャート上下端に固定（1点でも折れ線が成立する）
+    const todayX = Math.min(totalW, (new Date().setHours(0,0,0,0) - gStartMs) / 86400000 * DAY_W + DAY_W / 2);
+    const extendedPoints = [
+      { x: todayX, y: 0 },
+      ...drawPoints,
+      { x: todayX, y: totalHeight }
+    ];
     const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('width', totalW);
     svg.setAttribute('height', totalHeight);
@@ -4903,23 +4965,23 @@ function renderGantt() {
     svg.style.cssText = `position:absolute;top:0;left:0;pointer-events:none;z-index:14`;
 
     // Draw zigzag polyline connecting progress points
-    const pts = inazumaPoints.map(p=>`${p.x},${p.y}`).join(' ');
+    const pts = extendedPoints.map(p=>`${p.x},${p.y}`).join(' ');
     const poly = document.createElementNS('http://www.w3.org/2000/svg','polyline');
     poly.setAttribute('points', pts);
     poly.setAttribute('fill','none');
-    poly.setAttribute('stroke','#f59e0b');
+    poly.setAttribute('stroke', inazumaColor);
     poly.setAttribute('stroke-width','2.5');
     poly.setAttribute('stroke-dasharray','6,3');
     poly.setAttribute('opacity','0.85');
     svg.appendChild(poly);
 
     // Dots at each point
-    inazumaPoints.forEach(pt => {
+    drawPoints.forEach(pt => {
       const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       circle.setAttribute('cx', pt.x);
       circle.setAttribute('cy', pt.y);
       circle.setAttribute('r','5');
-      circle.setAttribute('fill','#f59e0b');
+      circle.setAttribute('fill', inazumaColor);
       circle.setAttribute('stroke','#0b0f1a');
       circle.setAttribute('stroke-width','2');
       svg.appendChild(circle);
@@ -5138,10 +5200,12 @@ function ganttDragEnd() {
 }
 
 function toggleGanttMs(msId) {
-  const tg=document.getElementById('gtask-group-'+msId);
-  const tl=document.getElementById('gtask-left-'+msId);
-  const btn=document.getElementById('gexp-'+msId);
-  if(tg){const h=tg.style.display==='none'; tg.style.display=h?'':'none'; if(tl)tl.style.display=h?'':'none'; if(btn)btn.textContent=h?'▼':'▶';}
+  if (_ganttCollapsed.has(msId)) {
+    _ganttCollapsed.delete(msId);
+  } else {
+    _ganttCollapsed.add(msId);
+  }
+  renderGantt();
 }
 
 // ═══════════════════════════════════════
@@ -5288,23 +5352,56 @@ function setupWikiScrollSpy() {
 }
 
 // ═══════════════════════════════════════
+// MODAL ANIMATION UTILITIES
+// ═══════════════════════════════════════
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'flex';
+  // 次フレームでクラス付与してトランジションを起動
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      el.classList.add('show', 'modal-visible');
+    });
+  });
+}
+function closeModal(id, callback) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('modal-closing');
+  el.classList.remove('modal-visible');
+  const onEnd = (e) => {
+    // オーバーレイ自身のopacityトランジション完了のみ処理
+    if (e && e.target !== el) return;
+    el.removeEventListener('transitionend', onEnd);
+    clearTimeout(timer);
+    el.classList.remove('show', 'modal-closing');
+    el.style.display = 'none';
+    if (callback) callback();
+  };
+  const timer = setTimeout(() => onEnd(null), 260);
+  el.addEventListener('transitionend', onEnd);
+}
+
+// ═══════════════════════════════════════
 // MILESTONE MODAL
 // ═══════════════════════════════════════
 function openMilestoneModal() {
   const p=getProject(state.currentProjectId); if(!p)return;
   renderMsList();
   hideMsAddForm();
-  document.getElementById('milestone-modal').classList.add('show');
+  openModal('milestone-modal');
 }
 function closeMilestoneModal() {
-  document.getElementById('milestone-modal').classList.remove('show');
-  updateFilters();
-  // 並び順変更がリスト・ガント両方に反映されるよう全ビューを再描画
-  if(state.currentView==='list') renderList();
-  else if(state.currentView==='kanban') renderKanban();
-  else if(state.currentView==='burndown') renderBurndown();
-  else if(state.currentView==='gantt') renderGantt();
-  else if(state.currentView==='wiki') renderWiki();
+  closeModal('milestone-modal', () => {
+    updateFilters();
+    // 並び順変更がリスト・ガント両方に反映されるよう全ビューを再描画
+    if(state.currentView==='list') renderList();
+    else if(state.currentView==='kanban') renderKanban();
+    else if(state.currentView==='burndown') renderBurndown();
+    else if(state.currentView==='gantt') renderGantt();
+    else if(state.currentView==='wiki') renderWiki();
+  });
 }
 
 function renderMsList() {
@@ -5497,10 +5594,10 @@ function openProjectModal(id=null) {
     _selectedColor=PROJECT_COLORS[Math.floor(Math.random()*PROJECT_COLORS.length)];
   }
   selectColor(_selectedColor,'pm-colors');
-  modal.classList.add('show');
-  setTimeout(()=>document.getElementById('pm-name').focus(),100);
+  openModal('project-modal');
+  setTimeout(()=>document.getElementById('pm-name').focus(),150);
 }
-function closeProjectModal(){ document.getElementById('project-modal').classList.remove('show'); }
+function closeProjectModal(){ closeModal('project-modal'); }
 
 function selectColor(c,rowId){
   _selectedColor=c;
@@ -5602,7 +5699,7 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-labels-display').innerHTML='';
   document.getElementById('tm-label-input').value='';
   updateFilters();
-  document.getElementById('task-modal').classList.add('show');
+  openModal('task-modal');
   setTimeout(()=>document.getElementById('tm-title').focus(),100);
 }
 
@@ -5621,7 +5718,7 @@ function tmAddChecklistItem(){
   input.value='';
   input.focus();
 }
-function closeTaskModal(){ document.getElementById('task-modal').classList.remove('show'); }
+function closeTaskModal(){ closeModal('task-modal'); }
 function tryCloseTaskModal(){
   const hasInput = ['tm-title','tm-creator','tm-assignee','tm-description'].some(id=>{
     const el = document.getElementById(id);
