@@ -1002,6 +1002,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <option value="milestone" selected>イナズマ線：マイルストーン</option>
             <option value="task">イナズマ線：タスク</option>
           </select>
+          <button class="filter-select" style="cursor:pointer" onclick="ganttScrollToToday()">今日へ</button>
           <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openTaskModal()">＋ タスク追加</button>
         </div>
         <div id="gantt-container">
@@ -5206,6 +5207,16 @@ function toggleGanttMs(msId) {
     _ganttCollapsed.add(msId);
   }
   renderGantt();
+}
+
+function ganttScrollToToday() {
+  const ganttRight = document.getElementById('gantt-right');
+  if (!ganttRight) return;
+  const todayLine = ganttRight.querySelector('.today-line');
+  if (!todayLine) return;
+  const todayX = parseFloat(todayLine.style.left) || 0;
+  const halfW  = ganttRight.clientWidth / 2;
+  ganttRight.scrollLeft = todayX - halfW;
 }
 
 // ═══════════════════════════════════════
