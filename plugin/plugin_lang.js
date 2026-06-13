@@ -164,6 +164,7 @@
     'イナズマ線：なし':                   'Progress Line: Off',
     'イナズマ線：マイルストーン':         'Progress Line: Milestone',
     'イナズマ線：タスク':                 'Progress Line: Task',
+    '今日へ':                             'Go to Today',
     'マイルストーン / タスク':            'Milestone / Task',
     'イナズマ線（実績進捗）':             'Progress Line',
     'イナズマ線（マイルストーン）':       'Progress Line (Milestone)',
