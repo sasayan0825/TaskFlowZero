@@ -405,6 +405,17 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .panel-url-copy{background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:11px;padding:3px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;transition:all .15s;white-space:nowrap}
 .panel-url-copy:hover{background:rgba(79,142,255,.12);border-color:rgba(79,142,255,.4);color:var(--accent)}
 .panel-url-copy.copied{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.4);color:var(--green)}
+.panel-like-btn{background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:12px;padding:3px 8px;border-radius:4px;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.panel-like-btn:hover{background:rgba(255,90,120,.1);border-color:rgba(255,90,120,.35)}
+.panel-like-btn.liked{border-color:rgba(255,90,120,.35);background:rgba(255,90,120,.08)}
+.panel-bookmark-btn{background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:12px;padding:3px 8px;border-radius:4px;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center}
+.panel-bookmark-btn:hover{background:rgba(255,200,50,.12);border-color:rgba(255,200,50,.4)}
+.panel-bookmark-btn.bookmarked{border-color:rgba(255,200,50,.45);background:rgba(255,200,50,.1)}
+.cmt-like-btn{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1;display:inline-flex;align-items:center;gap:3px}
+.cmt-like-btn:hover{color:var(--accent)}
+.cmt-bookmark-btn{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1;display:inline-flex;align-items:center}
+.cmt-bookmark-btn:hover{color:#f5a623}
+.cmt-bookmark-btn.bookmarked{color:#f5a623}
 .panel-close{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px;border-radius:4px;transition:all .15s}
 .panel-close:hover{background:var(--surface2);color:var(--text)}
 .panel-body{flex:1;overflow-y:auto;padding:20px}
@@ -1069,6 +1080,8 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   <div class="panel-header">
     <span class="panel-task-number" id="panel-task-num">#-</span>
     <div id="panel-status-badge"></div>
+    <button class="panel-like-btn" id="panel-like-btn" onclick="toggleTaskLike()" title="いいね"></button>
+    <button class="panel-bookmark-btn" id="panel-bookmark-btn" onclick="toggleTaskBookmark()" title="ブックマーク"></button>
     <button class="panel-url-copy" id="panel-url-copy-btn" onclick="copyTaskUrl()" title="このタスクのURLをコピー">🔗 URLコピー</button>
     <button class="panel-close" onclick="closeTaskPanel()">✕</button>
   </div>
@@ -2781,6 +2794,16 @@ function threeWayMerge(base, mine, disk) {
       mergedT.checklist = mergedChecklist.result;
       autoMerged += mergedChecklist.changed;
 
+      // タスク自体へのいいね: ユーザー名をidとして3-wayマージ（追加・取り消し双方を反映）
+      const mergedTaskLikes = mergeArrayById(tb?.likes||[], tm?.likes||[], td?.likes||[]);
+      mergedT.likes = mergedTaskLikes.result;
+      autoMerged += mergedTaskLikes.changed;
+
+      // タスク自体へのブックマーク: いいねと同じ方式でマージ
+      const mergedTaskBookmarks = mergeArrayById(tb?.bookmarks||[], tm?.bookmarks||[], td?.bookmarks||[]);
+      mergedT.bookmarks = mergedTaskBookmarks.result;
+      autoMerged += mergedTaskBookmarks.changed;
+
       // Activity log: 3-way union
       // diskがactivityを持たない（フォーマット移行等）場合はtbをフォールバックに使用
       const baseActs = tb?.activity || [];
@@ -2835,26 +2858,37 @@ function threeWayMerge(base, mine, disk) {
 
         // memとdiskの両方に存在する場合：3-wayで解決
         if (inMem && inDisk) {
+          let winner;
           if (!inBase) {
             // 両者が同じIDで独立追加（稀）→ disk優先
-            mergedComments.push(diskComMap[id]);
-            return;
-          }
-          // baseとの差分を比較
-          const baseStr = JSON.stringify(baseComMap[id]);
-          const memStr  = JSON.stringify(memComMap[id]);
-          const diskStr = JSON.stringify(diskComMap[id]);
-          const memChanged  = memStr  !== baseStr;
-          const diskChanged = diskStr !== baseStr;
-
-          if (memChanged && !diskChanged) {
-            // Bだけが編集 → Bのバージョンを採用
-            mergedComments.push(memComMap[id]);
+            winner = diskComMap[id];
           } else {
-            // Diskが編集（またはどちらも変更なし、または両者が編集した場合はdisk優先）
-            mergedComments.push(diskComMap[id]);
+            // baseとの差分を比較
+            const baseStr = JSON.stringify(baseComMap[id]);
+            const memStr  = JSON.stringify(memComMap[id]);
+            const diskStr = JSON.stringify(diskComMap[id]);
+            const memChanged  = memStr  !== baseStr;
+            const diskChanged = diskStr !== baseStr;
+
+            if (memChanged && !diskChanged) {
+              // Bだけが編集 → Bのバージョンを採用
+              winner = memComMap[id];
+            } else {
+              // Diskが編集（またはどちらも変更なし、または両者が編集した場合はdisk優先）
+              winner = diskComMap[id];
+            }
           }
+          // コメントへのいいねは本文の勝者判定とは独立に3-wayマージ（取りこぼし防止）
+          const baseLikes = (inBase ? baseComMap[id].likes : null) || [];
+          const mergedCommentLikes = mergeArrayById(baseLikes, memComMap[id].likes || [], diskComMap[id].likes || []);
+          autoMerged += mergedCommentLikes.changed;
+          // コメントへのブックマークも同様に独立マージ
+          const baseBookmarks = (inBase ? baseComMap[id].bookmarks : null) || [];
+          const mergedCommentBookmarks = mergeArrayById(baseBookmarks, memComMap[id].bookmarks || [], diskComMap[id].bookmarks || []);
+          autoMerged += mergedCommentBookmarks.changed;
+          mergedComments.push({ ...winner, likes: mergedCommentLikes.result, bookmarks: mergedCommentBookmarks.result });
         }
+
         // inMem && !inDisk && !inBase は上の「B新規追加」で処理済み
       });
 
@@ -3336,15 +3370,19 @@ function _countMyTasks(myName) {
     n + (p.tasks||[]).filter(t => t.assignee === myName && t.status !== 'done').length, 0);
 }
 
-let _myTasksTab          = 'mention'; // 'mention' | 'task' | 'activity'
+let _myTasksTab          = 'mention'; // 'mention' | 'task' | 'activity' | 'like'
 let _myTasksSortCol      = 'dueDate';
 let _myTasksSortAsc      = true;
 let _myActivitySelDate   = null; // アクティビティタブの選択日付
 let _myActivityYear      = new Date().getFullYear(); // アクティビティヒートマップ表示年
+let _myLikesYear         = new Date().getFullYear(); // いいねタブ「受け取ったいいね」の表示年（カレンダー年）
+let _myLikesSection      = 'received'; // 'received' | 'liked' | 'bookmarks'
+let _myLikesProjFilter   = '';         // プロジェクトIDフィルタ（''=全て）
 
 function switchMyTasksTab(tab) {
   _myTasksTab = tab;
   if (tab !== 'activity') { _myActivitySelDate = null; _myActivityYear = new Date().getFullYear(); }
+  if (tab !== 'like') { _myLikesYear = new Date().getFullYear(); _myLikesSection = 'received'; _myLikesProjFilter = ''; }
   renderMyTasks();
   // タブボタンを除いたコンテンツ部分だけをフェードイン
   _viewFadeIn(document.getElementById('my-tasks-content'));
@@ -3391,6 +3429,9 @@ function renderMyTasks() {
       </div>
       <div class="my-tasks-tab${_myTasksTab==='activity'?' active':''}" onclick="switchMyTasksTab('activity')">
         📊 アクティビティ
+      </div>
+      <div class="my-tasks-tab${_myTasksTab==='like'?' active':''}" onclick="switchMyTasksTab('like')">
+        ${getLikeIcon()} いいね
       </div>
     </div>`;
 
@@ -3517,6 +3558,8 @@ function renderMyTasks() {
 
   } else if (_myTasksTab === 'activity') {
     contentHtml = _renderActivityTabContent(myName);
+  } else if (_myTasksTab === 'like') {
+    contentHtml = _renderLikesTabContent(myName);
   }
 
   body.innerHTML = tabsHtml + `<div id="my-tasks-content">${contentHtml}</div>`;
@@ -3798,9 +3841,218 @@ function _renderActivityTabContent(myName) {
 }
 // ── /アクティビティタブ ───────────────────────────────────────────
 
-// ビュー切り替え時のフェードインアニメーションをトリガーする
-// 表示直後に opacity:0 で即隠し → rAFでinline opacityを解除してアニメーション開始
-// （先に隠すことで display:block 後の一瞬の点灯＝ちらつきを防ぐ）
+// ── いいねタブ ─────────────────────────────────────────────────
+function changeLikesYear(delta) {
+  const thisYear = new Date().getFullYear();
+  _myLikesYear = Math.min(thisYear, _myLikesYear + delta);
+  renderMyTasks();
+}
+function switchLikesSection(section) {
+  _myLikesSection = section;
+  _myLikesProjFilter = '';
+  renderMyTasks();
+}
+function changeLikesProjFilter(val) {
+  _myLikesProjFilter = val;
+  renderMyTasks();
+}
+
+// likeのatをローカル日付基準の年（数値）に変換
+function _likeYearOf(iso) {
+  if (!iso) return null;
+  try { return parseInt(localDateStr(new Date(iso)).slice(0, 4), 10); } catch (e) { return null; }
+}
+
+// 受け取ったいいね・いいねした項目・ブックマークを全期間分収集
+function _buildLikeData(myName) {
+  const projects = state.data.projects || [];
+  const received  = [];
+  const likedBy   = []; // 自分がいいねした項目
+  const bookmarked = []; // 自分がブックマークした項目
+
+  projects.forEach(p => {
+    (p.tasks || []).forEach(t => {
+      // タスク自体へのいいね
+      (t.likes || []).forEach(l => {
+        if (t.creator === myName && l.id !== myName)
+          received.push({ project: p, task: t, comment: null, commentNo: null, likedBy: l.id, at: l.at });
+        if (l.id === myName)
+          likedBy.push({ project: p, task: t, comment: null, commentNo: null, at: l.at });
+      });
+      // タスク自体へのブックマーク
+      (t.bookmarks || []).forEach(b => {
+        if (b.id === myName)
+          bookmarked.push({ project: p, task: t, comment: null, commentNo: null, at: b.at });
+      });
+      // コメントへのいいね・ブックマーク
+      const sorted = [...(t.comments || [])].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      sorted.forEach((c, idx) => {
+        (c.likes || []).forEach(l => {
+          if (c.author === myName && l.id !== myName)
+            received.push({ project: p, task: t, comment: c, commentNo: idx + 1, likedBy: l.id, at: l.at });
+          if (l.id === myName)
+            likedBy.push({ project: p, task: t, comment: c, commentNo: idx + 1, at: l.at });
+        });
+        (c.bookmarks || []).forEach(b => {
+          if (b.id === myName)
+            bookmarked.push({ project: p, task: t, comment: c, commentNo: idx + 1, at: b.at });
+        });
+      });
+    });
+  });
+
+  received.sort((a, b) => b.at.localeCompare(a.at));
+  likedBy.sort((a, b) => b.at.localeCompare(a.at));
+  bookmarked.sort((a, b) => b.at.localeCompare(a.at));
+  return { received, likedBy, bookmarked };
+}
+
+function _renderLikesTabContent(myName) {
+  const { received, likedBy, bookmarked } = _buildLikeData(myName);
+  const SMAP = STATUSES.reduce((m, x) => ({ ...m, [x.id]: x }), {});
+  const likeIcon = getLikeIcon();
+  const bmIcon   = getBookmarkIcon();
+
+  // ── プロジェクト一覧（フィルタ用）──
+  const srcAll = _myLikesSection === 'received' ? received
+               : _myLikesSection === 'liked'    ? likedBy
+               : bookmarked;
+  const projIds   = [...new Set(srcAll.map(r => r.project.id))];
+  const projsInUse = projIds.map(id => (state.data.projects||[]).find(p => p.id === id)).filter(Boolean);
+
+  const projFilterHtml = projsInUse.length > 1
+    ? `<select onchange="changeLikesProjFilter(this.value)"
+         style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:12px;padding:4px 8px;border-radius:var(--radius);outline:none">
+         <option value="" ${_myLikesProjFilter===''?'selected':''}>全プロジェクト</option>
+         ${projsInUse.map(p=>`<option value="${p.id}" ${_myLikesProjFilter===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+       </select>`
+    : '';
+
+  // ── 年ナビ（受け取ったいいね選択時のみ）──
+  const thisYear   = new Date().getFullYear();
+  const year       = _myLikesYear;
+  const isThisYear = year === thisYear;
+  const dataYears  = received.map(r => _likeYearOf(r.at)).filter(y => y != null);
+  const minYear    = dataYears.length ? Math.min(thisYear, ...dataYears) : thisYear;
+  const canPrev    = year > minYear;
+  const canNext    = year < thisYear;
+  const bsty = en => `background:none;border:none;cursor:${en?'pointer':'default'};font-size:13px;color:${en?'var(--fg)':'var(--border2)'};padding:0 4px;line-height:1`;
+  const yearBadge  = isThisYear
+    ? `<span style="font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 5px;margin-left:4px;font-weight:600;vertical-align:middle">今年</span>`
+    : '';
+  const yearNavHtml = _myLikesSection === 'received'
+    ? `<div style="display:flex;align-items:center;gap:2px">
+         <button style="${bsty(canPrev)}" onclick="changeLikesYear(-1)" ${canPrev?'':'disabled'} title="前の年">&#x2190;</button>
+         <span style="font-size:12px;font-weight:700;color:var(--fg);font-family:'JetBrains Mono',monospace;min-width:3em;text-align:center">${year}年</span>${yearBadge}
+         <button style="${bsty(canNext)}" onclick="changeLikesYear(1)" ${canNext?'':'disabled'} title="次の年">&#x2192;</button>
+       </div>`
+    : '';
+
+  // ── 件数（フィルタ前）──
+  const cntReceived  = received.filter(r => _likeYearOf(r.at) === year).length;
+  const cntLiked     = likedBy.length;
+  const cntBookmarked = bookmarked.length;
+
+  // ── セクション選択用ヘルパー ──
+  const panelBg   = sel => sel ? 'var(--surface2)' : 'var(--surface)';
+  const numColor  = sel => sel ? 'var(--accent2)' : 'var(--fg)';
+
+  // ── 3分割サマリーバー ──
+  const summaryBar = `
+    <div style="display:flex;align-items:stretch;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px">
+      <div onclick="switchLikesSection('received')"
+           style="flex:1;padding:10px 14px;cursor:pointer;background:${panelBg(_myLikesSection==='received')};border-right:1px solid var(--border);transition:background .15s">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px">受け取った</div>
+        <div style="display:flex;align-items:baseline;gap:6px">
+          <span style="font-size:20px;font-weight:700;color:${numColor(_myLikesSection==='received')}">${cntReceived}</span>
+          <span style="font-size:11px;color:var(--muted)">${likeIcon} / ${year}年</span>
+        </div>
+      </div>
+      <div onclick="switchLikesSection('liked')"
+           style="flex:1;padding:10px 14px;cursor:pointer;background:${panelBg(_myLikesSection==='liked')};border-right:1px solid var(--border);transition:background .15s">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px">いいねした</div>
+        <div style="display:flex;align-items:baseline;gap:6px">
+          <span style="font-size:20px;font-weight:700;color:${numColor(_myLikesSection==='liked')}">${cntLiked}</span>
+          <span style="font-size:11px;color:var(--muted)">${likeIcon} 全期間</span>
+        </div>
+      </div>
+      <div onclick="switchLikesSection('bookmarks')"
+           style="flex:1;padding:10px 14px;cursor:pointer;background:${panelBg(_myLikesSection==='bookmarks')};transition:background .15s">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px">ブックマーク</div>
+        <div style="display:flex;align-items:baseline;gap:6px">
+          <span style="font-size:20px;font-weight:700;color:${numColor(_myLikesSection==='bookmarks')}">${cntBookmarked}</span>
+          <span style="font-size:11px;color:var(--muted)">${bmIcon} 全期間</span>
+        </div>
+      </div>
+    </div>`;
+
+  // ── フィルタ行 ──
+  const filterRow = (projFilterHtml || yearNavHtml)
+    ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+         ${projFilterHtml}
+         <div style="margin-left:auto">${yearNavHtml}</div>
+       </div>`
+    : '';
+
+  // ── アイテムカード ──
+  const itemCard = (item, showLikedBy) => {
+    const p = item.project, t = item.task, c = item.comment;
+    const s = SMAP[t.status] || SMAP['todo'];
+    const jump = c
+      ? `openProject('${p.id}');setTimeout(()=>{openTaskPanel('${t.id}');setTimeout(()=>scrollToComment(${item.commentNo}),300)},150)`
+      : `openProject('${p.id}');setTimeout(()=>openTaskPanel('${t.id}'),150)`;
+    const targetBadge = c
+      ? `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--surface3);color:var(--muted);padding:1px 6px;border-radius:3px">C${item.commentNo}</span>`
+      : '';
+    const snippet = c
+      ? `<div class="my-mention-text">${esc((c.text||'').slice(0,80))}${(c.text||'').length>80?'…':''}</div>`
+      : '';
+    const likedByBadge = showLikedBy
+      ? `<span style="font-size:11px;color:var(--muted)">👤 ${esc(item.likedBy)}</span>`
+      : '';
+    return `<div class="my-mention-card" onclick="${jump}">
+      <div class="my-mention-meta">
+        <span class="my-mention-proj" style="background:${p.color||'#4f8eff'}22;color:${p.color||'#4f8eff'}">${esc(p.name)}</span>
+        <span class="my-mention-task">#${t.number} ${esc(t.title)}</span>
+        ${targetBadge}
+        <span style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44;border-radius:10px;font-size:10px;font-weight:600;padding:1px 7px">${s.label}</span>
+        ${likedByBadge}
+        <span class="my-mention-date">${fmtDatetime(item.at)}</span>
+      </div>
+      ${snippet}
+    </div>`;
+  };
+
+  // ── フィルタ適用＆リスト生成 ──
+  let src;
+  if (_myLikesSection === 'received') {
+    src = received.filter(r => _likeYearOf(r.at) === year);
+  } else if (_myLikesSection === 'liked') {
+    src = likedBy;
+  } else {
+    src = bookmarked;
+  }
+  const filtered = src.filter(r => !_myLikesProjFilter || r.project.id === _myLikesProjFilter);
+  const showLikedBy = _myLikesSection === 'received';
+
+  const emptyMsg = _myLikesSection === 'received'
+    ? `${year}年に受け取った${likeIcon}はありません`
+    : _myLikesSection === 'liked'
+    ? `${likeIcon}した項目はありません`
+    : `${bmIcon}したタスク・コメントはありません`;
+
+  const listHtml = filtered.length
+    ? filtered.map(r => itemCard(r, showLikedBy)).join('')
+    : `<div style="text-align:center;padding:20px;font-size:12px;color:var(--muted)">${emptyMsg}</div>`;
+
+  const hasItems = filtered.length > 0;
+  const listContainer = `<div style="max-height:420px;overflow-y:auto;${hasItems?'':'border:1px solid var(--border);'}border-radius:var(--radius);padding:4px 0">${listHtml}</div>`;
+
+  return `${summaryBar}${filterRow}${listContainer}`;
+}
+// ── /いいねタブ ───────────────────────────────────────────────
+
+
 function _viewFadeIn(el) {
   if (!el) return;
   el.style.opacity = '0';
@@ -3826,6 +4078,138 @@ function showMyTasks() {
 // フォルダごとに「自分」の名前を分けるためのキー生成
 function _myNameKey() {
   return 'taskflow-my-name-' + (state.rootDirHandle?.name || '');
+}
+
+// ═══════════════════════════════════════
+// いいね機能
+// ═══════════════════════════════════════
+// 自分の名前（マイタスクで設定したもの）
+function getMyName() {
+  return localStorage.getItem(_myNameKey()) || '';
+}
+
+// いいねアイコン（将来的に設定画面から変更可能にする想定。未設定時は❤️）
+function getLikeIcon() {
+  return localStorage.getItem('taskflow-like-icon') || '❤️';
+}
+
+// likes配列に対して自分のいいねをトグル（配列を直接書き換える）
+function toggleLike(likes) {
+  const myName = getMyName();
+  const idx = likes.findIndex(l => l.id === myName);
+  if (idx >= 0) {
+    likes.splice(idx, 1);
+  } else {
+    likes.push({ id: myName, at: new Date().toISOString() });
+  }
+}
+
+// いいねボタンの中身（アイコン＋件数）のHTML
+function likeButtonInnerHtml(likes) {
+  const myName = getMyName();
+  const list = likes || [];
+  const liked = !!myName && list.some(l => l.id === myName);
+  const icon = getLikeIcon();
+  return `<span style="display:inline-block;${liked ? '' : 'opacity:.35;filter:grayscale(1)'}">${icon}</span>` +
+    (list.length > 0 ? `<span style="font-size:11px;font-weight:600">${list.length}</span>` : '');
+}
+
+// いいねボタンの表示を更新（アイコン・件数・いいね済み状態・ツールチップ）
+function renderLikeButton(elId, likes) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const myName = getMyName();
+  const list = likes || [];
+  const liked = !!myName && list.some(l => l.id === myName);
+  el.innerHTML = likeButtonInnerHtml(list);
+  el.classList.toggle('liked', liked);
+  el.title = likeTooltip(list);
+}
+
+function likeTooltip(likes) {
+  if (!likes || !likes.length) return 'いいね';
+  const names = [...likes].sort((a, b) => a.at.localeCompare(b.at)).map(l => l.id);
+  return `いいね (${names.length}): ${names.join(', ')}`;
+}
+
+// タスク自体へのいいねをトグル
+function toggleTaskLike() {
+  const t = getTask(state.currentProjectId, _panelTaskId); if (!t) return;
+  const myName = getMyName();
+  if (!myName) { toast('マイタスクで自分の名前を設定してください', 'error'); return; }
+  if (!t.likes) t.likes = [];
+  toggleLike(t.likes);
+  renderLikeButton('panel-like-btn', t.likes);
+  autoSave(state.currentProjectId, true);
+}
+
+// コメントへのいいねをトグル
+function toggleCommentLike(idx) {
+  const t = getTask(state.currentProjectId, _panelTaskId); if (!t) return;
+  const c = t.comments[idx]; if (!c) return;
+  const myName = getMyName();
+  if (!myName) { toast('マイタスクで自分の名前を設定してください', 'error'); return; }
+  if (!c.likes) c.likes = [];
+  toggleLike(c.likes);
+  renderLikeButton(`comment-like-btn-${idx}`, c.likes);
+  autoSave(state.currentProjectId, true);
+}
+
+// ═══════════════════════════════════════
+// ブックマーク機能（自分専用・他者には非表示）
+// ═══════════════════════════════════════
+function getBookmarkIcon() {
+  return localStorage.getItem('taskflow-bookmark-icon') || '🔖';
+}
+
+// bookmarks配列に対して自分のブックマークをトグル
+function toggleBookmark(bookmarks) {
+  const myName = getMyName();
+  const idx = bookmarks.findIndex(b => b.id === myName);
+  if (idx >= 0) { bookmarks.splice(idx, 1); }
+  else { bookmarks.push({ id: myName, at: new Date().toISOString() }); }
+}
+
+// ブックマークボタン内HTML（アイコンのみ・自分専用なので件数非表示）
+function bookmarkButtonInnerHtml(bookmarks) {
+  const myName = getMyName();
+  const bm = !!myName && (bookmarks || []).some(b => b.id === myName);
+  const icon = getBookmarkIcon();
+  return `<span style="display:inline-block;${bm ? '' : 'opacity:.3;filter:grayscale(1)'}">${icon}</span>`;
+}
+
+// ブックマークボタンの表示を更新
+function renderBookmarkButton(elId, bookmarks) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const myName = getMyName();
+  const bm = !!myName && (bookmarks || []).some(b => b.id === myName);
+  el.innerHTML = bookmarkButtonInnerHtml(bookmarks);
+  el.classList.toggle('bookmarked', bm);
+  el.title = bm ? 'ブックマーク済み（クリックで解除）' : 'ブックマーク';
+}
+
+// タスク自体へのブックマークをトグル
+function toggleTaskBookmark() {
+  const t = getTask(state.currentProjectId, _panelTaskId); if (!t) return;
+  const myName = getMyName();
+  if (!myName) { toast('マイタスクで自分の名前を設定してください', 'error'); return; }
+  if (!t.bookmarks) t.bookmarks = [];
+  toggleBookmark(t.bookmarks);
+  renderBookmarkButton('panel-bookmark-btn', t.bookmarks);
+  autoSave(state.currentProjectId, true);
+}
+
+// コメントへのブックマークをトグル
+function toggleCommentBookmark(idx) {
+  const t = getTask(state.currentProjectId, _panelTaskId); if (!t) return;
+  const c = t.comments[idx]; if (!c) return;
+  const myName = getMyName();
+  if (!myName) { toast('マイタスクで自分の名前を設定してください', 'error'); return; }
+  if (!c.bookmarks) c.bookmarks = [];
+  toggleBookmark(c.bookmarks);
+  renderBookmarkButton(`comment-bookmark-btn-${idx}`, c.bookmarks);
+  autoSave(state.currentProjectId, true);
 }
 
 // ── プロジェクト一覧フィルター設定の保存・復元 ────────────────────
@@ -5768,7 +6152,7 @@ function saveNewTask(){
   const labels = [...document.getElementById('tm-labels-display').querySelectorAll('[data-label]')].map(el=>el.dataset.label);
   const _creatorVal = document.getElementById('tm-creator').value.trim();
   const _createdAtTime = new Date().toISOString();
-  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours:0,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[]};
+  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours:0,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[],likes:[],bookmarks:[]};
   p.tasks.push(task);
   closeTaskModal(); autoSave(state.currentProjectId); renderCurrentView(); renderSidebar(); updateFilters();
   toast(`タスク #${task.number} を追加しました`,'success');
@@ -5809,6 +6193,10 @@ function _openTaskPanelInner(taskId){
   });
   if(!t.checklist) t.checklist=[];
   if(!t.activity)  t.activity=[];
+  if(!t.likes)     t.likes=[];
+  if(!t.bookmarks) t.bookmarks=[];
+  renderLikeButton('panel-like-btn', t.likes);
+  renderBookmarkButton('panel-bookmark-btn', t.bookmarks);
   updateFilters();
   // ── 前タスクの入力残留をクリア ────────────────────────────
   document.getElementById('panel-new-label').value = '';
@@ -6894,7 +7282,9 @@ function renderTimeline(t) {
             <span style="font-size:12px;font-weight:600;color:var(--text)">${esc(c.author||'匿名')}</span>
             <span class="activity-date">${fmtDatetime(c.createdAt)}</span>
             ${editedBadge}
-            <button onclick="copyCommentUrl(${commentNo})" title="このコメントのURLをコピー" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">🔗</button>
+            <button class="cmt-like-btn${(c.likes||[]).some(l=>l.id===getMyName())?' liked':''}" id="comment-like-btn-${i}" onclick="toggleCommentLike(${i})" title="${esc(likeTooltip(c.likes))}" style="margin-left:auto">${likeButtonInnerHtml(c.likes)}</button>
+            <button class="cmt-bookmark-btn${(c.bookmarks||[]).some(b=>b.id===getMyName())?' bookmarked':''}" id="comment-bookmark-btn-${i}" onclick="toggleCommentBookmark(${i})" title="ブックマーク">${bookmarkButtonInnerHtml(c.bookmarks)}</button>
+            <button onclick="copyCommentUrl(${commentNo})" title="このコメントのURLをコピー" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">🔗</button>
             <button onclick="startEditComment(${i})" title="編集" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">✏️</button>
             <button onclick="deleteComment(${i})" title="削除" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
           </div>
@@ -7036,7 +7426,7 @@ function addComment(){
   if(!text){toast('コメントを入力してください','error');return;}
   const t=getTask(state.currentProjectId,_panelTaskId); if(!t)return;
   if(!t.comments)t.comments=[];
-  const comment={id:uid(),author,text,createdAt:new Date().toISOString()};
+  const comment={id:uid(),author,text,createdAt:new Date().toISOString(),likes:[],bookmarks:[]};
   const estVal=parseFloat(document.getElementById('effort-estimated').value)||0;
   const actVal=parseFloat(document.getElementById('effort-actual').value)||0;
   if(estVal>0||actVal>0) comment.effortLog={estimated:estVal,actual:actVal};
