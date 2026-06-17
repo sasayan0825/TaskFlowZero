@@ -55,6 +55,22 @@
     '💬 メンション':                      '💬 Mentions',
     '📋 担当タスク':                      '📋 Assigned Tasks',
     '📊 アクティビティ':                  '📊 Activity',
+
+    // ── いいね・ブックマークタブ ─────────────────────────────
+    // タブボタン（getLikeIcon() の結果が先頭に付く動的文字列はregexで対応）
+    'いいね':                             'Likes',
+    'ブックマーク':                       'Bookmark',
+    // サマリーバー
+    '受け取った':                         'Received',
+    'いいねした':                         'Liked',
+    '全期間':                             'All time',
+    // フィルタ
+    '全プロジェクト':                     'All Projects',
+    // リスト空状態
+    'ブックマーク済み（クリックで解除）': 'Bookmarked (click to remove)',
+    // ツールチップ
+    'マイタスクで自分の名前を設定してください': 'Set your name in My Tasks first',
+
     'プロジェクト: 全て':                  'Project: All',
     '完了以外':                           'Excluding Done',
     'プロジェクト別実績':                 'Project Performance',
@@ -479,6 +495,19 @@
     // 汎用カウンター
     s = s.replace(/^(\d+)日$/, '$1 days');
     s = s.replace(/(\d+)件/g, '$1');
+
+    // ── いいね・ブックマーク ──────────────────────────────────
+    // マイタスクタブボタン「❤️ いいね」（アイコンは可変なので末尾の日本語部分を置換）
+    s = s.replace(/^(.+)\s+いいね$/, '$1 Likes');
+    // サマリーバーの件数ラベル「❤️ / 2025年」「❤️ 全期間」「🔖 全期間」
+    s = s.replace(/^(.+)\s+\/\s+(\d{4})年$/, '$1 / $2');
+    s = s.replace(/^(.+)\s+全期間$/, '$1 All time');
+    // いいねツールチップ「いいね (3): Alice, Bob」
+    s = s.replace(/^いいね \((\d+)\): (.+)$/, 'Liked ($1): $2');
+    // 空メッセージ
+    s = s.replace(/^(\d{4})年に受け取った(.+)はありません$/, 'No $2 received in $1');
+    s = s.replace(/^(.+)した項目はありません$/, 'No items $1d');
+    s = s.replace(/^(.+)したタスク・コメントはありません$/, 'No bookmarked tasks or comments');
 
     return s;
   }
