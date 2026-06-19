@@ -829,7 +829,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <span>🏠</span><span class="proj-name">すべてのプロジェクト</span>
       </div>
       <div class="sidebar-item" id="nav-my-tasks" onclick="showMyTasks()">
-        <span>👤</span><span class="proj-name">マイタスク</span>
+        <span id="my-tasks-icon">👤</span><span class="proj-name">マイタスク</span>
         <span class="sidebar-badge-wrap" id="my-tasks-badges" style="display:none">
           <span class="sb-badge-mention" id="my-mention-badge" style="display:none" title="メンション数">0</span>
           <span class="sb-badge-task"    id="my-task-badge"    style="display:none" title="担当タスク数">0</span>
@@ -850,7 +850,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
     <div id="my-tasks-view">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
         <div>
-          <div style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:700">👤 マイタスク</div>
+          <div style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:700;display:flex;align-items:center;gap:10px"><span id="my-tasks-header-icon">👤</span> マイタスク</div>
           <div style="font-size:13px;color:var(--muted);margin-top:4px">自分への通知・担当タスクを一覧表示</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -858,6 +858,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <select id="my-name-select" onchange="onMyNameChange()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:13px;padding:5px 10px;border-radius:var(--radius);outline:none;cursor:pointer">
             <option value="">-- 選択してください --</option>
           </select>
+          <button class="btn btn-secondary btn-sm" id="avatar-edit-btn" onclick="openAvatarModal()" title="アバター画像を設定" style="display:none">🖼</button>
         </div>
       </div>
       <div id="my-tasks-body"></div>
@@ -1443,6 +1444,40 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   </div>
 </div>
 
+<!-- AVATAR MODAL -->
+<div class="modal-overlay" id="avatar-modal">
+  <div class="modal" style="width:420px">
+    <div class="modal-title">🖼 アバター画像の設定</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:8px 0">
+      <!-- プレビュー -->
+      <div id="avatar-preview-wrap" style="width:96px;height:96px;border-radius:50%;overflow:hidden;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:var(--accent2);border:3px solid var(--border);flex-shrink:0">
+        <span id="avatar-preview-initials"></span>
+        <img id="avatar-preview-img" style="display:none;width:100%;height:100%;object-fit:cover" alt="preview">
+      </div>
+      <canvas id="avatar-canvas" style="display:none"></canvas>
+      <!-- ファイル選択 -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:100%">
+        <label id="avatar-drop-zone" for="avatar-file-input" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px;border:2px dashed var(--border);border-radius:var(--radius);cursor:pointer;width:100%;box-sizing:border-box;transition:border-color .2s"
+          ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+          ondragleave="this.style.borderColor=''"
+          ondrop="handleAvatarDrop(event)">
+          <span style="font-size:22px">📁</span>
+          <span style="font-size:13px;color:var(--muted)">画像をドロップ または クリックして選択</span>
+          <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="handleAvatarFileSelect(event)">
+        </label>
+        <span style="font-size:11px;color:var(--muted)">JPG / PNG / GIF · 推奨 200×200px 以上</span>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-danger btn-sm" id="avatar-delete-btn" onclick="deleteAvatar()" style="display:none">🗑 削除</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-secondary" onclick="closeModal('avatar-modal')">キャンセル</button>
+        <button class="btn btn-primary" id="avatar-save-btn" onclick="saveAvatarFromCanvas()" disabled>💾 保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- CONFLICT MODAL -->
 <div id="conflict-modal">
   <div id="conflict-box">
@@ -1488,6 +1523,7 @@ let state = {
   data: {version:3, format:'split', projects:[], nextProjectNum:1},
   currentProjectId: null,
   currentView: 'list',
+  avatars: {},           // { "名前": "data:image/webp;base64,..." }
 };
 // 3-way merge: BASE snapshot taken when file is loaded
 // let _baseSnapshot = null; // v2削除: _baseSnapshots (Map形式) を使用
@@ -2107,9 +2143,11 @@ async function createNewFile() {
     const dir = await window.showDirectoryPicker({ mode: 'readwrite' });
     state.rootDirHandle = dir;
     state.data = { version: 3, format: 'split', projects: [], nextProjectNum: 1 };
+    state.avatars = {};
     _baseSnapshots  = {};
     _dirtyProjects  = new Set();
     await saveHandleToIDB(dir);
+    await loadAvatars();
     initApp();
     toast('新規ファイルを作成しました', 'success');
   } catch(e) { if (e.name !== 'AbortError') toast('ファイルを作成できませんでした', 'error'); }
@@ -2149,6 +2187,7 @@ async function _loadFromRootDir(rootDir) {
   }
 
   await saveHandleToIDB(rootDir);
+  await loadAvatars();
   initApp();
 }
 
@@ -3241,6 +3280,43 @@ function getTaskProgress(t) {
 
 function getMilestone(p,mid){ return p?(p.milestones||[]).find(m=>m.id===mid):null; }
 function initials(n){ if(!n)return'?'; const p=n.trim().split(/\s+/); return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.slice(0,2).toUpperCase(); }
+
+// ── アバター画像ヘルパー ───────────────────────────────
+// className: 適用するCSSクラス（member-avatar / comment-avatar / assignee-avatar / mention-avatar）
+// extraStyle: 追加インラインスタイル文字列
+function avatarHtml(name, className='member-avatar', extraStyle='') {
+  const dataUrl = name && state.avatars && state.avatars[name];
+  if (dataUrl) {
+    return `<img class="${className}" src="${dataUrl}" title="${esc(name)}" style="object-fit:cover;${extraStyle}" alt="${esc(initials(name))}">`;
+  }
+  return `<div class="${className}" title="${esc(name)}" style="${extraStyle}">${initials(name||'?')}</div>`;
+}
+
+// avatars.json を読み込み state.avatars に反映
+async function loadAvatars() {
+  if (!state.rootDirHandle) return;
+  try {
+    const fh = await state.rootDirHandle.getFileHandle('avatars.json');
+    const text = await (await fh.getFile()).text();
+    const parsed = JSON.parse(text);
+    state.avatars = parsed.avatars || {};
+  } catch(e) {
+    state.avatars = {}; // ファイルなし or パースエラーは空でOK
+  }
+}
+
+// avatars.json を保存（state.avatarsの内容をそのまま書き出す）
+async function saveAvatars() {
+  if (!state.rootDirHandle) return;
+  try {
+    const fh = await state.rootDirHandle.getFileHandle('avatars.json', { create: true });
+    const w = await fh.createWritable();
+    await w.write(JSON.stringify({ version: 1, avatars: state.avatars }, null, 2));
+    await w.close();
+  } catch(e) {
+    toast('アバター画像の保存に失敗しました', 'error');
+  }
+}
 function getLabelColor(l){ const cs=['#4f8eff','#a78bfa','#22c55e','#fb923c','#f43f5e','#fbbf24','#14b8a6']; let h=0; for(let i=0;i<l.length;i++) h=l.charCodeAt(i)+((h<<5)-h); return cs[Math.abs(h)%cs.length]; }
 function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function dateToNum(d){ return d?new Date(d+'T00:00:00').getTime():null; }
@@ -3330,6 +3406,20 @@ function renderSidebar() {
   const badgeWrap    = document.getElementById('my-tasks-badges');
   const mentionBadge = document.getElementById('my-mention-badge');
   const taskBadge    = document.getElementById('my-task-badge');
+  // マイタスクアイコン: myName設定済みなら画像 or 頭文字アバター、未設定なら👤
+  const myTasksIcon = document.getElementById('my-tasks-icon');
+  if (myTasksIcon) {
+    if (myName) {
+      const dataUrl = state.avatars && state.avatars[myName];
+      if (dataUrl) {
+        myTasksIcon.outerHTML = `<img id="my-tasks-icon" src="${dataUrl}" class="member-avatar" style="width:18px;height:18px;margin:0;flex-shrink:0;border:none;object-fit:cover;cursor:pointer" onclick="showMyTasks()" alt="${esc(initials(myName))}">`;
+      } else {
+        myTasksIcon.outerHTML = `<div id="my-tasks-icon" class="member-avatar" style="width:18px;height:18px;font-size:8px;margin:0;flex-shrink:0;border:none;">${initials(myName)}</div>`;
+      }
+    } else {
+      myTasksIcon.outerHTML = `<span id="my-tasks-icon">👤</span>`;
+    }
+  }
   if (myName) {
     const mCount = _countMyMentions(myName);
     const tCount = _countMyTasks(myName);
@@ -3402,6 +3492,21 @@ function renderMyTasks() {
   const myName = (document.getElementById('my-name-select')?.value) ||
                  localStorage.getItem(_myNameKey()) || '';
   const body = document.getElementById('my-tasks-body');
+
+  // ヘッダーアイコン: myName設定済みなら画像 or 頭文字アバター、未設定なら👤
+  const headerIcon = document.getElementById('my-tasks-header-icon');
+  if (headerIcon) {
+    if (myName) {
+      const dataUrl = state.avatars && state.avatars[myName];
+      if (dataUrl) {
+        headerIcon.outerHTML = `<img id="my-tasks-header-icon" src="${dataUrl}" class="member-avatar" style="width:28px;height:28px;font-size:12px;margin:0;flex-shrink:0;border:none;object-fit:cover" alt="${esc(initials(myName))}">`;
+      } else {
+        headerIcon.outerHTML = `<div id="my-tasks-header-icon" class="member-avatar" style="width:28px;height:28px;font-size:12px;margin:0;flex-shrink:0;border:none;">${initials(myName)}</div>`;
+      }
+    } else {
+      headerIcon.outerHTML = `<span id="my-tasks-header-icon">👤</span>`;
+    }
+  }
 
   if (!myName) {
     body.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">上の「自分」で自分の名前を選択してください。</div>`;
@@ -4236,6 +4341,8 @@ function restoreProjectListSortPref() {
 function onMyNameChange() {
   const name = document.getElementById('my-name-select').value;
   try { localStorage.setItem(_myNameKey(), name); } catch(e) {}
+  const avatarBtn = document.getElementById('avatar-edit-btn');
+  if (avatarBtn) avatarBtn.style.display = name ? '' : 'none';
   renderSidebar();
   renderMyTasks();
 }
@@ -4248,6 +4355,112 @@ function _populateMyNameSelect() {
   const all = [...new Set([...members, ...assignees])].sort();
   sel.innerHTML = '<option value="">-- 選択してください --</option>' +
     all.map(n => `<option value="${esc(n)}"${n===saved?' selected':''}>${esc(n)}</option>`).join('');
+  const avatarBtn = document.getElementById('avatar-edit-btn');
+  if (avatarBtn) avatarBtn.style.display = saved ? '' : 'none';
+}
+
+// ── アバターモーダル ───────────────────────────────────
+let _avatarTargetName = '';     // 現在編集中のユーザー名
+let _avatarCroppedUrl = null;   // Canvas処理後のdata URL
+
+function openAvatarModal(targetName) {
+  _avatarTargetName = targetName || localStorage.getItem(_myNameKey()) || '';
+  if (!_avatarTargetName) return;
+  _avatarCroppedUrl = null;
+
+  // プレビューリセット
+  const initEl = document.getElementById('avatar-preview-initials');
+  const imgEl  = document.getElementById('avatar-preview-img');
+  const saveBtn = document.getElementById('avatar-save-btn');
+  const delBtn  = document.getElementById('avatar-delete-btn');
+
+  const existing = state.avatars[_avatarTargetName];
+  if (existing) {
+    imgEl.src = existing;
+    imgEl.style.display = 'block';
+    initEl.style.display = 'none';
+    delBtn.style.display = '';
+  } else {
+    imgEl.style.display = 'none';
+    imgEl.src = '';
+    initEl.textContent = initials(_avatarTargetName);
+    initEl.style.display = '';
+    delBtn.style.display = 'none';
+  }
+  saveBtn.disabled = true;
+
+  // ファイル入力リセット
+  document.getElementById('avatar-file-input').value = '';
+  openModal('avatar-modal');
+}
+
+function handleAvatarDrop(e) {
+  e.preventDefault();
+  document.getElementById('avatar-drop-zone').style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) _processAvatarFile(file);
+}
+
+function handleAvatarFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) _processAvatarFile(file);
+}
+
+function _processAvatarFile(file) {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      // 正方形中央トリミング → 200×200 WebP に圧縮
+      const size = 200;
+      const canvas = document.getElementById('avatar-canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width  - side) / 2;
+      const sy = (img.height - side) / 2;
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+
+      // プレビュー更新
+      _avatarCroppedUrl = canvas.toDataURL('image/webp', 0.85);
+      const previewImg = document.getElementById('avatar-preview-img');
+      previewImg.src = _avatarCroppedUrl;
+      previewImg.style.display = 'block';
+      document.getElementById('avatar-preview-initials').style.display = 'none';
+      document.getElementById('avatar-save-btn').disabled = false;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveAvatarFromCanvas() {
+  if (!_avatarCroppedUrl || !_avatarTargetName) return;
+  state.avatars[_avatarTargetName] = _avatarCroppedUrl;
+  await saveAvatars();
+  closeModal('avatar-modal', () => {
+    renderSidebar();
+    renderMyTasks();
+    // プロジェクト詳細が開いていれば再描画
+    if (state.currentProjectId) renderMain();
+    else renderProjectsList();
+    toast('アバター画像を保存しました', 'success');
+  });
+}
+
+async function deleteAvatar() {
+  if (!_avatarTargetName) return;
+  delete state.avatars[_avatarTargetName];
+  await saveAvatars();
+  closeModal('avatar-modal', () => {
+    renderSidebar();
+    renderMyTasks();
+    if (state.currentProjectId) renderMain();
+    else renderProjectsList();
+    toast('アバター画像を削除しました');
+  });
 }
 
 function showProjectsList() {
@@ -4342,7 +4555,7 @@ function renderProjectsList() {
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${p.color||'var(--green)'}"></div></div>
       </div>
       <div class="project-card-footer">
-        <div class="project-card-members">${(p.members||[]).slice(0,5).map(m=>`<div class="member-avatar" title="${esc(m)}">${initials(m)}</div>`).join('')}</div>
+        <div class="project-card-members">${(p.members||[]).slice(0,5).map(m=>avatarHtml(m,'member-avatar')).join('')}</div>
         <div class="project-date">${p.endDate?'期限: '+fmtFull(p.endDate):''}</div>
       </div>`;
     div.onclick = () => openProject(p.id);
@@ -4860,7 +5073,7 @@ function buildListRow(t) {
     ${clCell}
     <td><span class="status-badge" style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44">${s.label}</span></td>
     <td>
-      ${t.assignee?`<div style="display:flex;align-items:center;gap:6px"><div class="assignee-avatar">${initials(t.assignee)}</div><span style="font-size:12px">${esc(t.assignee)}</span></div>`:'<span style="color:var(--muted);font-size:12px">—</span>'}
+      ${t.assignee?`<div style="display:flex;align-items:center;gap:6px">${avatarHtml(t.assignee,'assignee-avatar')}<span style="font-size:12px">${esc(t.assignee)}</span></div>`:'<span style="color:var(--muted);font-size:12px">—</span>'}
     </td>
     <td class="sp-cell">${t.storyPoints>0?`<span style="background:rgba(79,142,255,.15);color:var(--accent);padding:1px 7px;border-radius:4px">${t.storyPoints}</span>`:'—'}</td>
     <td style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)">${t.estimatedHours>0?t.estimatedHours:'—'}</td>
@@ -6700,7 +6913,7 @@ function showMentionPopup(ta, candidates) {
   const popup = document.getElementById('mention-popup');
   popup.innerHTML = candidates.map((name, i) =>
     `<div class="mention-item${i===0?' active':''}" data-name="${esc(name)}" onmousedown="insertMention('${esc(name).replace(/'/g,"\\'")}')">
-      <div class="mention-avatar">${initials(name)}</div>
+      ${avatarHtml(name,'mention-avatar')}
       ${esc(name)}
     </div>`
   ).join('');
@@ -7275,7 +7488,7 @@ function renderTimeline(t) {
       })() : '';
       const editedBadge = c.editedAt ? `<span style="font-size:10px;color:var(--muted);font-style:italic">編集済み ${fmtDatetime(c.editedAt)}</span>` : '';
       return `<div class="activity-item" id="comment-anchor-${commentNo}">
-        <div class="activity-icon-col"><div class="comment-avatar" title="${esc(c.author||'匿名')}">${initials(c.author||'?')}</div></div>
+        <div class="activity-icon-col">${avatarHtml(c.author||'匿名','comment-avatar')}</div>
         <div class="activity-body">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
             <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);background:var(--surface3);padding:1px 6px;border-radius:3px">C${commentNo}</span>
