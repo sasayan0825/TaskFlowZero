@@ -416,6 +416,16 @@
     'タスク':                             'Task',
     '# プロジェクト概要\n\nここにWikiをMarkdownで記述してください。\n\n## 目的\n\n## アーキテクチャ\n\n## 開発環境のセットアップ':
       '# Project Overview\n\nWrite your Wiki in Markdown here.\n\n## Purpose\n\n## Architecture\n\n## Development Setup',
+
+    // ── アバター画像 ────────────────────────────────────────
+    'アバター画像を設定':                 'Set avatar image',
+    '🖼 アバター画像の設定':              '🖼 Set Avatar Image',
+    '画像をドロップ または クリックして選択': 'Drop image or click to select',
+    'JPG / PNG / GIF · 推奨 200×200px 以上': 'JPG / PNG / GIF · Recommended 200×200px or larger',
+    '🗑 削除':                            '🗑 Delete',
+    'アバター画像の保存に失敗しました':   'Failed to save avatar image',
+    'アバター画像を保存しました':         'Avatar image saved',
+    'アバター画像を削除しました':         'Avatar image deleted',
   };
 
   let _lang = 'ja';
