@@ -129,32 +129,45 @@
   }
 
   // ── モーダル表示 ─────────────────────────────────────────
-  function buildModal() {
-    var existing = document.getElementById('csv-export-modal');
-    if (existing) existing.remove();
-    var d = t();
-    var el = document.createElement('div');
-    el.id = 'csv-export-modal';
-    el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:3000';
-    el.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px 32px;width:400px;max-width:96vw">' +
-        '<div style="font-size:16px;font-weight:700;margin-bottom:20px">' + d.modalTitle + '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">' +
-          '<button class="btn btn-primary" id="csv-btn-current">' + d.btnCurrent + '</button>' +
-          '<button class="btn btn-secondary" id="csv-btn-all">' + d.btnAll + '</button>' +
-        '</div>' +
-        '<div style="font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.7;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px">' +
-          d.colsLine1 + '<br>' + d.colsLine2 + '<br>' + d.colsLine3 +
-        '</div>' +
-        '<div style="text-align:right"><button class="btn btn-secondary btn-sm" id="csv-btn-close">' + d.btnClose + '</button></div>' +
-      '</div>';
+  var MODAL_ID = 'csv-export-modal';
 
-    function hide() { el.remove(); }
-    el.querySelector('#csv-btn-current').addEventListener('click', function() { exportCurrentProject(); hide(); });
-    el.querySelector('#csv-btn-all').addEventListener('click', function() { exportAllProjects(); hide(); });
-    el.querySelector('#csv-btn-close').addEventListener('click', hide);
-    el.addEventListener('click', function(e) { if (e.target === el) hide(); });
-    document.body.appendChild(el);
+  function hideModal() { TaskFlow.closeModal(MODAL_ID); }
+
+  function buildModal() {
+    var d = t();
+
+    // 初回のみDOMを生成
+    if (!document.getElementById(MODAL_ID)) {
+      var overlay = document.createElement('div');
+      overlay.id = MODAL_ID;
+      overlay.className = 'modal-overlay';
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) hideModal(); });
+
+      var box = document.createElement('div');
+      box.className = 'modal';
+      box.style.cssText = 'width:400px';
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+
+    // 中身を毎回再構築（言語切り替え対応）
+    var box = document.querySelector('#' + MODAL_ID + ' .modal');
+    box.innerHTML =
+      '<div style="font-size:16px;font-weight:700;margin-bottom:20px">' + d.modalTitle + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">' +
+        '<button class="btn btn-primary" id="csv-btn-current">' + d.btnCurrent + '</button>' +
+        '<button class="btn btn-secondary" id="csv-btn-all">' + d.btnAll + '</button>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.7;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px">' +
+        d.colsLine1 + '<br>' + d.colsLine2 + '<br>' + d.colsLine3 +
+      '</div>' +
+      '<div style="text-align:right"><button class="btn btn-secondary btn-sm" id="csv-btn-close">' + d.btnClose + '</button></div>';
+
+    box.querySelector('#csv-btn-current').addEventListener('click', function() { exportCurrentProject(); hideModal(); });
+    box.querySelector('#csv-btn-all').addEventListener('click', function() { exportAllProjects(); hideModal(); });
+    box.querySelector('#csv-btn-close').addEventListener('click', hideModal);
+
+    TaskFlow.openModal(MODAL_ID);
   }
 
   // ── サイドバー登録 ────────────────────────────────────────
