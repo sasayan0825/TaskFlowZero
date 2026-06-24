@@ -8023,6 +8023,9 @@ window.TaskFlow = {
   renderSidebar:     () => renderSidebar(),
   openTaskPanel:     (tid) => openTaskPanel(tid),
   switchView:        (view) => switchView(view),
+  openModal:         (id) => openModal(id),
+  closeModal:        (id, cb) => closeModal(id, cb),
+  viewFadeIn:        (el) => _viewFadeIn(el),
 
   // ── タスク操作 ──
   createTask(projectId, fields) {
