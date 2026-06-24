@@ -608,6 +608,7 @@ html.light .color-swatch.selected{border-color:white;box-shadow:0 0 0 2px #1a223
 .project-card-members{display:flex}
 .member-avatar{width:24px;height:24px;border-radius:50%;background:var(--surface3);border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--accent2);margin-left:-6px}
 .member-avatar:first-child{margin-left:0}
+.member-avatar-more{width:24px;height:24px;border-radius:50%;background:var(--surface2);border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--muted);margin-left:-6px;flex-shrink:0}
 .project-date{font-size:11px;color:var(--muted)}
 .project-actions{position:absolute;top:12px;right:12px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
 .project-card:hover .project-actions{opacity:1}
@@ -4534,6 +4535,10 @@ function renderProjectsList() {
     const pct=tasks.length>0?Math.round(done/tasks.length*100):0;
     const totalPts=tasks.reduce((s,t)=>s+(t.storyPoints||0),0);
     const ms=(p.milestones||[]).length;
+    const _mbrs=p.members||[]; const _shown=_mbrs.slice(0,4); const _rest=_mbrs.length-_shown.length;
+    const membersHtml=_shown.map(m=>avatarHtml(m,'member-avatar')).join('')+(_rest>0?'<div class="member-avatar-more">+'+_rest+'</div>':'');
+    const pNumStyle='font-family:JetBrains Mono,monospace;font-size:10px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:1px 6px;border-radius:3px;font-weight:400';
+    const pNumHtml=p.number?'<span style="'+pNumStyle+'">P'+p.number+'</span>':'';
     const div=document.createElement('div');
     div.className='project-card'+(isArchived?' archived':'');
     div.innerHTML=`
@@ -4544,7 +4549,7 @@ function renderProjectsList() {
         <button class="icon-btn" title="${isArchived?'未完了に戻す':'完了にする'}" onclick="event.stopPropagation();toggleArchiveProject('${p.id}')">${isArchived?'♻️':'📦'}</button>
         <button class="icon-btn del" onclick="event.stopPropagation();deleteProject('${p.id}')">🗑</button>
       </div>
-      <div class="project-card-name" style="margin-top:${isArchived?'20px':'8px'};display:flex;align-items:center;gap:8px">${esc(p.name)}${p.number?`<span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:1px 6px;border-radius:3px;font-weight:400">P${p.number}</span>`:''}</div>
+      <div class="project-card-name" style="margin-top:${isArchived?'20px':'8px'};display:flex;align-items:center;gap:8px">${esc(p.name)}${pNumHtml}</div>
       <div class="project-card-desc">${esc(p.description||'')}</div>
       <div class="project-card-stats">
         <div class="stat-item"><div class="stat-val" style="color:${p.color||'#4f8eff'}">${tasks.length}</div><div class="stat-lbl">タスク</div></div>
@@ -4557,7 +4562,7 @@ function renderProjectsList() {
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${p.color||'var(--green)'}"></div></div>
       </div>
       <div class="project-card-footer">
-        <div class="project-card-members">${(p.members||[]).slice(0,5).map(m=>avatarHtml(m,'member-avatar')).join('')}</div>
+        <div class="project-card-members">${membersHtml}</div>
         <div class="project-date">${p.endDate?'期限: '+fmtFull(p.endDate):''}</div>
       </div>`;
     div.onclick = () => openProject(p.id);
