@@ -78,13 +78,16 @@
   }
 
   // ── 期限切れ一覧モーダルを表示 ───────────────────────────
+  var MODAL_ID = 'overdue-modal';
+
+  function closeOverdueModal() {
+    TaskFlow.closeModal(MODAL_ID);
+  }
+
   function showOverdueModal() {
     try {
       var allOverdue = getOverdueTasks();
       var today = localToday();
-
-      var existing = document.getElementById('overdue-modal');
-      if (existing) existing.remove();
 
       function daysOver(dueDate) {
         return Math.round(
@@ -92,17 +95,26 @@
         );
       }
 
-      var overlay = document.createElement('div');
-      overlay.id = 'overdue-modal';
-      overlay.style.cssText =
-        'position:fixed;inset:0;background:rgba(0,0,0,.5);' +
-        'display:flex;align-items:center;justify-content:center;z-index:3000';
+      // 既存モーダルがあれば再利用、なければ生成
+      var overlay = document.getElementById(MODAL_ID);
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = MODAL_ID;
+        overlay.className = 'modal-overlay';
+        overlay.addEventListener('click', function(e) {
+          if (e.target === overlay) closeOverdueModal();
+        });
 
-      var box = document.createElement('div');
-      box.style.cssText =
-        'background:var(--surface);border:1px solid var(--border);border-radius:12px;' +
-        'padding:24px 28px;width:440px;max-width:96vw;max-height:80vh;' +
-        'display:flex;flex-direction:column';
+        var box = document.createElement('div');
+        box.className = 'modal';
+        box.style.cssText = 'width:440px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;padding:24px 28px';
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+      }
+
+      // モーダル内容を毎回再構築
+      var box = overlay.querySelector('.modal');
+      box.innerHTML = '';
 
       // ヘッダー
       var header = document.createElement('div');
@@ -115,7 +127,7 @@
       var closeBtn = document.createElement('button');
       closeBtn.className = 'btn btn-secondary btn-sm';
       closeBtn.textContent = t().btnClose;
-      closeBtn.addEventListener('click', function() { overlay.remove(); });
+      closeBtn.addEventListener('click', closeOverdueModal);
 
       header.appendChild(titleEl);
       header.appendChild(closeBtn);
@@ -144,7 +156,7 @@
 
             (function(pid, tid) {
               row.addEventListener('click', function() {
-                overlay.remove();
+                closeOverdueModal();
                 openOverdueTask(pid, tid);
               });
             })(p.id, task.id);
@@ -183,9 +195,7 @@
       }
 
       box.appendChild(listWrap);
-      overlay.appendChild(box);
-      overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-      document.body.appendChild(overlay);
+      TaskFlow.openModal(MODAL_ID);
 
     } catch (e) {
       console.error('[plugin_overdue_badge] showOverdueModal error:', e);
