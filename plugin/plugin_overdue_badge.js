@@ -63,13 +63,15 @@
   function updateBadge() {
     try {
       var count = getOverdueTasks().length;
-      var label, color, weight;
+      var icon, label, color, weight;
       if (count === 0) {
-        label = t().noOverdue; color = 'var(--muted)'; weight = 'normal';
+        icon = '✅'; label = t().noOverdue.replace(/^✅\s*/, '');
+        color = 'var(--muted)'; weight = 'normal';
       } else {
-        label = t().overdue(count); color = 'var(--red)'; weight = '600';
+        icon = '⚠️'; label = t().overdue(count).replace(/^⚠️\s*/, '');
+        color = 'var(--red)'; weight = '600';
       }
-      TaskFlow.updateSidebarItem(ITEM_ID, label);
+      TaskFlow.updateSidebarItem(ITEM_ID, icon, label);
       var btn = document.getElementById('plugin-sidebar-' + ITEM_ID);
       if (btn) { btn.style.color = color; btn.style.fontWeight = weight; }
     } catch (e) {
@@ -254,7 +256,7 @@
     if (_initialized) return;
     _initialized = true;
 
-    TaskFlow.addSidebarItem({ id: ITEM_ID, label: t().counting, onclick: showOverdueModal });
+    TaskFlow.addSidebarItem({ id: ITEM_ID, icon: '⚠️', label: t().counting.replace(/^⚠️\s*/, ''), onclick: showOverdueModal });
     setTimeout(updateBadge, 50);
 
     TaskFlow.on('task-save',   updateBadge);
