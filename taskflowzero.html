@@ -162,8 +162,31 @@ body{font-family:'Noto Sans JP','Outfit',sans-serif;background:var(--bg);color:v
 
 /* LAYOUT */
 #app{display:flex;flex:1;overflow:hidden}
-#sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;position:relative}
+#sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;position:relative;transition:width .2s ease}
+#sidebar.collapsed{width:48px;overflow:hidden}
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* SIDEBAR TOGGLE BUTTON */
+#sidebar-toggle-btn{width:26px;height:26px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--muted);font-size:14px;display:flex;align-items:center;justify-content:center;z-index:10;transition:all .15s;flex-shrink:0}
+#sidebar-toggle-btn:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+/* 展開時: サイドバー右上に絶対配置（ナビ行と同じ高さに重ねる） */
+#sidebar-header-row{position:absolute;top:8px;right:8px;z-index:20}
+/* 折りたたみ時: 通常フロー先頭に配置して1段下げる */
+#sidebar.collapsed #sidebar-header-row{position:static;display:flex;justify-content:center;padding:8px 4px 4px}
+
+/* SIDEBAR COLLAPSED STATE */
+#sidebar.collapsed .sidebar-label{display:none}
+#sidebar.collapsed .sidebar-section{padding:8px 4px 4px}
+#sidebar.collapsed .sidebar-item .proj-name{display:none}
+#sidebar.collapsed .sidebar-item .task-count{display:none}
+#sidebar.collapsed .sidebar-item .mention-count{display:none}
+#sidebar.collapsed .sidebar-badge-wrap{display:none !important}
+#sidebar.collapsed .sidebar-item{justify-content:center;padding:8px 4px;gap:0}
+#sidebar.collapsed #btn-new-project{padding:8px 4px;font-size:0;letter-spacing:0}
+#sidebar.collapsed #btn-new-project::before{content:'＋';font-size:16px}
+#sidebar.collapsed #plugin-sidebar-items{padding:8px 4px}
+#sidebar.collapsed #plugin-sidebar-items .sidebar-item{justify-content:center;padding:8px 4px;gap:0;width:100%;box-sizing:border-box;overflow:hidden}
+#sidebar.collapsed #plugin-sidebar-items .sidebar-item-label{display:none !important}
 
 /* SIDEBAR */
 .sidebar-section{padding:16px 12px 8px}
@@ -275,19 +298,22 @@ button.filter-select:hover{background:var(--surface3)}
 .filter-search:focus{border-color:var(--accent)}
 
 /* ── LIST VIEW ── */
-#list-view{flex:1;overflow-y:auto;display:none}
-.list-header{display:flex;align-items:center;gap:0;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface2);position:sticky;top:0;z-index:11}
+#list-view{flex:1;overflow:hidden;display:none;flex-direction:column}
+#list-view-scroll-wrap{min-width:900px}
+.list-header{display:flex;align-items:center;gap:0;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface2);flex-shrink:0}
+.list-body-wrap{overflow:auto;flex:1}
+.list-body-inner{min-width:900px}
 .list-tab{padding:9px 14px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:6px}
 .list-tab:hover{color:var(--text)}
 .list-tab.active{color:var(--text);border-bottom-color:var(--accent)}
 .list-body{padding:0}
 .list-milestone-group{margin-bottom:0}
-.list-milestone-label{display:flex;align-items:center;gap:8px;padding:8px 24px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;z-index:10}
+.list-milestone-label{display:flex;align-items:center;gap:8px;padding:8px 24px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;user-select:none}
 .list-milestone-label:hover{background:var(--surface3)}
 .list-milestone-dot{width:8px;height:8px;border-radius:50%}
 .list-milestone-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-left:auto}
 .list-table{width:100%;border-collapse:collapse}
-.list-table th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:38px;z-index:9}
+.list-table th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:9}
 .list-table td{padding:9px 12px;border-bottom:1px solid rgba(42,53,80,.5);font-size:13px;vertical-align:middle}
 .list-table tr{cursor:pointer;transition:background .1s}
 .list-table tr:hover td{background:var(--surface2)}
@@ -403,6 +429,13 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 #panel-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:499;display:none;backdrop-filter:blur(2px)}
 #panel-backdrop.show{display:block}
 .panel-header{padding:14px 20px 14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+#panel-status-badge{position:relative}
+#panel-status-badge>span{cursor:pointer;user-select:none}
+#panel-status-badge>span:hover{opacity:.8}
+.status-popup{position:absolute;top:calc(100% + 6px);left:0;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:5px;display:flex;flex-direction:column;gap:3px;box-shadow:0 6px 20px rgba(0,0,0,.18);animation:statusPopIn .12s ease}
+@keyframes statusPopIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.status-popup-item{padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:opacity .1s}
+.status-popup-item:hover{opacity:.75}
 .panel-task-number{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)}
 .panel-url-copy{background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:11px;padding:3px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;transition:all .15s;white-space:nowrap}
 .panel-url-copy:hover{background:rgba(79,142,255,.12);border-color:rgba(79,142,255,.4);color:var(--accent)}
@@ -632,11 +665,13 @@ html.light .color-swatch.selected{border-color:white;box-shadow:0 0 0 2px #1a223
 .list-table colgroup col:nth-child(1){width:60px}
 .list-table colgroup col:nth-child(2){width:auto}
 .list-table colgroup col:nth-child(3){width:110px}
-.list-table colgroup col:nth-child(4){width:90px}
+.list-table colgroup col:nth-child(4){width:100px}
 .list-table colgroup col:nth-child(5){width:130px}
 .list-table colgroup col:nth-child(6){width:55px}
-.list-table colgroup col:nth-child(7){width:95px}
-.list-table colgroup col:nth-child(8){width:95px}
+.list-table colgroup col:nth-child(7){width:85px}
+.list-table colgroup col:nth-child(8){width:85px}
+.list-table colgroup col:nth-child(9){width:95px}
+.list-table colgroup col:nth-child(10){width:95px}
 .cl-progress-cell{vertical-align:middle}
 .cl-progress-mini{display:flex;flex-direction:column;gap:2px}
 .cl-progress-mini-bar{height:4px;background:var(--surface3);border-radius:2px;overflow:hidden}
@@ -826,6 +861,9 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 <div id="app" style="display:none">
   <!-- SIDEBAR -->
   <div id="sidebar">
+    <div id="sidebar-header-row">
+      <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="サイドバーを折りたたむ">‹</button>
+    </div>
     <div class="sidebar-section">
       <div class="sidebar-label">ナビゲーション</div>
       <div class="sidebar-item active" id="nav-all" onclick="showProjectsList()">
@@ -949,7 +987,11 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           </div>
           <div class="list-tab" id="ltab-all" onclick="setListTab('all')">全て</div>
         </div>
-        <div id="list-body"></div>
+        <div class="list-body-wrap">
+          <div class="list-body-inner">
+            <div id="list-body"></div>
+          </div>
+        </div>
       </div>
 
       <!-- KANBAN VIEW -->
@@ -1569,6 +1611,47 @@ function applyTheme(theme) {
     document.documentElement.classList.remove('light');
     document.getElementById('theme-toggle').textContent = '🌙 ダーク';
   }
+}
+function _initNavTooltips() {
+  const navItems = [
+    { id: 'nav-all',      label: 'すべてのプロジェクト' },
+    { id: 'nav-my-tasks', label: 'マイタスク' },
+  ];
+  navItems.forEach(function(item) {
+    const el = document.getElementById(item.id);
+    if (!el) return;
+    el.addEventListener('mouseenter', function(e) {
+      const sbEl = document.getElementById('sidebar');
+      if (sbEl && sbEl.classList.contains('collapsed')) {
+        _showSidebarTooltip(e, item.label);
+      }
+    });
+    el.addEventListener('mouseleave', _hideSidebarTooltip);
+  });
+}
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebar-toggle-btn');
+  const collapsed = sb.classList.toggle('collapsed');
+  btn.textContent = collapsed ? '›' : '‹';
+  btn.title = collapsed ? 'サイドバーを展開' : 'サイドバーを折りたたむ';
+  try { localStorage.setItem('taskflow-sidebar-collapsed', collapsed ? '1' : '0'); } catch(e) {}
+  // プラグインサイドバーのラベル表示を同期
+  document.querySelectorAll('#plugin-sidebar-items .sidebar-item-label').forEach(el => {
+    el.style.display = collapsed ? 'none' : '';
+  });
+}
+function restoreSidebarState() {
+  try {
+    const c = localStorage.getItem('taskflow-sidebar-collapsed');
+    if (c === '1') {
+      const sb = document.getElementById('sidebar');
+      const btn = document.getElementById('sidebar-toggle-btn');
+      sb.classList.add('collapsed');
+      btn.textContent = '›';
+      btn.title = 'サイドバーを展開';
+    }
+  } catch(e) {}
 }
 function toggleTheme() {
   const isLight = document.documentElement.classList.contains('light');
@@ -3219,6 +3302,8 @@ function initApp() {
   document.getElementById('file-dot').classList.add('connected');
   document.getElementById('file-name-display').textContent =
     state.rootDirHandle ? state.rootDirHandle.name : state.fileHandle.name;
+  restoreSidebarState();
+  _initNavTooltips();
 
   // Color pickers
   ['pm-colors','msf-colors'].forEach(id => {
@@ -3394,8 +3479,10 @@ function renderSidebar() {
     d.className = 'sidebar-item'+(p.id===state.currentProjectId?' active':'');
     d.innerHTML = `<div class="proj-dot" style="background:${p.color||'#4f8eff'}"></div><span class="proj-name">${esc(p.name)}</span><span class="task-count">${done}/${p.tasks.length}</span>`;
     d.addEventListener('mouseenter', e => {
+      const sbEl = document.getElementById('sidebar');
+      const isCollapsed = sbEl && sbEl.classList.contains('collapsed');
       const nameEl = d.querySelector('.proj-name');
-      if (nameEl && nameEl.scrollWidth > nameEl.clientWidth) _showSidebarTooltip(e, p.name);
+      if (isCollapsed || (nameEl && nameEl.scrollWidth > nameEl.clientWidth)) _showSidebarTooltip(e, p.name);
     });
     d.addEventListener('mouseleave', _hideSidebarTooltip);
     d.onclick = () => openProject(p.id);
@@ -3434,6 +3521,8 @@ function renderSidebar() {
   } else {
     badgeWrap.style.display = 'none';
   }
+  // プラグインサイドバーを再描画してspan構造を保証
+  if (typeof _renderPluginSidebarItems === 'function') _renderPluginSidebarItems();
 }
 
 // ═══════════════════════════════════════
@@ -4338,6 +4427,10 @@ function restoreProjectListSortPref() {
     const sort   = localStorage.getItem(_projListPrefKey('sort'));
     const sortEl = document.getElementById('proj-sort');
     if (sort && sortEl) sortEl.value = sort;
+    // 担当者フィルタ: showProjectsList時（初回表示）のみlocalStorageから復元
+    const member   = localStorage.getItem(_projListPrefKey('member'));
+    const memberEl = document.getElementById('proj-search-member');
+    if (member && memberEl) memberEl.dataset.restoreMember = member;
   } catch(e) {}
 }
 
@@ -4500,7 +4593,11 @@ function renderProjectsList() {
   // Populate member dropdown
   const memberSel = document.getElementById('proj-search-member');
   if (memberSel) {
-    const cur = memberSel.value || (() => { try { return localStorage.getItem(_projListPrefKey('member')) || ''; } catch(e) { return ''; } })();
+    // dataset.restoreMember がある場合（showProjectsList直後）はそれを使用、それ以外は現在のvalue
+    const cur = memberSel.dataset.restoreMember !== undefined
+      ? memberSel.dataset.restoreMember
+      : memberSel.value;
+    delete memberSel.dataset.restoreMember;
     const allMembers = [...new Set(state.data.projects.flatMap(p=>p.members||[]))].sort();
     memberSel.innerHTML = '<option value="">担当者: 全員</option>' +
       allMembers.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
@@ -4642,7 +4739,7 @@ function switchView(view) {
   // アクティブビューを表示
   const builtinEl = document.getElementById(view+'-view');
   if (builtinEl) {
-    builtinEl.style.display = view==='kanban'?'flex':view==='gantt'||view==='wiki'?'flex':'block';
+    builtinEl.style.display = view==='kanban'?'flex':view==='gantt'||view==='wiki'||view==='list'?'flex':'block';
     _viewFadeIn(builtinEl);
   } else {
     const customEl = document.getElementById('plugin-view-'+view);
@@ -6575,7 +6672,30 @@ function escapeRegExp(str) {
 function renderStatusBadge(status){
   const s=STATUSES.find(x=>x.id===status);
   const el=document.getElementById('panel-status-badge');
-  if(s) el.innerHTML=`<span style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600">${s.label}</span>`;
+  if(s) el.innerHTML=`<span style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600" onclick="toggleStatusPopup(event)">${s.label}</span>`;
+}
+function toggleStatusPopup(e){
+  e.stopPropagation();
+  const wrap=document.getElementById('panel-status-badge');
+  const existing=wrap.querySelector('.status-popup');
+  if(existing){existing.remove();return;}
+  const pop=document.createElement('div');
+  pop.className='status-popup';
+  STATUSES.forEach(s=>{
+    const item=document.createElement('div');
+    item.className='status-popup-item';
+    item.style.cssText=`background:${s.color}22;color:${s.color};border:1px solid ${s.color}44`;
+    item.textContent=s.label;
+    item.onclick=(ev)=>{
+      ev.stopPropagation();
+      document.getElementById('panel-status').value=s.id;
+      onPanelStatusChange();
+      pop.remove();
+    };
+    pop.appendChild(item);
+  });
+  wrap.appendChild(pop);
+  setTimeout(()=>document.addEventListener('click',function h(){pop.remove();document.removeEventListener('click',h);},{once:true}),0);
 }
 function onPanelStatusChange(){
   panelDirty=true;
@@ -8121,11 +8241,35 @@ window.TaskFlow = {
     _renderPluginSidebarItems();
   },
   // ボタンのラベルを動的に更新する（updateBadge等で使用）
-  updateSidebarItem(id, label) {
+  updateSidebarItem(id, iconOrLabel, label) {
+    // 引数形式: (id, label) 旧形式 / (id, icon, label) 新形式
+    let icon, labelText;
+    if (label === undefined) {
+      // 旧形式: (id, label) → iconは既存のまま
+      labelText = iconOrLabel;
+      icon = null;
+    } else {
+      icon = iconOrLabel;
+      labelText = label;
+    }
     const def = this._sidebarItems.find(function(d){ return d.id === id; });
-    if (def) def.label = label;
+    if (def) {
+      def.label = labelText;
+      if (icon !== null) def.icon = icon;
+    }
     const btn = document.getElementById('plugin-sidebar-' + id);
-    if (btn) btn.textContent = label;
+    if (btn) {
+      let labelSpan = btn.querySelector('.sidebar-item-label');
+      let iconSpan  = btn.querySelector('.sidebar-item-icon');
+      if (!labelSpan) {
+        _renderPluginSidebarItems();
+        const btn2 = document.getElementById('plugin-sidebar-' + id);
+        labelSpan = btn2 && btn2.querySelector('.sidebar-item-label');
+        iconSpan  = btn2 && btn2.querySelector('.sidebar-item-icon');
+      }
+      if (labelSpan) labelSpan.textContent = labelText;
+      if (iconSpan && icon !== null) iconSpan.textContent = icon;
+    }
   },
 };
 
@@ -8142,13 +8286,57 @@ function _renderPluginSidebarItems() {
   // innerHTML ではなく DOM操作で生成し onclick を addEventListener で確実に登録する
   // （innerHTML のonclick属性文字列は評価タイミングが不安定なため）
   wrap.innerHTML = '';
+  const sb = document.getElementById('sidebar');
+  const collapsed = sb && sb.classList.contains('collapsed');
   window.TaskFlow._sidebarItems.forEach(function(def) {
     const btn = document.createElement('button');
     btn.className = 'sidebar-item';
     btn.style.cssText = 'width:100%;text-align:left;background:none;border:none;cursor:pointer;' +
-      'color:var(--text);font-family:inherit;font-size:13px;padding:8px 16px;border-radius:var(--radius)';
+      'color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;border-radius:var(--radius);display:flex;align-items:center;gap:8px;box-sizing:border-box';
     btn.id = 'plugin-sidebar-' + def.id;
-    btn.textContent = def.label;
+    // def.icon が明示されていればそれを使用、なければラベルから分離
+    const labelStr = def.label || '';
+    let iconPart, textPart;
+    if (def.icon !== undefined && def.icon !== null) {
+      iconPart = def.icon;
+      textPart = labelStr;
+    } else {
+      const iconMatch = labelStr.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic}|[^\w\s])\s*/u);
+      if (iconMatch) {
+        iconPart = iconMatch[0].trim();
+        textPart = labelStr.slice(iconMatch[0].length);
+      } else {
+        // 絵文字なし → 先頭1文字をアイコン代わりに使用
+        iconPart = labelStr.charAt(0);
+        textPart = labelStr.slice(1).trimStart();
+      }
+    }
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'sidebar-item-icon';
+    iconSpan.textContent = iconPart;
+    iconSpan.style.cssText = 'flex-shrink:0;font-size:14px';
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'sidebar-item-label';
+    labelSpan.textContent = textPart || labelStr;
+    labelSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+    btn.appendChild(iconSpan);
+    btn.appendChild(labelSpan);
+    // collapsed状態の初期表示
+    const sbEl2 = document.getElementById('sidebar');
+    if (sbEl2 && sbEl2.classList.contains('collapsed')) {
+      labelSpan.style.display = 'none';
+    }
+    // ツールチップのフルテキスト（icon + label）
+    const tooltipText = iconPart ? iconPart + ' ' + (textPart || labelStr) : labelStr;
+    // ツールチップ（折りたたみ時 or テキストが切れているとき）
+    btn.addEventListener('mouseenter', function(e) {
+      const sbEl = document.getElementById('sidebar');
+      const isCollapsed = sbEl && sbEl.classList.contains('collapsed');
+      if (isCollapsed || labelSpan.scrollWidth > labelSpan.clientWidth) {
+        _showSidebarTooltip(e, tooltipText);
+      }
+    });
+    btn.addEventListener('mouseleave', _hideSidebarTooltip);
     btn.addEventListener('click', (function(d) {
       return function() {
         try { if (d.onclick) d.onclick(); }
