@@ -417,6 +417,16 @@
     '# プロジェクト概要\n\nここにWikiをMarkdownで記述してください。\n\n## 目的\n\n## アーキテクチャ\n\n## 開発環境のセットアップ':
       '# Project Overview\n\nWrite your Wiki in Markdown here.\n\n## Purpose\n\n## Architecture\n\n## Development Setup',
 
+    // ── サイドバー折りたたみ ─────────────────────────────────
+    'サイドバーを折りたたむ':             'Collapse sidebar',
+    'サイドバーを展開':                   'Expand sidebar',
+
+    // ── 担当者名変更 ─────────────────────────────────────────
+    '担当者名を変更':                     'Rename assignee',
+    '✏️ 名前変更':                        '✏️ Rename',
+    '名前が選択されていません':           'No name selected',
+    '名前が変わっていません':             'Name is unchanged',
+
     // ── アバター画像 ────────────────────────────────────────
     'アバター画像を設定':                 'Set avatar image',
     '🖼 アバター画像の設定':              '🖼 Set Avatar Image',
@@ -468,6 +478,10 @@
     s = s.replace(/^「(.+)」を削除しますか？$/, 'Delete "$1"?');
     s = s.replace(/^"(.+)" をプラグインリストから削除しますか？\n（JSファイルは削除されません）$/, 'Remove "$1" from plugin list?\n(JS file will not be deleted)');
     
+    s = s.replace(/^「(.+)」はすでに存在します。別の名前を入力してください$/, '"$1" already exists. Please enter a different name');
+    s = s.replace(/^「(.+)」→「(.+)」に変更しました（(\d+)件のプロジェクトを更新）$/, 'Renamed "$1" → "$2" ($3 projects updated)');
+    s = s.replace(/^「(.+)」を新しい名前に変更します。\n新しい名前を入力してください:$/, 'Rename "$1" to a new name.\nEnter a new name:');
+
     // UI コンテンツ関連
     s = s.replace(/完了済みプロジェクト（(\d+)件）/g, 'Archived Projects ($1)');
     s = s.replace(/(\d+) 進行中 \/ (\d+) 完了/g, '$1 Active / $2 Archived');
