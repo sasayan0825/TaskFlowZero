@@ -900,6 +900,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <option value="">-- 選択してください --</option>
           </select>
           <button class="btn btn-secondary btn-sm" id="avatar-edit-btn" onclick="openAvatarModal()" title="アバター画像を設定" style="display:none">🖼</button>
+          <button class="btn btn-secondary btn-sm" id="rename-name-btn" onclick="renameMyName()" title="担当者名を変更" style="display:none">✏️ 名前変更</button>
         </div>
       </div>
       <div id="my-tasks-body"></div>
@@ -4439,8 +4440,107 @@ function onMyNameChange() {
   try { localStorage.setItem(_myNameKey(), name); } catch(e) {}
   const avatarBtn = document.getElementById('avatar-edit-btn');
   if (avatarBtn) avatarBtn.style.display = name ? '' : 'none';
+  const renameBtn = document.getElementById('rename-name-btn');
+  if (renameBtn) renameBtn.style.display = name ? '' : 'none';
   renderSidebar();
   renderMyTasks();
+}
+
+// 担当者名の一括変更
+function renameMyName() {
+  const oldName = localStorage.getItem(_myNameKey()) || '';
+  if (!oldName) { toast('名前が選択されていません', 'error'); return; }
+
+  const newName = prompt(`「${oldName}」を新しい名前に変更します。\n新しい名前を入力してください:`, oldName);
+  if (newName === null) return; // キャンセル
+  const trimmed = newName.trim();
+  if (!trimmed) { toast('名前を入力してください', 'error'); return; }
+  if (trimmed === oldName) { toast('名前が変わっていません', 'error'); return; }
+
+  // 重複チェック
+  const allMembers  = (state.data.projects || []).flatMap(p => p.members || []);
+  const allAssignees = (state.data.projects || []).flatMap(p => (p.tasks||[]).map(t=>t.assignee).filter(Boolean));
+  const allNames = new Set([...allMembers, ...allAssignees]);
+  if (allNames.has(trimmed)) {
+    toast(`「${trimmed}」はすでに存在します。別の名前を入力してください`, 'error');
+    return;
+  }
+
+  // 全プロジェクトJSONの一括置換
+  const dirtyPids = new Set();
+  (state.data.projects || []).forEach(p => {
+    let dirty = false;
+
+    // members 配列
+    if (p.members) {
+      p.members = p.members.map(m => { if (m === oldName) { dirty = true; return trimmed; } return m; });
+    }
+
+    // tasks
+    (p.tasks || []).forEach(t => {
+      if (t.assignee === oldName) { t.assignee = trimmed; dirty = true; }
+      if (t.creator  === oldName) { t.creator  = trimmed; dirty = true; }
+
+      // likes / bookmarks on task
+      (t.likes      || []).forEach(l => { if (l.id === oldName) { l.id = trimmed; dirty = true; } });
+      (t.bookmarks  || []).forEach(b => { if (b.id === oldName) { b.id = trimmed; dirty = true; } });
+
+      // comments
+      (t.comments || []).forEach(c => {
+        if (c.author === oldName) { c.author = trimmed; dirty = true; }
+        (c.likes     || []).forEach(l => { if (l.id === oldName) { l.id = trimmed; dirty = true; } });
+        (c.bookmarks || []).forEach(b => { if (b.id === oldName) { b.id = trimmed; dirty = true; } });
+        // @メンションをテキスト内で置換
+        if (c.text && c.text.includes(`@${oldName}`)) {
+          c.text = c.text.split(`@${oldName}`).join(`@${trimmed}`);
+          dirty = true;
+        }
+      });
+
+      // checklist activities
+      (t.activities || []).forEach(a => {
+        if (a.by === oldName) { a.by = trimmed; dirty = true; }
+      });
+
+      // description 内の @メンション
+      if (t.description && t.description.includes(`@${oldName}`)) {
+        t.description = t.description.split(`@${oldName}`).join(`@${trimmed}`);
+        dirty = true;
+      }
+    });
+
+    if (dirty) dirtyPids.add(p.id);
+  });
+
+  // avatars キーを移行
+  if (state.avatars && state.avatars[oldName] !== undefined) {
+    state.avatars[trimmed] = state.avatars[oldName];
+    delete state.avatars[oldName];
+  }
+
+  // localStorage の自分の名前を更新
+  try { localStorage.setItem(_myNameKey(), trimmed); } catch(e) {}
+
+  // dirty なプロジェクトを保存
+  dirtyPids.forEach(pid => autoSave(pid, true));
+
+  // avatars.json も保存
+  if (state.rootDirHandle && state.avatars) {
+    (async () => {
+      try {
+        const fh = await state.rootDirHandle.getFileHandle('avatars.json', { create: true });
+        const w  = await fh.createWritable();
+        await w.write(JSON.stringify(state.avatars));
+        await w.close();
+      } catch(e) { console.warn('avatars.json save failed:', e); }
+    })();
+  }
+
+  // UI 更新
+  _populateMyNameSelect();
+  renderSidebar();
+  renderMyTasks();
+  toast(`「${oldName}」→「${trimmed}」に変更しました（${dirtyPids.size}件のプロジェクトを更新）`, 'success');
 }
 
 function _populateMyNameSelect() {
@@ -4453,6 +4553,8 @@ function _populateMyNameSelect() {
     all.map(n => `<option value="${esc(n)}"${n===saved?' selected':''}>${esc(n)}</option>`).join('');
   const avatarBtn = document.getElementById('avatar-edit-btn');
   if (avatarBtn) avatarBtn.style.display = saved ? '' : 'none';
+  const renameBtn = document.getElementById('rename-name-btn');
+  if (renameBtn) renameBtn.style.display = saved ? '' : 'none';
 }
 
 // ── アバターモーダル ───────────────────────────────────
