@@ -12,6 +12,7 @@
      4-3. タスク操作
      4-4. イベントシステム
      4-5. UIフック
+     4-6. プラグイン管理API（メタ情報・設定）★新規
   5. データスキーマ
      5-1. プロジェクト
      5-2. マイルストーン
@@ -45,6 +46,10 @@
   - 外部サービスと連携する（fetch API 経由）
   - ページ全体の DOM を操作する（翻訳プラグイン等）
   - 言語切り替えプラグイン（plugin_lang.js）に追随して表示を切り替える
+  - 設定画面にプラグイン名・説明・バージョンを表示する ★新規
+  - 設定画面でプラグインごとの設定項目を定義・編集できる ★新規
+  - 設定値を API 経由で読み取って動作に反映できる ★新規
+  - 設定画面でプラグインの有効/無効を切り替える ★新規
 
 【現在制約があること ⚠️】
   - addProjectSettingTab API はあるがモーダル側描画が未実装
@@ -61,8 +66,9 @@ taskflowzero.html は起動時に以下の順序で動作します。
   2. plugin/plugins.js を <script> タグで読み込む
   3. plugins.js が PLUGINS リストを順に読み込む
      （ファイルが存在しない場合は静かにスキップ）
+     ※ 設定画面で無効化されたプラグインは PLUGINS から除外されます
   4. ユーザーがフォルダを選択 or 「前回のフォルダを開く」を押す
-  5. フォルダ内の project_P*.json を読み込んで initApp() が実行される
+  5. フォルダ内の project_P*.json・settings.json を読み込んで initApp() が実行される
   6. initApp() 完了後に「taskflow-ready」イベントを発火
   7. 以降はユーザー操作に応じてイベントが発火
 
@@ -90,7 +96,8 @@ taskflowzero.html は起動時に以下の順序で動作します。
   共有フォルダ/
   ├── project_P1.json   ← プロジェクト 1 のデータ全体
   ├── project_P2.json   ← プロジェクト 2 のデータ全体
-  └── project_P3.json
+  ├── project_P3.json
+  └── settings.json     ← アプリ全体設定（プラグイン有効/無効・個別設定含む）
 
   プラグインからファイルに直接アクセスする必要はありません。
   すべてのデータは TaskFlow API 経由で読み書きしてください。
@@ -106,6 +113,16 @@ taskflowzero.html は起動時に以下の順序で動作します。
 
 (function () {
   'use strict';
+
+  // メタ情報を登録（設定画面に表示される）
+  if (typeof TaskFlow !== 'undefined' && typeof TaskFlow.registerPlugin === 'function') {
+    TaskFlow.registerPlugin({
+      id:          'hello',
+      name:        'Hello World',
+      description: 'サンプルプラグイン。サイドバーにボタンを表示します。',
+      version:     '1.0.0',
+    });
+  }
 
   function init() {
     // サイドバーにボタンを追加
@@ -134,7 +151,7 @@ taskflowzero.html は起動時に以下の順序で動作します。
 })();
 --------------------------------------------------------------------------------
 
-保存したらプラグイン管理UI（🔌 ボタン）からインストールします（7章参照）。
+保存したらプラグイン管理UI（設定画面 → プラグイン）からインストールします（7章参照）。
 
 ================================================================================
 4. 公開API リファレンス
@@ -152,6 +169,7 @@ TaskFlow.getState()
         state.data にすべてのプロジェクト・タスクデータが含まれます。
         state.currentProjectId で現在選択中のプロジェクトIDが分かります。
         state.currentView で現在のビュー名が分かります。
+        state.settings で settings.json の内容（プラグイン設定含む）が分かります。
 
 TaskFlow.getData()
   戻り値: { version, projects: Project[], nextProjectNum }
@@ -188,7 +206,7 @@ TaskFlow.getCurrentView()
 
 TaskFlow.toast(message, type)
   引数: message (string)
-        type (string, 省略可) - '' | 'success' | 'error'
+        type (string, 省略可) - '' | 'success' | 'error' | 'warn'
   説明: 画面下部にトースト通知を表示します（2.8秒で自動消去）。
 
 TaskFlow.autoSave(pid)
@@ -347,10 +365,13 @@ TaskFlow.addSidebarItem(def)
       onclick: function() { /* 処理 */ }
     });
 
-TaskFlow.updateSidebarItem(id, label)
-  引数: id (string), label (string)
-  説明: サイドバーアイテムのラベルを動的に更新します。
-        期限切れバッジ等、カウントを表示したい場合に使います。
+TaskFlow.updateSidebarItem(id, icon, label)
+  引数: id (string), icon (string), label (string)
+  説明: サイドバーアイテムのアイコン・ラベルを動的に更新します。
+        旧形式 updateSidebarItem(id, label) も引き続き使えます。
+
+  例）
+    TaskFlow.updateSidebarItem('overdue-badge', '⚠️', '期限切れ 3件');
 
 TaskFlow.addViewTab(def)
   引数: def オブジェクト
@@ -360,8 +381,6 @@ TaskFlow.addViewTab(def)
   説明: リスト/カンバン等と並列にカスタムビュータブを追加します。
         タブ切り替え時・プロジェクト切り替え時に render() が呼ばれます。
         render() は HTML文字列を return するか、container を直接操作します。
-        カスタムビュー表示中はフィルターバーが非表示になります。
-        ビューエリアは flex:1 / overflow-y:auto で自動スクロールします。
 
   例）
     TaskFlow.addViewTab({
@@ -383,6 +402,124 @@ TaskFlow.addProjectSettingTab(def)
         onSave はプロジェクト保存時に呼ばれます。
   ※ モーダルのタブUI描画は未実装です。タブボタンはDOM操作で追加してください。
 
+────────────────────────────────────────
+4-6. プラグイン管理API（メタ情報・設定） ★新規
+────────────────────────────────────────
+
+【概要】
+設定画面（サイドバー「⚙️ 設定」→「プラグイン」）に、プラグイン名・説明・
+バージョン・個別設定を表示・編集できる仕組みです。
+
+プラグインのロード時（IIFE の先頭）に TaskFlow.registerPlugin() を呼ぶことで
+設定画面にメタ情報が表示されます。設定値は settings.json に保存され、
+TaskFlow.getPluginConfig() でいつでも取得できます。
+
+
+TaskFlow.registerPlugin(def)
+  引数: def オブジェクト
+    id          (string, 必須) - ユニークなID（他プラグインと衝突しないこと）
+    name        (string, 必須) - 設定画面に表示するプラグイン名
+    description (string, 省略可) - 説明文
+    version     (string, 省略可) - バージョン文字列 例: '1.0.0'
+    settings    (array,  省略可) - 設定項目の定義（後述）
+
+  settings 配列の各要素:
+    key         (string, 必須) - 設定値のキー名
+    label       (string, 必須) - 設定画面に表示するラベル
+    type        (string, 必須) - 'boolean' | 'number' | 'string' | 'select'
+    default     (any,    必須) - デフォルト値
+    description (string, 省略可) - 補足説明（設定項目の下に小さく表示）
+    options     (array,  type='select'のとき必須)
+                - 文字列配列 ['値1', '値2']
+                  またはオブジェクト配列 [{value:'v', label:'表示名'}, ...]
+
+  呼び出し時期: IIFE の先頭（taskflow-ready イベントより前）で呼ぶこと。
+                TaskFlow オブジェクトが存在しない古いバージョンでの
+                後方互換ガードを入れることを強く推奨します。
+
+  例）
+    if (typeof TaskFlow !== 'undefined' && typeof TaskFlow.registerPlugin === 'function') {
+      TaskFlow.registerPlugin({
+        id:          'my-plugin',
+        name:        'マイプラグイン',
+        description: 'このプラグインの説明をここに書きます。',
+        version:     '1.0.0',
+        settings: [
+          {
+            key:     'enabled',
+            label:   '有効にする',
+            type:    'boolean',
+            default: true,
+          },
+          {
+            key:         'maxItems',
+            label:       '最大表示件数',
+            description: '0 にすると無制限',
+            type:        'number',
+            default:     10,
+          },
+          {
+            key:     'mode',
+            label:   '表示モード',
+            type:    'select',
+            default: 'compact',
+            options: [
+              { value: 'compact', label: 'コンパクト' },
+              { value: 'full',    label: 'フル表示'   },
+            ],
+          },
+        ],
+      });
+    }
+
+
+TaskFlow.getPluginConfig(pluginId)
+  引数: pluginId (string) - registerPlugin() で登録した id
+  戻り値: object - { key: value, ... }
+  説明: settings.json に保存されたプラグイン設定値を取得します。
+        settings.json に値がない場合は、settings 配列の default 値を返します。
+        つまり「デフォルト値 + ユーザーが変更した値」のマージ結果を返します。
+
+  呼び出し時期: taskflow-ready 以降（settings.json が読み込まれた後）。
+                settings.json 読み込み前に呼ぶと default 値のみ返します。
+
+  後方互換ガードの例:
+    function getCfg() {
+      var defaults = { enabled: true, maxItems: 10, mode: 'compact' };
+      if (typeof TaskFlow !== 'undefined' && typeof TaskFlow.getPluginConfig === 'function') {
+        return Object.assign({}, defaults, TaskFlow.getPluginConfig('my-plugin'));
+      }
+      return defaults;
+    }
+
+
+【設定値が反映されるタイミング】
+  設定画面でユーザーが値を変更・保存すると settings.json に書き込まれます。
+  プラグイン側が getPluginConfig() を「使うたびに」呼んでいれば、
+  次にその処理が走ったときから新しい値が使われます。
+  ただしページリロードを必要とする設定（有効/無効など）は
+  設定画面に「リロードで反映」と表示されます。
+
+
+【settings.json へのプラグイン設定の保存形式（参考）】
+
+  {
+    "version": "1.0",
+    "plugins": {
+      "value": [
+        {
+          "file":    "plugin_overdue_badge.js",
+          "enabled": true,
+          "config":  { "showZero": false, "warnDays": 3 }
+        }
+      ],
+      "_updatedAt": "2026-06-30T10:00:00+09:00"
+    }
+  }
+
+  ※ プラグインから settings.json を直接操作する必要はありません。
+     すべて registerPlugin() / getPluginConfig() で完結します。
+
 ================================================================================
 5. データスキーマ
 ================================================================================
@@ -395,20 +532,21 @@ TaskFlow.addProjectSettingTab(def)
 ────────────────────────────────────────
 
   {
-    id:            string,       // UID（自動生成）例: "lf3k2abc1"
-    number:        number,       // プロジェクト番号 例: 1 → "P1"
-    name:          string,       // プロジェクト名
-    description:   string,       // 説明
-    startDate:     string,       // 開始日 'YYYY-MM-DD' | ''
-    endDate:       string,       // 終了日 'YYYY-MM-DD' | ''
-    members:       string[],     // メンバー名の配列 例: ["田中", "鈴木"]
-    color:         string,       // カラーコード 例: "#4f8eff"
-    archived:      boolean,      // アーカイブ済みか
-    nextTaskNum:   number,       // 次のタスク番号（自動インクリメント）
-    tasks:         Task[],       // タスク配列
-    milestones:    Milestone[],  // マイルストーン配列
-    wiki:          string,       // Wiki本文（Markdown）
-    weeklyNotes:   WeeklyNote[], // 週次コメント履歴（5-7章参照）
+    id:             string,       // UID（自動生成）例: "lf3k2abc1"
+    number:         number,       // プロジェクト番号 例: 1 → "P1"
+    name:           string,       // プロジェクト名
+    description:    string,       // 説明
+    startDate:      string,       // 開始日 'YYYY-MM-DD' | ''
+    endDate:        string,       // 終了日 'YYYY-MM-DD' | ''
+    members:        string[],     // メンバー名の配列 例: ["田中", "鈴木"]
+    color:          string,       // カラーコード 例: "#4f8eff"
+    archived:       boolean,      // アーカイブ済みか
+    nextTaskNum:    number,       // 次のタスク番号（自動インクリメント）
+    tasks:          Task[],       // タスク配列
+    milestones:     Milestone[],  // マイルストーン配列
+    wiki:           string,       // Wiki本文（Markdown）
+    weeklyNotes:    WeeklyNote[], // 週次コメント履歴（5-7章参照）
+    projectSettings: object,      // プロジェクト設定（タブ表示・ラベル等）
   }
 
   ※ プロジェクトは project_P{number}.json として個別ファイルに保存されます。
@@ -489,9 +627,9 @@ TaskFlow.addProjectSettingTab(def)
 ────────────────────────────────────────
 
   {
-    id:   string,   // UID
-    text: string,   // テキスト
-    done: boolean,  // 完了フラグ
+    id:      string,   // UID
+    text:    string,   // テキスト
+    checked: boolean,  // 完了フラグ（旧フィールド名 done も互換）
   }
 
 ────────────────────────────────────────
@@ -561,10 +699,9 @@ TaskFlow のデザイントークン（CSS変数）をプラグインのUIに使
 7. プラグインのインストール方法
 ================================================================================
 
-【推奨: プラグイン管理UI（🔌 ボタン）を使う】
+【推奨: 設定画面のプラグイン管理UIを使う】
 
-  taskflowzero.html のヘッダー右端にある 🔌 ボタンを押すと
-  プラグイン管理モーダルが開きます。
+  サイドバーの「⚙️ 設定」→「プラグイン」を開きます。
 
   初回のみ: plugin/ フォルダの選択ダイアログが表示されます。
     → plugin/ フォルダ（プラグインJSを置くフォルダ）を選択してください。
@@ -574,6 +711,16 @@ TaskFlow のデザイントークン（CSS変数）をプラグインのUIに使
   インストール:
     JSファイルをドロップゾーンにドラッグ、またはファイル選択ボタンから選択。
     → plugin/ フォルダにファイルがコピーされ、リストに自動追加されます。
+
+  有効/無効の切り替え:
+    各プラグイン行のチェックボックスで切り替えます。
+    無効にしたプラグインは次回リロード時から読み込まれなくなります。
+    （plugins.js から除外されます）
+
+  個別設定:
+    registerPlugin() で settings を定義したプラグインには ⚙️ ボタンが表示されます。
+    クリックすると設定モーダルが開き、各項目を編集できます。
+    保存後は次にそのプラグインが設定値を読むタイミングで反映されます。
 
   順序変更:
     ⠿ マークをドラッグして読み込み順を変更できます。
@@ -601,7 +748,7 @@ TaskFlow のデザイントークン（CSS変数）をプラグインのUIに使
   注意事項:
   - 配列の順番がロード順（= 依存関係の順番）になります
   - ファイルが存在しない場合はコンソール警告のみ、エラーにはなりません
-  - 無効化したい場合は行を削除するか // でコメントアウトしてください
+  - 無効化したい場合は設定画面で切り替えるか、行を削除・コメントアウト
 
 ================================================================================
 8. 多言語対応（日本語 / 英語）
@@ -695,6 +842,16 @@ plugin_lang.js よりも後に記載してください。
     'plugin_my_plugin.js',  // plugin_lang.js に依存するプラグイン
   ];
 
+────────────────────────────────────────
+制約4: registerPlugin のメタ情報はページ読み込み時のみ反映
+────────────────────────────────────────
+
+registerPlugin() は IIFE の先頭（ページロード時）に呼ばれます。
+設定画面を開いたとき、そのプラグインが既にロードされていれば
+メタ情報・設定スキーマが表示されます。
+プラグインを新規追加した直後（まだリロードしていない場合）は
+「説明未登録」と表示されます。次回リロード後に正しく表示されます。
+
 ================================================================================
 10. プラグイン開発チェックリスト
 ================================================================================
@@ -726,6 +883,11 @@ plugin_lang.js よりも後に記載してください。
   □ 多言語対応している場合、'taskflow_lang' キーで言語を取得している
 
   □ ファイルを置かない状態でTaskFlowが正常に動作することを確認している
+
+  □ registerPlugin() を呼ぶ前に TaskFlow オブジェクトの存在と
+    registerPlugin メソッドの存在を確認している（後方互換ガード）
+
+  □ getPluginConfig() を使う場合、default 値のフォールバックを実装している
 
   □ README（日本語）を同梱している
 
@@ -856,6 +1018,80 @@ plugin_lang.js よりも後に記載してください。
     TaskFlow.on('task-open', function(data) {
       setTimeout(function() { injectLinks(data.task); }, 120);
     });
+  });
+})();
+
+────────────────────────────────────────
+サンプル E: registerPlugin と getPluginConfig を使った設定対応プラグイン
+────────────────────────────────────────
+
+(function () {
+  'use strict';
+
+  var PLUGIN_ID = 'my-counter';
+
+  // メタ情報・設定スキーマを登録
+  if (typeof TaskFlow !== 'undefined' && typeof TaskFlow.registerPlugin === 'function') {
+    TaskFlow.registerPlugin({
+      id:          PLUGIN_ID,
+      name:        'タスクカウンター',
+      description: '指定ステータスのタスク件数をサイドバーに表示します。',
+      version:     '1.0.0',
+      settings: [
+        {
+          key:     'targetStatus',
+          label:   '集計するステータス',
+          type:    'select',
+          default: 'inprogress',
+          options: [
+            { value: 'todo',       label: 'To Do' },
+            { value: 'inprogress', label: '進行中' },
+            { value: 'review',     label: 'レビュー' },
+          ],
+        },
+        {
+          key:         'showAllProjects',
+          label:       '全プロジェクト合計を表示',
+          description: 'OFF にすると現在開いているプロジェクトのみ集計',
+          type:        'boolean',
+          default:     true,
+        },
+      ],
+    });
+  }
+
+  // 設定値を読む（後方互換ガード付き）
+  function getCfg() {
+    var defaults = { targetStatus: 'inprogress', showAllProjects: true };
+    if (typeof TaskFlow !== 'undefined' && typeof TaskFlow.getPluginConfig === 'function') {
+      return Object.assign({}, defaults, TaskFlow.getPluginConfig(PLUGIN_ID));
+    }
+    return defaults;
+  }
+
+  function updateCount() {
+    var cfg = getCfg();
+    var projects = cfg.showAllProjects
+      ? TaskFlow.getProjects().filter(function(p) { return !p.archived; })
+      : (TaskFlow.getCurrentProject() ? [TaskFlow.getCurrentProject()] : []);
+    var count = projects.reduce(function(sum, p) {
+      return sum + p.tasks.filter(function(t) { return t.status === cfg.targetStatus; }).length;
+    }, 0);
+    TaskFlow.updateSidebarItem(PLUGIN_ID, '📊', count + '件');
+  }
+
+  document.addEventListener('taskflow-ready', function () {
+    TaskFlow.addSidebarItem({
+      id:      PLUGIN_ID,
+      icon:    '📊',
+      label:   '集計中…',
+      onclick: function() { updateCount(); TaskFlow.toast('更新しました', 'success'); }
+    });
+    setTimeout(updateCount, 100);
+    TaskFlow.on('task-save',   updateCount);
+    TaskFlow.on('task-create', updateCount);
+    TaskFlow.on('task-delete', updateCount);
+    TaskFlow.on('view-change', updateCount);
   });
 })();
 
