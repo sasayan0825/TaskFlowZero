@@ -2070,6 +2070,24 @@ async function writePluginsToDir(dirHandle, plugins) {
   await w.close();
 }
 
+// plugins.js（ディスク上の実体）と settings.json（有効/無効を含む全記録）を
+// マージして _pluginList を組み立てる。
+// 無効化されて plugins.js から除外されたプラグインも settings.json から復元し、
+// 一覧上では「チェックOFF」状態で表示し続ける。
+function _buildPluginListFromDiskAndSettings(filesOnDisk) {
+  // settings.json に記録済みのファイル名（無効化されて plugins.js から消えたものも含む）
+  const settingsFiles = (state.settings && state.settings.plugins && state.settings.plugins.value || [])
+    .map(v => typeof v === 'object' ? v.file : v)
+    .filter(Boolean);
+
+  // 順序: plugins.js の順番を基本とし、settings.json にしか存在しないもの（=無効化済み）を末尾に追加
+  const merged = [...filesOnDisk];
+  settingsFiles.forEach(f => {
+    if (!merged.includes(f)) merged.push(f);
+  });
+  return merged;
+}
+
 async function initPluginPane() {
   _pluginDirty = false;
   const saveBtn = document.getElementById('plugin-save-btn');
@@ -2089,7 +2107,8 @@ async function initPluginPane() {
       if (perm !== 'granted') {
         await _pluginDirHandle.requestPermission({ mode: 'readwrite' });
       }
-      _pluginList = await readPluginsFromDir(_pluginDirHandle);
+      const filesOnDisk = await readPluginsFromDir(_pluginDirHandle);
+      _pluginList = _buildPluginListFromDiskAndSettings(filesOnDisk);
       renderPluginList();
       return;
     } catch(e) {
@@ -2104,7 +2123,8 @@ async function initPluginPane() {
     const dir = await window.showDirectoryPicker(opts);
     _pluginDirHandle = dir;
     await savePluginDirToIDB(dir);
-    _pluginList = await readPluginsFromDir(dir);
+    const filesOnDisk = await readPluginsFromDir(dir);
+    _pluginList = _buildPluginListFromDiskAndSettings(filesOnDisk);
     renderPluginList();
   } catch(e) {
     if (e.name !== 'AbortError') {
@@ -4735,7 +4755,10 @@ async function loadSettings() {
   await _reconcilePluginsWithDisk();
 }
 
-// plugins.js の実体一覧を正とし、settings.json の plugins.value を補完・整理する
+// plugins.js（ディスク実体）と settings.json（有効/無効記録）を突き合わせる。
+// settings.json に記録済みのエントリは常に保持し、
+// plugins.js にあって settings.json にないものを enabled:true で追加する。
+// （plugins.js から除外された=無効化済みプラグインも settings.json から消さない）
 async function _reconcilePluginsWithDisk() {
   if (!state.settings) return;
   if (!state.settings.plugins) state.settings.plugins = { value: [], _updatedAt: new Date().toISOString() };
@@ -4746,26 +4769,34 @@ async function _reconcilePluginsWithDisk() {
     typeof v === 'string' ? { file: v, enabled: true, config: {} } : v
   );
 
-  // プラグイン用フォルダハンドルを取得（IDB復元 or 未取得なら何もしない＝後でモーダルを開いたときに解決）
+  // プラグイン用フォルダハンドルを取得
   if (!_pluginDirHandle) {
     _pluginDirHandle = await loadPluginDirFromIDB();
   }
-  if (!_pluginDirHandle) return; // フォルダ未選択。一覧UIを開いたタイミングで解決する
+  if (!_pluginDirHandle) return;
 
   let filesOnDisk = [];
   try {
     const perm = await _pluginDirHandle.queryPermission({ mode: 'read' });
-    if (perm !== 'granted') {
-      const granted = await _pluginDirHandle.queryPermission({ mode: 'read' });
-      if (granted !== 'granted') return; // 権限なし。UIで再取得を促す
-    }
+    if (perm !== 'granted') return;
     filesOnDisk = await readPluginsFromDir(_pluginDirHandle);
   } catch(e) { return; }
 
   const known = new Map(state.settings.plugins.value.map(v => [v.file, v]));
-  const merged = filesOnDisk.map(file => known.get(file) || { file, enabled: true, config: {} });
-  state.settings.plugins.value = merged;
-  // ディスク上に無いファイルへの参照は一覧から除外（自然に merged に含まれない）
+
+  // plugins.js にあって settings.json に無いものを enabled:true で追加
+  filesOnDisk.forEach(file => {
+    if (!known.has(file)) {
+      known.set(file, { file, enabled: true, config: {} });
+    }
+  });
+
+  // 順序: plugins.js の順 → settings.json にしかないもの（無効化済み）を末尾に
+  const ordered = [
+    ...filesOnDisk.map(f => known.get(f)),
+    ...state.settings.plugins.value.filter(v => !filesOnDisk.includes(v.file)),
+  ];
+  state.settings.plugins.value = ordered;
 }
 
 async function _writeSettings() {
