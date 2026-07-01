@@ -211,6 +211,7 @@ th.sortable:hover{color:var(--accent2)}
 th.sortable.sort-asc::after{content:' ↑'}
 th.sortable.sort-desc::after{content:' ↓'}
 #my-tasks-view{flex:1;overflow-y:auto;padding:28px;display:none}
+#settings-view{padding:28px}
 .my-tasks-section{margin-bottom:32px}
 .my-tasks-section-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .my-tasks-filter-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
@@ -660,10 +661,9 @@ html.light .color-swatch.selected{border-color:white;box-shadow:0 0 0 2px #1a223
 .proj-search-input{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:inherit;font-size:13px;padding:8px 12px;outline:none;transition:border-color .15s;width:220px}
 .proj-search-input:focus{border-color:var(--accent)}
 .proj-filter-select{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;outline:none;cursor:pointer}
-/* List table fixed layout */
-.list-table{width:100%;border-collapse:collapse;table-layout:fixed}
+/* List table layout */
+.list-table{width:100%;border-collapse:collapse;table-layout:auto}
 .list-table colgroup col:nth-child(1){width:60px}
-.list-table colgroup col:nth-child(2){width:auto}
 .list-table colgroup col:nth-child(3){width:110px}
 .list-table colgroup col:nth-child(4){width:100px}
 .list-table colgroup col:nth-child(5){width:130px}
@@ -797,6 +797,20 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   pointer-events:none;
   display:none;
 }
+/* 設定ビュー */
+.settings-nav-item{padding:10px 16px;font-size:13px;color:var(--muted);cursor:pointer;border-left:3px solid transparent;transition:all .15s}
+.settings-nav-item:hover{background:var(--surface3);color:var(--text)}
+.settings-nav-item.active{color:var(--accent2);background:rgba(79,142,255,.08);border-left-color:var(--accent2)}
+/* プロジェクト設定モーダル */
+.ps-tab{padding:10px 18px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;flex-shrink:0}
+.ps-tab:hover{color:var(--text)}
+.ps-tab.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+.ps-check-row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);cursor:pointer;padding:6px 8px;border-radius:var(--radius);transition:background .1s}
+.ps-check-row:hover{background:var(--surface2)}
+.ps-check-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent2);cursor:pointer;flex-shrink:0}
+.ps-item-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px}
+.ps-item-row .ps-item-name{flex:1;font-size:13px;color:var(--text)}
+.ps-item-row .ps-item-meta{font-size:11px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -854,7 +868,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   <button class="btn btn-secondary btn-sm" id="refresh-btn" onclick="manualRefresh()" title="他のメンバーの変更を取得">🔄 更新</button>
   <button class="btn btn-secondary btn-sm" onclick="if(panelDirty)savePanelTask();if(state.currentView==='wiki'&&_wikiDirty)saveWiki();saveFile(true)">💾 保存</button>
   <button class="btn btn-secondary btn-sm" onclick="openFile()">📂 フォルダ変更</button>
-  <button id="plugin-btn" onclick="openPluginModal()" title="プラグイン管理">🔌</button>
+  
 </div>
 
 <!-- APP -->
@@ -875,6 +889,9 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <span class="sb-badge-mention" id="my-mention-badge" style="display:none" title="メンション数">0</span>
           <span class="sb-badge-task"    id="my-task-badge"    style="display:none" title="担当タスク数">0</span>
         </span>
+      </div>
+      <div class="sidebar-item" id="nav-settings" onclick="showSettings()">
+        <span>⚙️</span><span class="proj-name">設定</span>
       </div>
     </div>
     <div class="sidebar-section">
@@ -904,6 +921,97 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         </div>
       </div>
       <div id="my-tasks-body"></div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div id="settings-view" style="display:none;flex:1;overflow:hidden">
+      <div style="display:flex;align-items:center;margin-bottom:20px">
+        <div>
+          <div style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:700">⚙️ 設定</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">アプリ全体の設定を管理します</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:0;height:calc(100% - 80px);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        <!-- 左ペイン -->
+        <div style="width:180px;flex-shrink:0;background:var(--surface2);border-right:1px solid var(--border);display:flex;flex-direction:column">
+          <div id="settings-nav-version" class="settings-nav-item active" onclick="showSettingsPane('version')">📋 バージョン</div>
+          <div id="settings-nav-plugins" class="settings-nav-item"        onclick="showSettingsPane('plugins')">🔌 プラグイン</div>
+        </div>
+        <!-- 右ペイン -->
+        <div style="flex:1;overflow-y:auto;padding:24px">
+          <div id="settings-pane-version">
+            <div style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text)">アプリバージョン情報</div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:inline-flex;flex-direction:column;gap:10px;min-width:300px">
+              <div style="font-size:20px;font-weight:700;color:var(--accent2)">⚡ TaskFlowZero</div>
+              <div style="font-size:13px;color:var(--muted)">バージョン: <span style="color:var(--text);font-family:'JetBrains Mono',monospace" id="settings-version-num">1.1.0</span></div>
+              <div style="font-size:13px;color:var(--muted)">最終更新: <span style="color:var(--text)" id="settings-version-date">2026-07-01</span></div>
+              <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px">
+                <a href="https://github.com/sasayan0825/TaskFlowZero" target="_blank" rel="noopener"
+                  style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent2);text-decoration:none">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+                  </svg>
+                  GitHub: sasayan0825/TaskFlowZero
+                </a>
+                <a href="https://github.com/sasayan0825/TaskFlowZero/blob/main/docs/PLUGIN_DEVELOPER_GUIDE.txt" target="_blank" rel="noopener"
+                  style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent2);text-decoration:none">
+                  <span style="flex-shrink:0">📖</span>
+                  プラグイン開発者ガイド
+                </a>
+                <a href="https://github.com/sasayan0825/TaskFlowZero/issues" target="_blank" rel="noopener"
+                  style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent2);text-decoration:none">
+                  <span style="flex-shrink:0">🐛</span>
+                  バグ報告・機能要望 (Issues)
+                </a>
+              </div>
+              <div style="border-top:1px solid var(--border);padding-top:10px">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.4px">使用ライブラリ</div>
+                <div style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)">
+                  <span>marked.js — Markdown パース（MIT）</span>
+                  <span>Chart.js — グラフ描画（MIT）</span>
+                  <span>highlight.js — シンタックスハイライト（BSD-3-Clause）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="settings-pane-plugins" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div style="font-size:16px;font-weight:600;color:var(--text)">プラグイン管理</div>
+              <div style="font-size:11px;color:var(--muted)">変更後はページをリロードして反映</div>
+            </div>
+
+            <!-- ドロップゾーン -->
+            <div style="margin-bottom:20px">
+              <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">プラグインを追加</div>
+              <div id="plugin-drop-zone" class="plugin-drop-zone" aria-live="polite"
+                ondragover="event.preventDefault();this.classList.add('dragover')"
+                ondragleave="this.classList.remove('dragover')"
+                ondrop="handlePluginDrop(event)">
+                <div style="font-size:22px;margin-bottom:6px">📦</div>
+                <div>JSファイルをここにドロップ</div>
+                <div style="margin:6px 0;font-size:11px;opacity:.6">または</div>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('plugin-file-input').click()">ファイルを選択</button>
+                <input type="file" id="plugin-file-input" accept=".js" style="display:none" onchange="handlePluginFileSelect(event)">
+              </div>
+            </div>
+
+            <!-- プラグイン一覧 -->
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">
+                インストール済み <span id="plugin-count" style="font-weight:400;text-transform:none;letter-spacing:0"></span>
+              </div>
+              <div id="plugin-list" style="display:flex;flex-direction:column;gap:6px;min-height:40px">
+                <div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">読み込み中...</div>
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-top:8px">⠿ ドラッグで読み込み順を変更できます。チェックを外すと無効化されます（リロードで反映）。削除してもJSファイルは残ります。</div>
+            </div>
+
+            <div style="margin-top:20px;display:flex;justify-content:flex-end">
+              <button class="btn btn-primary" id="plugin-save-btn" onclick="savePluginsJs()" style="display:none">💾 保存して反映</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- PROJECTS LIST -->
@@ -940,6 +1048,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <button class="btn btn-secondary btn-sm" onclick="openMilestoneModal()">🏁 マイルストーン</button>
           <button class="btn btn-secondary btn-sm" onclick="openProjectModal(state.currentProjectId)">✏️ 編集</button>
           <button class="btn btn-secondary btn-sm" id="btn-archive-project" onclick="toggleArchiveProject(state.currentProjectId)">📦 完了</button>
+          <button class="btn btn-secondary btn-sm" onclick="openProjectSettings(state.currentProjectId)">⚙️ 設定</button>
           <button class="btn btn-danger btn-sm" onclick="deleteProject(state.currentProjectId)">🗑</button>
         </div>
         <div class="project-desc" id="ph-desc"></div>
@@ -1368,6 +1477,12 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 <div class="modal-overlay" id="task-modal">
   <div class="modal" style="width:520px;max-height:90vh;overflow-y:auto">
     <div class="modal-title">タスクを追加</div>
+    <div class="form-group" id="tm-template-row" style="display:none">
+      <label class="form-label">テンプレートから作成</label>
+      <select class="form-select" id="tm-template" onchange="applyTaskTemplate(this.value)">
+        <option value="">── テンプレートを選択 ──</option>
+      </select>
+    </div>
     <div class="form-group"><label class="form-label">タイトル *</label><input class="form-input" id="tm-title" placeholder="タスクのタイトル"></div>
     <div class="form-group"><label class="form-label">作成者</label><input class="form-input" id="tm-creator" placeholder="作成者名" list="tm-creator-dl"><datalist id="tm-creator-dl"></datalist></div>
     <div class="form-row">
@@ -1451,45 +1566,6 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
 
 <!-- PLUGIN MODAL -->
-<div class="modal-overlay" id="plugin-modal">
-  <div class="modal" style="width:560px;max-height:90vh;overflow-y:auto">
-    <div class="modal-title" style="display:flex;align-items:center;gap:8px">🔌 プラグイン管理
-      <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">変更後はページをリロードして反映</span>
-    </div>
-
-    <!-- ドロップゾーン -->
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">プラグインを追加</div>
-      <div id="plugin-drop-zone" class="plugin-drop-zone" aria-live="polite"
-        ondragover="event.preventDefault();this.classList.add('dragover')"
-        ondragleave="this.classList.remove('dragover')"
-        ondrop="handlePluginDrop(event)">
-        <div style="font-size:22px;margin-bottom:6px">📦</div>
-        <div>JSファイルをここにドロップ</div>
-        <div style="margin:6px 0;font-size:11px;opacity:.6">または</div>
-        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('plugin-file-input').click()">ファイルを選択</button>
-        <input type="file" id="plugin-file-input" accept=".js" style="display:none" onchange="handlePluginFileSelect(event)">
-      </div>
-    </div>
-
-    <!-- プラグイン一覧 -->
-    <div>
-      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">
-        インストール済み <span id="plugin-count" style="font-weight:400;text-transform:none;letter-spacing:0"></span>
-      </div>
-      <div id="plugin-list" style="display:flex;flex-direction:column;gap:6px;min-height:40px">
-        <div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">読み込み中...</div>
-      </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:8px">⠿ ドラッグで読み込み順を変更できます。削除してもJSファイルは残ります。</div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closePluginModal()">閉じる</button>
-      <button class="btn btn-primary" id="plugin-save-btn" onclick="savePluginsJs()" style="display:none">💾 保存して反映</button>
-    </div>
-  </div>
-</div>
-
 <!-- AVATAR MODAL -->
 <div class="modal-overlay" id="avatar-modal">
   <div class="modal" style="width:420px">
@@ -1520,6 +1596,140 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <button class="btn btn-secondary" onclick="closeModal('avatar-modal')">キャンセル</button>
         <button class="btn btn-primary" id="avatar-save-btn" onclick="saveAvatarFromCanvas()" disabled>💾 保存</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- PLUGIN CONFIG MODAL -->
+<div class="modal-overlay" id="plugin-config-modal">
+  <div class="modal" style="width:480px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="modal-title" id="plugin-config-modal-title">プラグイン設定</div>
+    <div style="flex:1;overflow-y:auto;padding-bottom:4px" id="plugin-config-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('plugin-config-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="savePluginConfig()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECT SETTINGS MODAL -->
+<div class="modal-overlay" id="project-settings-modal">
+  <div class="modal" style="width:620px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="modal-title">⚙️ プロジェクト設定</div>
+    <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:0;flex-shrink:0">
+      <div class="ps-tab active" id="ps-tab-basic"    onclick="switchPsTab('basic')">基本設定</div>
+      <div class="ps-tab"        id="ps-tab-templates" onclick="switchPsTab('templates')">テンプレート</div>
+      <div class="ps-tab"        id="ps-tab-labels"    onclick="switchPsTab('labels')">ラベル</div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:20px">
+      <!-- 基本設定タブ -->
+      <div id="ps-pane-basic">
+        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;letter-spacing:.5px">タブ表示設定</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+          <label class="ps-check-row"><input type="checkbox" id="ps-tab-kanban"> カンバン</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-tab-gantt"> ガントチャート</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-tab-burndown"> バーンダウン</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-tab-wiki"> Wiki</label>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:20px">※ リストタブは常に表示されます</div>
+        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;letter-spacing:.5px">リスト一覧 列表示設定</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label class="ps-check-row"><input type="checkbox" id="ps-col-checklist">      チェックリスト</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-col-status">         ステータス</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-col-assignee">       担当者</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-col-storypoints">    SP</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-col-estimated">      工数（予定）</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-col-actual">         工数（実績）</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-col-startdate">      開始日</label>
+          <label class="ps-check-row"><input type="checkbox" id="ps-col-duedate">        期限</label>
+        </div>
+      </div>
+      <!-- テンプレートタブ -->
+      <div id="ps-pane-templates" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.5px">タスクテンプレート</div>
+          <button class="btn btn-primary btn-sm" onclick="openPsTemplateEditor(null)">＋ テンプレートを追加</button>
+        </div>
+        <div id="ps-templates-list"></div>
+      </div>
+      <!-- ラベルタブ -->
+      <div id="ps-pane-labels" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.5px">ラベル管理</div>
+          <button class="btn btn-primary btn-sm" onclick="openPsLabelEditor(null)">＋ ラベルを追加</button>
+        </div>
+        <div id="ps-labels-list"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('project-settings-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveProjectSettings()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECT SETTINGS: テンプレートエディタ -->
+<div class="modal-overlay" id="ps-template-editor-modal">
+  <div class="modal" style="width:560px">
+    <div class="modal-title" id="ps-te-title">テンプレートを追加</div>
+    <div class="form-group">
+      <label class="form-label">テンプレート名 *</label>
+      <input class="form-input" id="ps-te-name" placeholder="例: デプロイチェックリスト">
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">
+        <span>本文（詳細）</span>
+        <div class="md-toolbar" style="margin:0">
+          <button class="md-btn active" id="ps-te-desc-edit-btn" onclick="setPsTeDescMode('edit')">編集</button>
+          <button class="md-btn" id="ps-te-desc-preview-btn" onclick="setPsTeDescMode('preview')">プレビュー</button>
+          <div class="md-toolbar-sep"></div>
+          <button class="md-btn-fmt" title="太字 (Ctrl+B)" onclick="insertMd('ps-te-description','**','**','太字')"><b>B</b></button>
+          <button class="md-btn-fmt" title="斜体 (Ctrl+I)" onclick="insertMd('ps-te-description','*','*','斜体')"><i>I</i></button>
+          <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('ps-te-description','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
+          <button class="md-btn-fmt" title="コードブロック" onclick="showCodePicker(event,'ps-te-description')" style="font-family:'JetBrains Mono',monospace;font-size:11px">&lt;/&gt;</button>
+          <button class="md-btn-fmt" title="リスト" onclick="insertMd('ps-te-description','\n- ','','項目')">≡</button>
+          <button class="md-btn-fmt" title="見出し" onclick="insertMd('ps-te-description','## ','','見出し')">H</button>
+          <div class="md-toolbar-sep"></div>
+          <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('ps-te-description','~~','~~','テキスト')"><s>S</s></button>
+          <button class="md-btn-fmt" title="引用" onclick="insertMd('ps-te-description','\n> ','','引用テキスト')">❝</button>
+          <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'ps-te-description')">⊞</button>
+        </div>
+      </label>
+      <textarea class="form-input" id="ps-te-description" rows="5" placeholder="タスクの詳細をMarkdownで記述できます..." style="font-size:13px;resize:vertical;width:100%;box-sizing:border-box"></textarea>
+      <div class="md-preview" id="ps-te-desc-preview" style="min-height:90px;display:none"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">初期チェックリスト（1行1項目）</label>
+      <textarea class="form-input" id="ps-te-checklist" rows="5" placeholder="例:
+環境変数を確認
+ステージングでテスト
+本番デプロイ" style="font-size:13px;resize:vertical"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('ps-template-editor-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="savePsTemplateEditor()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECT SETTINGS: ラベルエディタ -->
+<div class="modal-overlay" id="ps-label-editor-modal">
+  <div class="modal" style="width:380px">
+    <div class="modal-title" id="ps-le-title">ラベルを追加</div>
+    <div class="form-group">
+      <label class="form-label">ラベル名 *</label>
+      <input class="form-input" id="ps-le-name" placeholder="例: バグ" oninput="_updateLblPreview(document.getElementById('ps-le-color').value)">
+    </div>
+    <div class="form-group">
+      <label class="form-label">色</label>
+      <div style="display:flex;align-items:center;gap:12px">
+        <input type="color" id="ps-le-color" value="#4f8eff" style="width:48px;height:36px;border:none;border-radius:6px;cursor:pointer;background:none">
+        <div id="ps-le-preview" style="padding:4px 12px;border-radius:12px;font-size:13px;font-weight:500">プレビュー</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('ps-label-editor-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="savePsLabelEditor()">保存</button>
     </div>
   </div>
 </div>
@@ -1570,6 +1780,7 @@ let state = {
   currentProjectId: null,
   currentView: 'list',
   avatars: {},           // { "名前": "data:image/webp;base64,..." }
+  settings: null,        // settings.json の内容キャッシュ
 };
 // 3-way merge: BASE snapshot taken when file is loaded
 // let _baseSnapshot = null; // v2削除: _baseSnapshots (Map形式) を使用
@@ -1859,11 +2070,12 @@ async function writePluginsToDir(dirHandle, plugins) {
   await w.close();
 }
 
-async function openPluginModal() {
+async function initPluginPane() {
   _pluginDirty = false;
-  document.getElementById('plugin-save-btn').style.display = 'none';
-  openModal('plugin-modal');
-  document.getElementById('plugin-list').innerHTML =
+  const saveBtn = document.getElementById('plugin-save-btn');
+  if (saveBtn) saveBtn.style.display = 'none';
+  const listEl = document.getElementById('plugin-list');
+  if (listEl) listEl.innerHTML =
     '<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">読み込み中...</div>';
 
   // IDBから復元
@@ -1872,7 +2084,6 @@ async function openPluginModal() {
   }
 
   if (_pluginDirHandle) {
-    // 権限確認・再取得
     try {
       const perm = await _pluginDirHandle.queryPermission({ mode: 'readwrite' });
       if (perm !== 'granted') {
@@ -1886,33 +2097,29 @@ async function openPluginModal() {
     }
   }
 
-  // 未設定 or 権限切れ → データファイルと同じフォルダを自動で開くピッカーを起動
+  // 未設定 or 権限切れ → フォルダピッカー起動
   try {
     const opts = { mode: 'readwrite' };
-    if (state.fileHandle) opts.startIn = state.fileHandle; // 同じフォルダから開始
+    if (state.fileHandle) opts.startIn = state.fileHandle;
     const dir = await window.showDirectoryPicker(opts);
     _pluginDirHandle = dir;
     await savePluginDirToIDB(dir);
     _pluginList = await readPluginsFromDir(dir);
     renderPluginList();
   } catch(e) {
-    if (e.name === 'AbortError') {
-      closePluginModal();
-    } else {
+    if (e.name !== 'AbortError') {
       toast('フォルダの取得に失敗しました', 'error');
-      renderPluginList();
     }
+    renderPluginList();
   }
 }
 
-function closePluginModal() {
-  closeModal('plugin-modal');
-}
-
-// selectPluginFolder は openPluginModal 内に統合
+// 後方互換（他からの呼び出し残骸がある場合の保険）
+async function openPluginModal() { showSettings(); showSettingsPane('plugins'); }
 
 function renderPluginList() {
   const container = document.getElementById('plugin-list');
+  if (!container) return;
   document.getElementById('plugin-count').textContent = `(${_pluginList.length}件)`;
   if (!_pluginList.length) {
     container.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">プラグインがありません</div>';
@@ -1920,16 +2127,43 @@ function renderPluginList() {
   }
   container.innerHTML = '';
   _pluginList.forEach((name, idx) => {
+    // settings.jsonの enabled/config を参照
+    const settingsEntry = _getPluginSettingsEntry(name);
+    const isEnabled = settingsEntry ? settingsEntry.enabled !== false : true;
+    // TaskFlow.registerPlugin() で登録されたメタ情報を参照（照合は_findPluginMetaで統一）
+    const meta = _findPluginMeta(name);
+    const displayName   = meta ? meta.name    : name;
+    const description   = meta ? meta.description : null;
+    const version       = meta ? meta.version  : null;
+    const hasSettings   = meta && meta.settings && meta.settings.length > 0;
+
     const item = document.createElement('div');
     item.className = 'plugin-list-item';
     item.draggable = true;
     item.dataset.idx = idx;
+    item.style.opacity = isEnabled ? '1' : '0.5';
+
     item.innerHTML = `
       <span class="plugin-drag-handle">⠿</span>
-      <span class="plugin-name">${esc(name)}</span>
+      <label style="display:flex;align-items:center;gap:0;cursor:pointer;flex-shrink:0" title="${isEnabled?'無効にする':'有効にする'}">
+        <input type="checkbox" class="plugin-enabled-cb" data-file="${esc(name)}"
+          ${isEnabled ? 'checked' : ''}
+          style="width:15px;height:15px;accent-color:var(--accent2);cursor:pointer;flex-shrink:0"
+          onchange="togglePluginEnabled('${esc(name)}',this.checked,this.closest('.plugin-list-item'))">
+      </label>
+      <div style="flex:1;min-width:0;margin-left:10px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="plugin-name" style="font-size:13px;font-weight:500">${esc(displayName)}</span>
+          ${version ? `<span style="font-size:10px;color:var(--muted);background:var(--surface3);padding:1px 6px;border-radius:4px">${esc(version)}</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">
+          ${description ? esc(description) : '<span style="font-style:italic;opacity:.6">説明未登録</span>'}
+        </div>
+      </div>
+      ${hasSettings ? `<button class="icon-btn" title="${esc(displayName)}の設定" onclick="openPluginConfig('${esc(name)}')">⚙️</button>` : ''}
       <button class="plugin-del-btn" title="削除" onclick="removePlugin(${idx})">🗑</button>`;
 
-    // ドラッグ＆ドロップ
+    // ドラッグ&ドロップ（既存ロジック流用）
     item.addEventListener('dragstart', e => {
       e.dataTransfer.setData('text/plain', idx);
       setTimeout(() => item.classList.add('dragging'), 0);
@@ -1955,6 +2189,155 @@ function renderPluginList() {
 
     container.appendChild(item);
   });
+}
+
+// settings.json から特定プラグインのエントリを取得（なければ null）
+function _getPluginSettingsEntry(file) {
+  if (!state.settings || !state.settings.plugins) return null;
+  const arr = state.settings.plugins.value || [];
+  return arr.find(v => (typeof v === 'object' ? v.file : v) === file) || null;
+}
+
+// プラグインの有効/無効を settings.json に反映
+function togglePluginEnabled(file, enabled, itemEl) {
+  if (!state.settings) return;
+  if (!state.settings.plugins) state.settings.plugins = { value: [], _updatedAt: new Date().toISOString() };
+  let arr = state.settings.plugins.value;
+  let entry = arr.find(v => (typeof v === 'object' ? v.file : v) === file);
+  if (!entry) {
+    entry = { file, enabled, config: {} };
+    arr.push(entry);
+  } else {
+    if (typeof entry === 'string') {
+      const idx = arr.indexOf(entry);
+      entry = { file, enabled, config: {} };
+      arr[idx] = entry;
+    } else {
+      entry.enabled = enabled;
+    }
+  }
+  state.settings.plugins._updatedAt = new Date().toISOString();
+  if (itemEl) itemEl.style.opacity = enabled ? '1' : '0.5';
+  markPluginDirty();
+  // settings.json に即時保存
+  _writeSettings().then(() => {
+    toast(`${file} を${enabled?'有効':'無効'}にしました（リロードで反映）`, 'success');
+  });
+}
+
+// ── プラグイン個別設定モーダル ──
+let _pluginConfigTargetFile = null;
+
+// ファイル名からメタ情報を照合するヘルパー
+// "plugin_overdue_badge.js" ↔ id "overdue-badge" などアンダースコア/ハイフン両対応
+function _findPluginMeta(file) {
+  const meta = window.TaskFlow && window.TaskFlow._pluginMeta;
+  if (!meta) return null;
+  const nameNoExt     = file.replace(/\.js$/i, '');           // "plugin_overdue_badge"
+  const nameNormalized = nameNoExt.replace(/_/g, '-');        // "plugin-overdue-badge"
+  const nameCore       = nameNormalized.replace(/^plugin-/, ''); // "overdue-badge"
+  return meta.find(m => {
+    if (!m.id) return false;
+    const mNorm = m.id.replace(/_/g, '-');                    // idもハイフン正規化
+    return m.id === nameNoExt
+      || m.id === file
+      || mNorm === nameNormalized
+      || mNorm === nameCore
+      || nameCore.startsWith(mNorm)
+      || mNorm.startsWith(nameCore);
+  }) || null;
+}
+
+function openPluginConfig(file) {
+  _pluginConfigTargetFile = file;
+  const meta = _findPluginMeta(file);
+  if (!meta || !meta.settings || !meta.settings.length) {
+    toast('このプラグインには設定項目がありません', 'warn'); return;
+  }
+  // 現在の設定値を取得
+  const entry = _getPluginSettingsEntry(file);
+  const stored = (entry && entry.config) || {};
+
+  document.getElementById('plugin-config-modal-title').textContent = `${meta.name} の設定`;
+
+  // スキーマから入力フォームを自動生成
+  const body = document.getElementById('plugin-config-body');
+  body.innerHTML = meta.settings.map(s => {
+    const val = stored[s.key] !== undefined ? stored[s.key] : s.default;
+    const id  = `pcfg-${s.key}`;
+    let input = '';
+    if (s.type === 'boolean') {
+      input = `<label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="${id}" ${val ? 'checked' : ''}
+          style="width:15px;height:15px;accent-color:var(--accent2)">
+        <span style="font-size:13px">${esc(s.label)}</span>
+      </label>`;
+    } else if (s.type === 'number') {
+      input = `<div class="form-group">
+        <label class="form-label">${esc(s.label)}</label>
+        <input type="number" class="form-input" id="${id}" value="${val}" style="max-width:120px">
+      </div>`;
+    } else if (s.type === 'select' && Array.isArray(s.options)) {
+      const opts = s.options.map(o => {
+        const optVal = typeof o === 'object' ? o.value : o;
+        const optLabel = typeof o === 'object' ? o.label : o;
+        return `<option value="${esc(optVal)}" ${optVal == val ? 'selected' : ''}>${esc(optLabel)}</option>`;
+      }).join('');
+      input = `<div class="form-group">
+        <label class="form-label">${esc(s.label)}</label>
+        <select class="form-select" id="${id}">${opts}</select>
+      </div>`;
+    } else {
+      // string (デフォルト)
+      input = `<div class="form-group">
+        <label class="form-label">${esc(s.label)}</label>
+        <input type="text" class="form-input" id="${id}" value="${esc(String(val))}">
+      </div>`;
+    }
+    if (s.description) {
+      input += `<div style="font-size:11px;color:var(--muted);margin-top:-8px;margin-bottom:12px">${esc(s.description)}</div>`;
+    }
+    return `<div data-key="${s.key}" data-type="${s.type}">${input}</div>`;
+  }).join('');
+
+  openModal('plugin-config-modal');
+}
+
+async function savePluginConfig() {
+  const file = _pluginConfigTargetFile;
+  if (!file || !state.settings) return;
+
+  const meta = _findPluginMeta(file);
+  if (!meta) return;
+
+  // フォームから値を収集
+  const config = {};
+  meta.settings.forEach(s => {
+    const el = document.getElementById(`pcfg-${s.key}`);
+    if (!el) return;
+    if (s.type === 'boolean')  config[s.key] = el.checked;
+    else if (s.type === 'number') config[s.key] = parseFloat(el.value) || 0;
+    else config[s.key] = el.value;
+  });
+
+  // settings.json に保存
+  if (!state.settings.plugins) state.settings.plugins = { value: [], _updatedAt: new Date().toISOString() };
+  const arr = state.settings.plugins.value;
+  let entry = arr.find(v => (typeof v === 'object' ? v.file : v) === file);
+  if (!entry) {
+    entry = { file, enabled: true, config };
+    arr.push(entry);
+  } else if (typeof entry === 'string') {
+    const idx = arr.indexOf(entry);
+    entry = { file, enabled: true, config };
+    arr[idx] = entry;
+  } else {
+    entry.config = config;
+  }
+  state.settings.plugins._updatedAt = new Date().toISOString();
+  await _writeSettings();
+  closeModal('plugin-config-modal');
+  toast('設定を保存しました（リロードで反映）', 'success');
 }
 
 function removePlugin(idx) {
@@ -2047,7 +2430,22 @@ async function savePluginsJs() {
   if (!_pluginDirHandle) { toast('フォルダが選択されていません', 'error'); return; }
   pluginSetSaving(true);
   try {
-    await writePluginsToDir(_pluginDirHandle, _pluginList);
+    // enabled=false のプラグインを除外して plugins.js に書き出す
+    const enabledPlugins = _pluginList.filter(file => {
+      const entry = _getPluginSettingsEntry(file);
+      return !entry || entry.enabled !== false;
+    });
+    await writePluginsToDir(_pluginDirHandle, enabledPlugins);
+    // settings.json も更新（plugins.value の順序を _pluginList に合わせる）
+    if (state.settings && state.settings.plugins) {
+      const known = new Map((state.settings.plugins.value || []).map(v => [
+        typeof v === 'object' ? v.file : v,
+        typeof v === 'object' ? v : { file: v, enabled: true, config: {} }
+      ]));
+      state.settings.plugins.value = _pluginList.map(f => known.get(f) || { file: f, enabled: true, config: {} });
+      state.settings.plugins._updatedAt = new Date().toISOString();
+      await _writeSettings();
+    }
     _pluginDirty = false;
     pluginSetSaving(false);
     document.getElementById('plugin-save-btn').style.display = 'none';
@@ -2773,7 +3171,7 @@ function threeWayMerge(base, mine, disk) {
 
     // Both have it — merge project-level fields + tasks
     const mergedP = deepCopy(d); // start from disk
-    const projFieldConflicts = mergeEntityFields(b, m, d, ['name','description','startDate','endDate','members','color','archived','wiki'], pid, null);
+    const projFieldConflicts = mergeEntityFields(b, m, d, ['name','description','startDate','endDate','members','color','archived','wiki','projectSettings'], pid, null);
     projFieldConflicts.autoFields.forEach(f => { mergedP[f] = m[f]; autoMerged++; });
     if (projFieldConflicts.conflictFields.length > 0) {
       conflicts.push({
@@ -3322,6 +3720,9 @@ function initApp() {
   renderSidebar();
   showProjectsList();
 
+  // settings.json を読み込む
+  loadSettings();
+
   // ファイルキャッシュを初期化（files/ フォルダ走査）
   initFileCache();
 
@@ -3406,7 +3807,20 @@ async function saveAvatars() {
     toast('アバター画像の保存に失敗しました', 'error');
   }
 }
-function getLabelColor(l){ const cs=['#4f8eff','#a78bfa','#22c55e','#fb923c','#f43f5e','#fbbf24','#14b8a6']; let h=0; for(let i=0;i<l.length;i++) h=l.charCodeAt(i)+((h<<5)-h); return cs[Math.abs(h)%cs.length]; }
+function getLabelColor(l, projectId) {
+  // projectSettings.labels に定義がある場合はその色を優先
+  const pid = projectId || state.currentProjectId;
+  if (pid) {
+    const p = getProject(pid);
+    const def = p && p.projectSettings && (p.projectSettings.labels || []).find(x => x.name === l);
+    if (def && def.color) return def.color;
+  }
+  // フォールバック: ハッシュベース
+  const cs = ['#4f8eff','#a78bfa','#22c55e','#fb923c','#f43f5e','#fbbf24','#14b8a6'];
+  let h = 0;
+  for (let i = 0; i < l.length; i++) h = l.charCodeAt(i) + ((h << 5) - h);
+  return cs[Math.abs(h) % cs.length];
+}
 function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function dateToNum(d){ return d?new Date(d+'T00:00:00').getTime():null; }
 function addDays(d,n){ const x=new Date(d+'T00:00:00'); x.setDate(x.getDate()+n); return localDateStr(x); }
@@ -3489,9 +3903,11 @@ function renderSidebar() {
     d.onclick = () => openProject(p.id);
     c.appendChild(d);
   });
-  const isMyTasks = document.getElementById('my-tasks-view').style.display !== 'none';
-  document.getElementById('nav-all').className = 'sidebar-item'+(!state.currentProjectId && !isMyTasks?' active':'');
+  const isMyTasks  = document.getElementById('my-tasks-view').style.display   !== 'none';
+  const isSettings = document.getElementById('settings-view').style.display    !== 'none';
+  document.getElementById('nav-all').className      = 'sidebar-item'+(!state.currentProjectId && !isMyTasks && !isSettings?' active':'');
   document.getElementById('nav-my-tasks').className = 'sidebar-item'+(isMyTasks?' active':'');
+  document.getElementById('nav-settings').className = 'sidebar-item'+(isSettings?' active':'');
   // メンション・担当タスクバッジ更新
   const myName = localStorage.getItem(_myNameKey())||'';
   const badgeWrap    = document.getElementById('my-tasks-badges');
@@ -4261,10 +4677,130 @@ function _viewFadeIn(el) {
   });
 }
 
+// ═══════════════════════════════════════
+// SETTINGS VIEW
+// ═══════════════════════════════════════
+const APP_VERSION      = '1.1.0';
+const APP_VERSION_DATE = '2026-07-01';
+
+// 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
+function _hideAllViews() {
+  document.getElementById('projects-view').style.display  = 'none';
+  document.getElementById('project-detail').style.display = 'none';
+  document.getElementById('my-tasks-view').style.display  = 'none';
+  document.getElementById('settings-view').style.display  = 'none';
+  // プラグインが追加したカスタムビューも非表示にする
+  document.querySelectorAll('.plugin-custom-view').forEach(el => el.style.display = 'none');
+}
+
+function showSettings() {
+  state.currentProjectId = null;
+  _hideAllViews();
+  const sv = document.getElementById('settings-view');
+  sv.style.display = 'flex';
+  sv.style.flexDirection = 'column';
+  _viewFadeIn(sv);
+  document.getElementById('settings-version-num').textContent  = APP_VERSION;
+  document.getElementById('settings-version-date').textContent = APP_VERSION_DATE;
+  renderSidebar();
+}
+
+function showSettingsPane(pane) {
+  ['version','plugins'].forEach(p => {
+    document.getElementById('settings-pane-' + p).style.display = p === pane ? '' : 'none';
+    const nav = document.getElementById('settings-nav-' + p);
+    if (nav) nav.classList.toggle('active', p === pane);
+  });
+  if (pane === 'plugins') initPluginPane();
+}
+
+// ── settings.json 読み書き ──────────────────────
+const _SETTINGS_DEFAULT = () => ({
+  version: '1.0',
+  plugins: { value: [], _updatedAt: new Date().toISOString() }
+});
+
+async function loadSettings() {
+  if (!state.rootDirHandle) return;
+  try {
+    const fh   = await state.rootDirHandle.getFileHandle('settings.json');
+    const text = await (await fh.getFile()).text();
+    state.settings = JSON.parse(text);
+  } catch(e) {
+    // ファイルが存在しない場合はデフォルト値で初期化
+    state.settings = _SETTINGS_DEFAULT();
+    await _writeSettings();
+  }
+  // plugins.js（読み込み順・実ファイル一覧の正）と settings.json（有効/無効・個別設定）を突き合わせる
+  await _reconcilePluginsWithDisk();
+}
+
+// plugins.js の実体一覧を正とし、settings.json の plugins.value を補完・整理する
+async function _reconcilePluginsWithDisk() {
+  if (!state.settings) return;
+  if (!state.settings.plugins) state.settings.plugins = { value: [], _updatedAt: new Date().toISOString() };
+  if (!Array.isArray(state.settings.plugins.value)) state.settings.plugins.value = [];
+
+  // 後方互換: 旧形式（文字列配列）が残っていたらオブジェクト配列に変換
+  state.settings.plugins.value = state.settings.plugins.value.map(v =>
+    typeof v === 'string' ? { file: v, enabled: true, config: {} } : v
+  );
+
+  // プラグイン用フォルダハンドルを取得（IDB復元 or 未取得なら何もしない＝後でモーダルを開いたときに解決）
+  if (!_pluginDirHandle) {
+    _pluginDirHandle = await loadPluginDirFromIDB();
+  }
+  if (!_pluginDirHandle) return; // フォルダ未選択。一覧UIを開いたタイミングで解決する
+
+  let filesOnDisk = [];
+  try {
+    const perm = await _pluginDirHandle.queryPermission({ mode: 'read' });
+    if (perm !== 'granted') {
+      const granted = await _pluginDirHandle.queryPermission({ mode: 'read' });
+      if (granted !== 'granted') return; // 権限なし。UIで再取得を促す
+    }
+    filesOnDisk = await readPluginsFromDir(_pluginDirHandle);
+  } catch(e) { return; }
+
+  const known = new Map(state.settings.plugins.value.map(v => [v.file, v]));
+  const merged = filesOnDisk.map(file => known.get(file) || { file, enabled: true, config: {} });
+  state.settings.plugins.value = merged;
+  // ディスク上に無いファイルへの参照は一覧から除外（自然に merged に含まれない）
+}
+
+async function _writeSettings() {
+  if (!state.rootDirHandle || !state.settings) return;
+  try {
+    const fh = await state.rootDirHandle.getFileHandle('settings.json', { create: true });
+    const w  = await fh.createWritable();
+    await w.write(JSON.stringify(state.settings, null, 2));
+    await w.close();
+  } catch(e) { console.warn('settings.json 書き込みエラー:', e); }
+}
+
+async function saveSettingsLWW(updates) {
+  // ディスクから再読み込みして LWW マージ
+  let disk = null;
+  try {
+    const fh   = await state.rootDirHandle.getFileHandle('settings.json');
+    const text = await (await fh.getFile()).text();
+    disk = JSON.parse(text);
+  } catch(e) { disk = _SETTINGS_DEFAULT(); }
+
+  const merged = disk ? JSON.parse(JSON.stringify(disk)) : _SETTINGS_DEFAULT();
+  // フィールド単位 LWW
+  for (const [key, val] of Object.entries(updates)) {
+    const myTs   = val._updatedAt   || '';
+    const diskTs = (disk && disk[key] && disk[key]._updatedAt) || '';
+    if (myTs >= diskTs) merged[key] = val;
+  }
+  state.settings = merged;
+  await _writeSettings();
+}
+
 function showMyTasks() {
   state.currentProjectId = null;
-  document.getElementById('projects-view').style.display = 'none';
-  document.getElementById('project-detail').style.display = 'none';
+  _hideAllViews();
   const mtv = document.getElementById('my-tasks-view');
   mtv.style.display = 'block';
   _viewFadeIn(mtv);
@@ -4663,11 +5199,10 @@ async function deleteAvatar() {
 
 function showProjectsList() {
   state.currentProjectId = null;
+  _hideAllViews();
   const pv = document.getElementById('projects-view');
   pv.style.display='block';
   _viewFadeIn(pv);
-  document.getElementById('project-detail').style.display='none';
-  document.getElementById('my-tasks-view').style.display='none';
   restoreProjectListSortPref();
   renderSidebar();
   renderProjectsList();
@@ -4746,6 +5281,7 @@ function renderProjectsList() {
       <div class="project-actions">
         <button class="icon-btn" onclick="event.stopPropagation();openProjectModal('${p.id}')">✏️</button>
         <button class="icon-btn" title="${isArchived?'未完了に戻す':'完了にする'}" onclick="event.stopPropagation();toggleArchiveProject('${p.id}')">${isArchived?'♻️':'📦'}</button>
+        <button class="icon-btn" title="プロジェクト設定" onclick="event.stopPropagation();openProjectSettings('${p.id}')">⚙️</button>
         <button class="icon-btn del" onclick="event.stopPropagation();deleteProject('${p.id}')">🗑</button>
       </div>
       <div class="project-card-name" style="margin-top:${isArchived?'20px':'8px'};display:flex;align-items:center;gap:8px">${esc(p.name)}${pNumHtml}</div>
@@ -4795,11 +5331,10 @@ function renderProjectsList() {
 function openProject(id) {
   state.currentProjectId = id;
   const p = getProject(id);
-  document.getElementById('projects-view').style.display='none';
+  _hideAllViews();
   const pd = document.getElementById('project-detail');
   pd.style.display='flex';
   _viewFadeIn(pd);
-  document.getElementById('my-tasks-view').style.display='none';
   document.getElementById('ph-color-badge').style.background = p.color||'#4f8eff';
   document.getElementById('ph-title').textContent = p.name;
   document.getElementById('ph-desc').textContent = p.description||'';
@@ -4809,8 +5344,16 @@ function openProject(id) {
   if (btn) btn.textContent = p.archived ? '♻️ 未完了に戻す' : '📦 完了';
   renderSidebar();
   updateFilters();
-  // 直前に開いていたビューを維持する（初回はlist）
-  switchView(state.currentView || 'list');
+  // projectSettings.tabs に従いタブ表示を更新
+  _applyProjectSettingsTabs(p);
+  // 直前に開いていたビューがこのプロジェクトで非表示設定の場合は list にフォールバック
+  const _tabVisMap = { kanban: 'tab-kanban', gantt: 'tab-gantt', burndown: 'tab-burndown', wiki: 'tab-wiki' };
+  let _nextView = state.currentView || 'list';
+  const _hideId = _tabVisMap[_nextView];
+  if (_hideId && document.getElementById(_hideId) && document.getElementById(_hideId).style.display === 'none') {
+    _nextView = 'list';
+  }
+  switchView(_nextView);
 }
 
 function switchView(view) {
@@ -4847,6 +5390,9 @@ function switchView(view) {
     const customEl = document.getElementById('plugin-view-'+view);
     if (customEl) { customEl.style.display = 'flex'; _viewFadeIn(customEl); }
   }
+
+  // このプロジェクトで非表示設定のビューが直接アクティブ化された場合の保険表示
+  _renderHiddenViewGuard(view);
 
   // フィルターバー: カスタムビューは各自で制御（デフォルト非表示）
   const isCustomView = _customDefs.some(d => d.id === view);
@@ -4960,7 +5506,9 @@ function updateFilters() {
   if (caDl) caDl.innerHTML = dl.innerHTML;
 
   // Label datalist（タスクパネル・新規作成モーダルのラベル入力補完用）
-  const allLabels = [...new Set(p.tasks.flatMap(t => t.labels||[]))].sort();
+  const existingLabels = [...new Set(p.tasks.flatMap(t => t.labels||[]))];
+  const defLabels      = (p.projectSettings?.labels || []).map(l => l.name);
+  const allLabels      = [...new Set([...defLabels, ...existingLabels])].sort();
   const labelDlHtml = allLabels.map(l=>`<option value="${esc(l)}">`).join('');
   const labelDl = document.getElementById('label-dl');
   if (labelDl) labelDl.innerHTML = labelDlHtml;
@@ -5035,29 +5583,30 @@ function renderList() {
   }
 
   body.innerHTML = `
-    <table class="list-table">
+    <table class="list-table" id="list-table-main">
       <colgroup>
-        <col style="width:60px"><col><col style="width:110px">
-        <col style="width:90px"><col style="width:130px"><col style="width:55px">
-        <col style="width:75px"><col style="width:75px">
-        <col style="width:95px"><col style="width:95px">
+        <col style="width:60px"><col><col data-col="checklist" style="width:110px">
+        <col data-col="status" style="width:90px"><col data-col="assignee" style="width:130px"><col data-col="storyPoints" style="width:55px">
+        <col data-col="estimatedHours" style="width:75px"><col data-col="actualHours" style="width:75px">
+        <col data-col="startDate" style="width:95px"><col data-col="dueDate" style="width:95px">
       </colgroup>
       <thead>
         <tr>
           <th style="padding-left:24px">#</th>
           <th>タイトル</th>
-          <th>チェックリスト</th>
-          <th>ステータス</th>
-          <th>担当者</th>
-          <th>SP</th>
-          <th style="text-align:right;padding-right:8px">見積(h)</th>
-          <th style="text-align:right;padding-right:8px">実績(h)</th>
-          <th>開始日</th>
-          <th>期限</th>
+          <th data-col="checklist">チェックリスト</th>
+          <th data-col="status">ステータス</th>
+          <th data-col="assignee">担当者</th>
+          <th data-col="storyPoints">SP</th>
+          <th data-col="estimatedHours" style="text-align:right;padding-right:8px">見積(h)</th>
+          <th data-col="actualHours" style="text-align:right;padding-right:8px">実績(h)</th>
+          <th data-col="startDate">開始日</th>
+          <th data-col="dueDate">期限</th>
         </tr>
       </thead>
       ${rows}
     </table>`;
+  _applyListColumnVisibility(p);
 }
 
 function toggleMsGroup(id, trEl) {
@@ -5243,7 +5792,7 @@ function buildListRow(t) {
 
   // チェックリスト進捗（getTaskProgress と同じロジック: 完了ステータスで100%、それ以外は最大99%）
   const cl = t.checklist||[];
-  let clCell = '<td class="cl-progress-cell" style="color:var(--muted);font-size:12px">—</td>';
+  let clCell = '<td class="cl-progress-cell" data-col="checklist" style="color:var(--muted);font-size:12px">—</td>';
   if (cl.length > 0 || t.status === 'done') {
     const prog    = getTaskProgress(t);
     const pct     = Math.round(prog * 100);
@@ -5252,7 +5801,7 @@ function buildListRow(t) {
     const label   = t.status === 'done'
       ? `${cl.length}/${cl.length} (100%)`
       : `${done}/${cl.length} (${pct}%)`;
-    clCell = `<td class="cl-progress-cell">
+    clCell = `<td class="cl-progress-cell" data-col="checklist">
       <div class="cl-progress-mini">
         <div class="cl-progress-mini-bar">
           <div class="cl-progress-mini-fill${allDone?' done':''}" style="width:${pct}%"></div>
@@ -5277,16 +5826,31 @@ function buildListRow(t) {
       </div>
     </td>
     ${clCell}
-    <td><span class="status-badge" style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44">${s.label}</span></td>
-    <td>
+    <td data-col="status"><span class="status-badge" style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44">${s.label}</span></td>
+    <td data-col="assignee">
       ${t.assignee?`<div style="display:flex;align-items:center;gap:6px">${avatarHtml(t.assignee,'assignee-avatar')}<span style="font-size:12px">${esc(t.assignee)}</span></div>`:'<span style="color:var(--muted);font-size:12px">—</span>'}
     </td>
-    <td class="sp-cell">${t.storyPoints>0?`<span style="background:rgba(79,142,255,.15);color:var(--accent);padding:1px 7px;border-radius:4px">${t.storyPoints}</span>`:'—'}</td>
-    <td style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)">${t.estimatedHours>0?t.estimatedHours:'—'}</td>
-    <td style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;${t.actualHours>0&&t.estimatedHours>0?(t.actualHours>t.estimatedHours?'color:var(--red)':'color:var(--green)'):'color:var(--muted)'}">${t.actualHours>0?t.actualHours:'—'}</td>
-    <td class="due-cell">${t.startDate?fmtFull(t.startDate):'—'}</td>
-    <td class="due-cell ${dueCls}">${t.dueDate?fmtFull(t.dueDate):'—'}</td>
+    <td class="sp-cell" data-col="storyPoints">${t.storyPoints>0?`<span style="background:rgba(79,142,255,.15);color:var(--accent);padding:1px 7px;border-radius:4px">${t.storyPoints}</span>`:'—'}</td>
+    <td data-col="estimatedHours" style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)">${t.estimatedHours>0?t.estimatedHours:'—'}</td>
+    <td data-col="actualHours" style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;${t.actualHours>0&&t.estimatedHours>0?(t.actualHours>t.estimatedHours?'color:var(--red)':'color:var(--green)'):'color:var(--muted)'}">${t.actualHours>0?t.actualHours:'—'}</td>
+    <td class="due-cell" data-col="startDate">${t.startDate?fmtFull(t.startDate):'—'}</td>
+    <td class="due-cell ${dueCls}" data-col="dueDate">${t.dueDate?fmtFull(t.dueDate):'—'}</td>
   </tr>`;
+}
+
+// projectSettings.checklistColumns に従い、リストビューの列表示/非表示を切り替える
+function _applyListColumnVisibility(p) {
+  const cols = (p && p.projectSettings && p.projectSettings.checklistColumns) || {};
+  const keys = ['checklist','status','assignee','storyPoints','estimatedHours','actualHours','startDate','dueDate'];
+  const table = document.getElementById('list-table-main');
+  if (!table) return;
+  keys.forEach(k => {
+    // 未設定（undefined）はデフォルト表示、false のときのみ非表示
+    const visible = cols[k] !== false;
+    table.querySelectorAll(`[data-col="${k}"]`).forEach(el => {
+      el.style.display = visible ? '' : 'none';
+    });
+  });
 }
 
 // ═══════════════════════════════════════
@@ -6445,6 +7009,266 @@ function saveProject() {
   window.TaskFlow.emit(_isNewP ? 'project-create' : 'project-update', { project: _savedP });
 }
 
+// ═══════════════════════════════════════
+// PROJECT SETTINGS MODAL
+// ═══════════════════════════════════════
+let _psProjectId     = null;  // 設定対象プロジェクトID
+let _psProjectSettings = {};  // 編集中の projectSettings コピー
+let _psTplEditId     = null;  // テンプレート編集中 id
+let _psLblEditId     = null;  // ラベル編集中 id
+
+function _psDefaultSettings() {
+  return {
+    version: '1.0',
+    tabs: { kanban: true, gantt: true, burndown: true, wiki: true },
+    checklistColumns: {
+      checklist: true, status: true, assignee: true, storyPoints: true,
+      estimatedHours: true, actualHours: true, startDate: true, dueDate: true
+    },
+    taskTemplates: [],
+    labels: []
+  };
+}
+
+function openProjectSettings(pid) {
+  _psProjectId = pid;
+  const p = getProject(pid);
+  // projectSettings がなければデフォルト値
+  _psProjectSettings = p.projectSettings
+    ? JSON.parse(JSON.stringify(p.projectSettings))
+    : _psDefaultSettings();
+  // デフォルト補完（既存プロジェクトに無いフィールドも安全に補う）
+  const _defs = _psDefaultSettings();
+  _psProjectSettings.tabs             = Object.assign({}, _defs.tabs, _psProjectSettings.tabs || {});
+  _psProjectSettings.checklistColumns = Object.assign({}, _defs.checklistColumns, _psProjectSettings.checklistColumns || {});
+  if (!_psProjectSettings.taskTemplates) _psProjectSettings.taskTemplates = [];
+  if (!_psProjectSettings.labels)        _psProjectSettings.labels        = [];
+
+  // 基本設定タブにデータを反映
+  document.getElementById('ps-tab-kanban').checked      = !!_psProjectSettings.tabs.kanban;
+  document.getElementById('ps-tab-gantt').checked       = !!_psProjectSettings.tabs.gantt;
+  document.getElementById('ps-tab-burndown').checked    = !!_psProjectSettings.tabs.burndown;
+  document.getElementById('ps-tab-wiki').checked        = !!_psProjectSettings.tabs.wiki;
+  document.getElementById('ps-col-checklist').checked   = !!_psProjectSettings.checklistColumns.checklist;
+  document.getElementById('ps-col-status').checked      = !!_psProjectSettings.checklistColumns.status;
+  document.getElementById('ps-col-assignee').checked    = !!_psProjectSettings.checklistColumns.assignee;
+  document.getElementById('ps-col-storypoints').checked = !!_psProjectSettings.checklistColumns.storyPoints;
+  document.getElementById('ps-col-estimated').checked   = !!_psProjectSettings.checklistColumns.estimatedHours;
+  document.getElementById('ps-col-actual').checked      = !!_psProjectSettings.checklistColumns.actualHours;
+  document.getElementById('ps-col-startdate').checked   = !!_psProjectSettings.checklistColumns.startDate;
+  document.getElementById('ps-col-duedate').checked     = !!_psProjectSettings.checklistColumns.dueDate;
+
+  switchPsTab('basic');
+  _renderPsTemplates();
+  _renderPsLabels();
+  openModal('project-settings-modal');
+}
+
+function switchPsTab(tab) {
+  ['basic','templates','labels'].forEach(t => {
+    document.getElementById('ps-pane-'  + t).style.display = t === tab ? '' : 'none';
+    document.getElementById('ps-tab-'   + t).classList.toggle('active', t === tab);
+  });
+}
+
+// ── テンプレート ──
+function _renderPsTemplates() {
+  const list = document.getElementById('ps-templates-list');
+  if (!_psProjectSettings.taskTemplates.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:24px">テンプレートはまだありません</div>';
+    return;
+  }
+  list.innerHTML = _psProjectSettings.taskTemplates.map(t => {
+    const clCount = (t.defaultValues?.checklist || []).length;
+    return `
+    <div class="ps-item-row">
+      <div class="ps-item-name">${esc(t.name)}</div>
+      <div class="ps-item-meta">${clCount?`チェック${clCount}件`:'チェックリストなし'}</div>
+      <button class="btn btn-secondary btn-sm" onclick="openPsTemplateEditor('${t.id}')">編集</button>
+      <button class="btn btn-danger btn-sm"    onclick="deletePsTemplate('${t.id}')">削除</button>
+    </div>`;
+  }).join('');
+}
+
+function openPsTemplateEditor(id) {
+  _psTplEditId = id;
+  const tpl = id ? _psProjectSettings.taskTemplates.find(t => t.id === id) : null;
+  document.getElementById('ps-te-title').textContent       = tpl ? 'テンプレートを編集' : 'テンプレートを追加';
+  document.getElementById('ps-te-name').value               = tpl ? tpl.name : '';
+  document.getElementById('ps-te-description').value         = tpl ? (tpl.defaultValues?.description || '') : '';
+  const items = tpl ? (tpl.defaultValues?.checklist || []).map(c => c.text || c).join('\n') : '';
+  document.getElementById('ps-te-checklist').value      = items;
+  setPsTeDescMode('edit');
+  openModal('ps-template-editor-modal');
+}
+
+function savePsTemplateEditor() {
+  const name = document.getElementById('ps-te-name').value.trim();
+  if (!name) { toast('テンプレート名を入力してください', 'warn'); return; }
+  const description = document.getElementById('ps-te-description').value;
+  const clText    = document.getElementById('ps-te-checklist').value;
+  const checklist = clText.split('\n').map(s => s.trim()).filter(Boolean).map(text => ({ id: Date.now()+Math.random(), text, checked: false }));
+  if (_psTplEditId) {
+    const tpl = _psProjectSettings.taskTemplates.find(t => t.id === _psTplEditId);
+    if (tpl) { tpl.name = name; tpl.defaultValues = { description, checklist, labels: tpl.defaultValues?.labels || [] }; }
+  } else {
+    _psProjectSettings.taskTemplates.push({ id: 'tpl_' + Date.now(), name, defaultValues: { description, checklist, labels: [] } });
+  }
+  _renderPsTemplates();
+  closeModal('ps-template-editor-modal');
+}
+
+function deletePsTemplate(id) {
+  if (!confirm('このテンプレートを削除しますか？')) return;
+  _psProjectSettings.taskTemplates = _psProjectSettings.taskTemplates.filter(t => t.id !== id);
+  _renderPsTemplates();
+}
+
+// ── ラベル ──
+function _renderPsLabels() {
+  const list = document.getElementById('ps-labels-list');
+  if (!_psProjectSettings.labels.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:24px">ラベルはまだありません</div>';
+    return;
+  }
+  list.innerHTML = _psProjectSettings.labels.map(l => `
+    <div class="ps-item-row">
+      <div style="width:14px;height:14px;border-radius:50%;background:${esc(l.color)};flex-shrink:0"></div>
+      <div class="ps-item-name">${esc(l.name)}</div>
+      <button class="btn btn-secondary btn-sm" onclick="openPsLabelEditor('${l.id}')">編集</button>
+      <button class="btn btn-danger btn-sm"    onclick="deletePsLabel('${l.id}')">削除</button>
+    </div>`).join('');
+}
+
+function openPsLabelEditor(id) {
+  _psLblEditId = id;
+  const lbl = id ? _psProjectSettings.labels.find(l => l.id === id) : null;
+  document.getElementById('ps-le-title').textContent = lbl ? 'ラベルを編集' : 'ラベルを追加';
+  document.getElementById('ps-le-name').value        = lbl ? lbl.name  : '';
+  const color = lbl ? lbl.color : '#4f8eff';
+  document.getElementById('ps-le-color').value       = color;
+  _updateLblPreview(color);
+  // カラーピッカー変更時プレビュー更新
+  document.getElementById('ps-le-color').oninput = e => _updateLblPreview(e.target.value);
+  openModal('ps-label-editor-modal');
+}
+
+function _updateLblPreview(color) {
+  const prev = document.getElementById('ps-le-preview');
+  const name = document.getElementById('ps-le-name').value || 'プレビュー';
+  prev.textContent = name;
+  prev.style.background = color + '22';
+  prev.style.color      = color;
+  prev.style.border     = '1px solid ' + color + '44';
+}
+
+function savePsLabelEditor() {
+  const name  = document.getElementById('ps-le-name').value.trim();
+  if (!name) { toast('ラベル名を入力してください', 'warn'); return; }
+  const color = document.getElementById('ps-le-color').value;
+  if (_psLblEditId) {
+    const lbl = _psProjectSettings.labels.find(l => l.id === _psLblEditId);
+    if (lbl) { lbl.name = name; lbl.color = color; }
+  } else {
+    _psProjectSettings.labels.push({ id: 'lbl_' + Date.now(), name, color });
+  }
+  _renderPsLabels();
+  closeModal('ps-label-editor-modal');
+}
+
+function deletePsLabel(id) {
+  if (!confirm('このラベルを削除しますか？')) return;
+  _psProjectSettings.labels = _psProjectSettings.labels.filter(l => l.id !== id);
+  _renderPsLabels();
+}
+
+// ── 保存 ──
+function saveProjectSettings() {
+  const tabs = {
+    kanban:   document.getElementById('ps-tab-kanban').checked,
+    gantt:    document.getElementById('ps-tab-gantt').checked,
+    burndown: document.getElementById('ps-tab-burndown').checked,
+    wiki:     document.getElementById('ps-tab-wiki').checked
+  };
+  const checklistColumns = {
+    checklist:      document.getElementById('ps-col-checklist').checked,
+    status:         document.getElementById('ps-col-status').checked,
+    assignee:       document.getElementById('ps-col-assignee').checked,
+    storyPoints:    document.getElementById('ps-col-storypoints').checked,
+    estimatedHours: document.getElementById('ps-col-estimated').checked,
+    actualHours:    document.getElementById('ps-col-actual').checked,
+    startDate:      document.getElementById('ps-col-startdate').checked,
+    dueDate:        document.getElementById('ps-col-duedate').checked
+  };
+  _psProjectSettings.tabs             = tabs;
+  _psProjectSettings.checklistColumns = checklistColumns;
+  _psProjectSettings.version          = '1.0';
+
+  const p = getProject(_psProjectId);
+  if (!p) return;
+  p.projectSettings = _psProjectSettings;
+  autoSave(_psProjectId);
+
+  // タブ表示に即時反映
+  _applyProjectSettingsTabs(p);
+
+  // 今まさに表示中のビューが非表示設定にされた場合は list にフォールバック
+  const _tabIdMap = { kanban: 'tab-kanban', gantt: 'tab-gantt', burndown: 'tab-burndown', wiki: 'tab-wiki' };
+  const _curId = _tabIdMap[state.currentView];
+  if (_curId && document.getElementById(_curId) && document.getElementById(_curId).style.display === 'none') {
+    switchView('list');
+  } else {
+    _renderHiddenViewGuard(state.currentView);
+  }
+  // リストビューの列表示設定を即時反映
+  if (state.currentView === 'list') renderList();
+
+  closeModal('project-settings-modal');
+  toast('プロジェクト設定を保存しました', 'success');
+}
+
+// projectSettings.tabs に従ってビュータブの表示を切り替える
+// （projectSettings が無いプロジェクトでは全タブ表示にリセットする）
+function _applyProjectSettingsTabs(p) {
+  const tabs = (p && p.projectSettings && p.projectSettings.tabs) || {};
+  const mapping = { kanban: 'tab-kanban', gantt: 'tab-gantt', burndown: 'tab-burndown', wiki: 'tab-wiki' };
+  for (const [key, id] of Object.entries(mapping)) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = tabs[key] === false ? 'none' : '';
+  }
+}
+
+// 非表示設定のビューが何らかの経路でアクティブ化された場合に
+// 「無地背景＋大きい薄い！アイコン」のプレースホルダーで中身を覆い隠す保険
+function _renderHiddenViewGuard(view) {
+  const mapping = { kanban: 'kanban-view', gantt: 'gantt-view', burndown: 'burndown-view', wiki: 'wiki-view' };
+  const tabIdMap = { kanban: 'tab-kanban', gantt: 'tab-gantt', burndown: 'tab-burndown', wiki: 'tab-wiki' };
+  // 既存のガード要素があれば一旦除去
+  document.querySelectorAll('.hidden-view-guard').forEach(el => el.remove());
+
+  const containerId = mapping[view];
+  if (!containerId) return; // list/wiki/カスタムビュー等は対象外
+  const tabEl = document.getElementById(tabIdMap[view]);
+  const isHidden = tabEl && tabEl.style.display === 'none';
+  if (!isHidden) return;
+
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const labelMap = { kanban: 'カンバン', gantt: 'ガントチャート', burndown: 'バーンダウン', wiki: 'Wiki' };
+  const guard = document.createElement('div');
+  guard.className = 'hidden-view-guard';
+  guard.style.cssText = 'position:absolute;inset:0;background:var(--bg, #14161c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:50';
+  guard.innerHTML = `
+    <div style="font-size:64px;opacity:.18;line-height:1">⚠️</div>
+    <div style="font-size:14px;color:var(--muted);opacity:.6">${labelMap[view]||'この表示'}はプロジェクト設定で非表示になっています</div>
+    <button class="btn btn-secondary btn-sm" style="opacity:.8" onclick="openProjectSettings(state.currentProjectId)">⚙️ プロジェクト設定を開く</button>
+  `;
+  // 親要素を position:relative にしておく
+  const computedPos = getComputedStyle(container).position;
+  if (computedPos === 'static') container.style.position = 'relative';
+  container.appendChild(guard);
+}
+
 async function deleteProject(id) {
   const p=getProject(id);
   if(!confirm(`「${p.name}」を削除しますか？`))return;
@@ -6512,12 +7336,67 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-checklist-input').value='';
   document.getElementById('tm-labels-display').innerHTML='';
   document.getElementById('tm-label-input').value='';
+  // テンプレート選択肢を更新
+  const _p2 = getProject(state.currentProjectId);
+  const _templates = _p2?.projectSettings?.taskTemplates || [];
+  const _tmplRow = document.getElementById('tm-template-row');
+  const _tmplSel = document.getElementById('tm-template');
+  if (_templates.length > 0) {
+    _tmplRow.style.display = '';
+    _tmplSel.innerHTML = '<option value="">── テンプレートを選択 ──</option>'
+      + _templates.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+    _tmplSel.value = '';
+  } else {
+    _tmplRow.style.display = 'none';
+  }
   updateFilters();
   openModal('task-modal');
   setTimeout(()=>document.getElementById('tm-title').focus(),100);
 }
 
 // チェックリスト項目を追加
+// テンプレートをタスク作成モーダルに適用
+function applyTaskTemplate(tplId) {
+  if (!tplId) return;
+  const p = getProject(state.currentProjectId);
+  const tpl = (p?.projectSettings?.taskTemplates || []).find(t => t.id === tplId);
+  if (!tpl) return;
+  const dv = tpl.defaultValues || {};
+  // 本文（詳細）
+  if (dv.description) {
+    const descEl = document.getElementById('tm-description');
+    if (descEl) descEl.value = dv.description;
+  }
+  // チェックリスト（tmAddChecklistItem と同じ見た目になるよう統一）
+  const clContainer = document.getElementById('tm-checklist');
+  clContainer.innerHTML = '';
+  (dv.checklist || []).forEach(item => {
+    const text = typeof item === 'string' ? item : item.text;
+    if (!text) return;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px';
+    row.innerHTML = `<span style="color:var(--muted);font-size:12px;flex-shrink:0">☐</span>
+      <input class="form-input" value="${esc(text)}" style="flex:1;font-size:13px" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('tm-checklist-input').focus();}">
+      <button type="button" onclick="this.parentNode.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;flex-shrink:0;padding:0 2px">✕</button>`;
+    clContainer.appendChild(row);
+  });
+  // ラベル
+  if (dv.labels && dv.labels.length) {
+    const display = document.getElementById('tm-labels-display');
+    display.innerHTML = '';
+    dv.labels.forEach(lname => {
+      const c = getLabelColor(lname);
+      const span = document.createElement('span');
+      span.className = 'label-chip';
+      span.style.cssText = `background:${c}22;color:${c};border:1px solid ${c}44`;
+      span.dataset.label = lname;
+      span.innerHTML = `${esc(lname)} <span style="cursor:pointer;opacity:.6" onclick="this.closest('.label-chip').remove()">✕</span>`;
+      display.appendChild(span);
+    });
+  }
+  toast(`テンプレート「${tpl.name}」を適用しました`, 'success');
+}
+
 function tmAddChecklistItem(){
   const input = document.getElementById('tm-checklist-input');
   const text = input.value.trim();
@@ -7650,6 +8529,29 @@ function setTmDescMode(mode) {
   }
 }
 
+// テンプレートエディタの本文（詳細）用 編集/プレビュー切替
+function setPsTeDescMode(mode) {
+  const ta   = document.getElementById('ps-te-description');
+  const pv   = document.getElementById('ps-te-desc-preview');
+  const eBtn = document.getElementById('ps-te-desc-edit-btn');
+  const pBtn = document.getElementById('ps-te-desc-preview-btn');
+  if (!ta || !pv) return;
+  if (mode === 'preview') {
+    pv.innerHTML = marked.parse(ta.value || '*(空)*');
+    pv.style.display = 'block';
+    ta.style.display = 'none';
+    eBtn.classList.remove('active');
+    pBtn.classList.add('active');
+    _toggleFmtBtns('ps-te-desc-edit-btn', false);
+  } else {
+    pv.style.display = 'none';
+    ta.style.display = 'block';
+    eBtn.classList.add('active');
+    pBtn.classList.remove('active');
+    _toggleFmtBtns('ps-te-desc-edit-btn', true);
+  }
+}
+
 function setCmtMode(mode) {
   const ta = document.getElementById('comment-text');
   const pv = document.getElementById('comment-preview');
@@ -8189,12 +9091,11 @@ function copyTaskUrl() {
 window.addEventListener('hashchange', () => {
   if (state.data) navigateToHash(window.location.hash);
 });
-['project-modal','task-modal','milestone-modal','plugin-modal'].forEach(id=>{
+['project-modal','task-modal','milestone-modal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){
     if(e.target===this){
       if(id==='project-modal')closeProjectModal();
       else if(id==='task-modal')tryCloseTaskModal();
-      else if(id==='plugin-modal')closePluginModal();
       else closeMilestoneModal();
     }
   });
@@ -8253,6 +9154,21 @@ window.TaskFlow = {
   openModal:         (id) => openModal(id),
   closeModal:        (id, cb) => closeModal(id, cb),
   viewFadeIn:        (el) => _viewFadeIn(el),
+
+  // ── プラグインビュー切り替えAPI ──
+  // プラグインが独自ビューを表示する前に本体の全ビューを隠すために呼ぶ
+  // 例: TaskFlow.hideAllViews(); myView.style.display='block';
+  hideAllViews:      () => _hideAllViews(),
+
+  // より簡便なAPI: elをplugin-custom-viewクラス付きで表示し、本体全ビューを隠す
+  // 例: TaskFlow.switchToPluginView(myView);
+  switchToPluginView(el) {
+    if (!el) return;
+    el.classList.add('plugin-custom-view');
+    _hideAllViews();
+    el.style.display = 'block';
+    _viewFadeIn(el);
+  },
 
   // ── タスク操作 ──
   createTask(projectId, fields) {
@@ -8372,6 +9288,48 @@ window.TaskFlow = {
       if (labelSpan) labelSpan.textContent = labelText;
       if (iconSpan && icon !== null) iconSpan.textContent = icon;
     }
+  },
+
+  // ── プラグインメタ情報登録 API ──
+  // プラグイン側の IIFE 内で呼ぶ:
+  //   TaskFlow.registerPlugin({ id, name, description?, version?, settings?: [{key,label,type,default}] });
+  _pluginMeta: [],
+  registerPlugin(def) {
+    if (!def || !def.id || !def.name) {
+      console.warn('[TaskFlow] registerPlugin: id と name は必須です');
+      return;
+    }
+    // 重複防止（同じidが既に登録済みなら上書き）
+    const existingIdx = this._pluginMeta.findIndex(m => m.id === def.id);
+    if (existingIdx >= 0) {
+      this._pluginMeta[existingIdx] = def;
+    } else {
+      this._pluginMeta.push(def);
+    }
+  },
+
+  // プラグイン側から自分の設定値を読む:
+  //   const cfg = TaskFlow.getPluginConfig('my-plugin-id');
+  //   → settings.json の config とスキーマの default をマージした値を返す
+  getPluginConfig(pluginId) {
+    const meta = this._pluginMeta.find(m => m.id === pluginId);
+    if (!meta) return {};
+    // スキーマの default 値をベースに
+    const defaults = {};
+    (meta.settings || []).forEach(s => { defaults[s.key] = s.default; });
+    // settings.json の値で上書き
+    const allEntries = (state.settings && state.settings.plugins && state.settings.plugins.value) || [];
+    const idNorm = pluginId.replace(/_/g, '-');
+    const entry = allEntries.find(v => {
+      if (typeof v !== 'object' || !v.file) return false;
+      const fileCore = v.file.replace(/\.js$/i, '').replace(/_/g, '-').replace(/^plugin-/, '');
+      const idCore   = idNorm.replace(/^plugin-/, '');
+      return fileCore === idCore
+        || fileCore.includes(idCore)
+        || idCore.includes(fileCore);
+    });
+    const stored = (entry && entry.config) || {};
+    return Object.assign({}, defaults, stored);
   },
 };
 
