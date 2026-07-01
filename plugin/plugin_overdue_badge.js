@@ -6,7 +6,49 @@
 (function () {
   'use strict';
 
-  var ITEM_ID = 'overdue-badge';
+  var PLUGIN_ID = 'overdue-badge';
+  var ITEM_ID   = 'overdue-badge';
+
+  // ── プラグインメタ情報を登録 ─────────────────────────────
+  // 設定画面「プラグイン」ペインに説明・設定項目を表示するために呼ぶ。
+  // TaskFlow 本体のバージョンが registerPlugin に対応していない場合は
+  // 何もしない（後方互換）。
+  if (typeof TaskFlow !== 'undefined' && typeof TaskFlow.registerPlugin === 'function') {
+    TaskFlow.registerPlugin({
+      id:          PLUGIN_ID,
+      name:        '期限切れバッジ',
+      description: '期限を過ぎた未完了タスクをサイドバーに件数表示します。' +
+                   'クリックで一覧モーダルを開き、タスクに直接ジャンプできます。',
+      version:     '1.1.0',
+      settings: [
+        {
+          key:     'showZero',
+          label:   '期限切れが 0件のときもバッジを表示する',
+          type:    'boolean',
+          default: true,
+        },
+        {
+          key:         'warnDays',
+          label:       '期限まで残り何日以内を警告表示するか',
+          description: '0 にすると当日期限のタスクのみを警告対象にします',
+          type:        'number',
+          default:     0,
+        },
+        {
+          key:     'includeArchived',
+          label:   'アーカイブ済みプロジェクトも集計対象にする',
+          type:    'boolean',
+          default: false,
+        },
+        {
+          key:     'intervalMin',
+          label:   '自動更新の間隔（分）',
+          type:    'number',
+          default: 5,
+        },
+      ],
+    });
+  }
 
   // ── 言語定義 ─────────────────────────────────────────────
   var DICT = {
@@ -33,6 +75,15 @@
   var _lang = localStorage.getItem('taskflow_lang') || 'ja';
   function t() { return DICT[_lang] || DICT.ja; }
 
+  // ── 設定値を読む（getPluginConfig 非対応バージョンへのフォールバック付き） ──
+  function getCfg() {
+    var defaults = { showZero: true, warnDays: 0, includeArchived: false, intervalMin: 5 };
+    if (typeof TaskFlow !== 'undefined' && typeof TaskFlow.getPluginConfig === 'function') {
+      return Object.assign({}, defaults, TaskFlow.getPluginConfig(PLUGIN_ID));
+    }
+    return defaults;
+  }
+
   // ── 今日の日付（ローカル時刻ベース） ─────────────────────
   function localToday() {
     var d = new Date();
@@ -42,28 +93,46 @@
     return y + '-' + m + '-' + day;
   }
 
-  // ── 期限切れタスクを集計（全プロジェクト） ───────────────
+  // ── 期限切れ（または警告対象）タスクを集計（全プロジェクト） ──
   function getOverdueTasks() {
+    var cfg = getCfg();
     var today = localToday();
+
+    // warnDays が 1 以上なら「N日後以前」も警告対象に含める
+    var warnDate = today;
+    if (cfg.warnDays > 0) {
+      var d = new Date(today + 'T00:00:00');
+      d.setDate(d.getDate() + cfg.warnDays);
+      warnDate = d.getFullYear() + '-'
+        + String(d.getMonth() + 1).padStart(2, '0') + '-'
+        + String(d.getDate()).padStart(2, '0');
+    }
+
     var result = [];
     var projects = typeof TaskFlow.getProjects === 'function'
       ? TaskFlow.getProjects()
       : (TaskFlow.getData().projects || []);
-    projects.filter(function(p) { return !p.archived; }).forEach(function(p) {
-      p.tasks.forEach(function(task) {
-        if (task.status !== 'done' && task.dueDate && task.dueDate < today) {
-          result.push({ task: task, project: p });
-        }
+
+    projects
+      .filter(function(p) { return cfg.includeArchived ? true : !p.archived; })
+      .forEach(function(p) {
+        p.tasks.forEach(function(task) {
+          if (task.status !== 'done' && task.dueDate && task.dueDate <= warnDate) {
+            result.push({ task: task, project: p });
+          }
+        });
       });
-    });
     return result;
   }
 
   // ── バッジラベルを更新 ────────────────────────────────────
   function updateBadge() {
     try {
-      var count = getOverdueTasks().length;
+      var cfg = getCfg();
+      var overdue = getOverdueTasks();
+      var count = overdue.length;
       var icon, label, color, weight;
+
       if (count === 0) {
         icon = '✅'; label = t().noOverdue.replace(/^✅\s*/, '');
         color = 'var(--muted)'; weight = 'normal';
@@ -71,9 +140,16 @@
         icon = '⚠️'; label = t().overdue(count).replace(/^⚠️\s*/, '');
         color = 'var(--red)'; weight = '600';
       }
-      TaskFlow.updateSidebarItem(ITEM_ID, icon, label);
+
+      // showZero=false かつ 0件のときはサイドバー項目を非表示
       var btn = document.getElementById('plugin-sidebar-' + ITEM_ID);
-      if (btn) { btn.style.color = color; btn.style.fontWeight = weight; }
+      if (btn) {
+        btn.style.display = (count === 0 && !cfg.showZero) ? 'none' : '';
+        btn.style.color = color;
+        btn.style.fontWeight = weight;
+      }
+
+      TaskFlow.updateSidebarItem(ITEM_ID, icon, label);
     } catch (e) {
       console.error('[plugin_overdue_badge] updateBadge error:', e);
     }
@@ -186,7 +262,8 @@
 
             var overEl = document.createElement('div');
             overEl.style.cssText = 'font-size:10px;color:var(--red)';
-            overEl.textContent = t().daysOver(daysOver(task.dueDate));
+            var d = daysOver(task.dueDate);
+            overEl.textContent = d > 0 ? t().daysOver(d) : '本日期限';
 
             meta.appendChild(dateEl);
             meta.appendChild(overEl);
@@ -205,17 +282,14 @@
   }
 
   // ── 別プロジェクトのタスクを開く ─────────────────────────
-  // 【バグ修正】プロジェクト切り替え時にヘッダー（名前・色・番号）を正しく更新する
   function openOverdueTask(projectId, taskId) {
     var state = TaskFlow.getState();
 
     if (state.currentProjectId !== projectId) {
       var p = TaskFlow.getProject(projectId);
       if (p) {
-        // currentProjectId を更新
         state.currentProjectId = projectId;
 
-        // プロジェクトヘッダーを更新（内部の openProject 相当処理）
         var colorBadge = document.getElementById('ph-color-badge');
         if (colorBadge) colorBadge.style.background = p.color || '#4f8eff';
 
@@ -231,7 +305,6 @@
         var archBtn = document.getElementById('btn-archive-project');
         if (archBtn) archBtn.textContent = p.archived ? '♻️ 未完了に戻す' : '📦 完了';
 
-        // ビューコンテナを切り替え
         var projectsView = document.getElementById('projects-view');
         if (projectsView) projectsView.style.display = 'none';
 
@@ -251,6 +324,7 @@
 
   // ── 初期化（重複防止つき） ───────────────────────────────
   var _initialized = false;
+  var _intervalId  = null;
 
   function init() {
     if (_initialized) return;
@@ -264,11 +338,15 @@
     TaskFlow.on('task-delete', updateBadge);
     TaskFlow.on('view-change', updateBadge);
 
-    setInterval(updateBadge, 5 * 60 * 1000);
+    // 自動更新（intervalMin 設定値を読んで適用）
+    var cfg = getCfg();
+    var ms = Math.max(1, cfg.intervalMin) * 60 * 1000;
+    if (_intervalId) clearInterval(_intervalId);
+    _intervalId = setInterval(updateBadge, ms);
   }
 
   if (window.TaskFlow) { TaskFlow.on('ready', init); }
   document.addEventListener('taskflow-ready', init);
 
-  console.log('[plugin_overdue_badge] loaded');
+  console.log('[plugin_overdue_badge] loaded v1.1.0');
 })();
