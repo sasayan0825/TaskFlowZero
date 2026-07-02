@@ -284,39 +284,44 @@
   // ── 別プロジェクトのタスクを開く ─────────────────────────
   function openOverdueTask(projectId, taskId) {
     var state = TaskFlow.getState();
+    var isSameProject = state.currentProjectId === projectId;
 
-    if (state.currentProjectId !== projectId) {
-      var p = TaskFlow.getProject(projectId);
-      if (p) {
-        state.currentProjectId = projectId;
+    var p = TaskFlow.getProject(projectId);
+    if (p) {
+      state.currentProjectId = projectId;
 
-        var colorBadge = document.getElementById('ph-color-badge');
-        if (colorBadge) colorBadge.style.background = p.color || '#4f8eff';
+      var colorBadge = document.getElementById('ph-color-badge');
+      if (colorBadge) colorBadge.style.background = p.color || '#4f8eff';
 
-        var titleEl = document.getElementById('ph-title');
-        if (titleEl) titleEl.textContent = p.name;
+      var titleEl = document.getElementById('ph-title');
+      if (titleEl) titleEl.textContent = p.name;
 
-        var descEl = document.getElementById('ph-desc');
-        if (descEl) descEl.textContent = p.description || '';
+      var descEl = document.getElementById('ph-desc');
+      if (descEl) descEl.textContent = p.description || '';
 
-        var numEl = document.getElementById('ph-project-num');
-        if (numEl) numEl.textContent = p.number ? 'P' + p.number : '';
+      var numEl = document.getElementById('ph-project-num');
+      if (numEl) numEl.textContent = p.number ? 'P' + p.number : '';
 
-        var archBtn = document.getElementById('btn-archive-project');
-        if (archBtn) archBtn.textContent = p.archived ? '♻️ 未完了に戻す' : '📦 完了';
+      var archBtn = document.getElementById('btn-archive-project');
+      if (archBtn) archBtn.textContent = p.archived ? '♻️ 未完了に戻す' : '📦 完了';
 
-        var projectsView = document.getElementById('projects-view');
-        if (projectsView) projectsView.style.display = 'none';
-
-        var projectDetail = document.getElementById('project-detail');
-        if (projectDetail) projectDetail.style.display = 'flex';
-
-        var myTasksView = document.getElementById('my-tasks-view');
-        if (myTasksView) myTasksView.style.display = 'none';
-
-        TaskFlow.renderSidebar();
-        TaskFlow.renderCurrentView();
+      // 設定画面・マイタスク・プロジェクト一覧など、本体の全ビューを確実に隠してから
+      // プロジェクト詳細を表示する（isSameProject の場合でも実行することで、
+      // 「設定画面を開いたまま同じプロジェクトのタスクへ遷移」した際の表示崩れを防ぐ）
+      var projectDetail = document.getElementById('project-detail');
+      if (typeof TaskFlow.hideAllViews === 'function') {
+        TaskFlow.hideAllViews();
+      } else {
+        // 後方互換: 古い本体バージョン向けフォールバック
+        ['projects-view', 'my-tasks-view', 'settings-view'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
       }
+      if (projectDetail) projectDetail.style.display = 'flex';
+
+      TaskFlow.renderSidebar();
+      if (!isSameProject) TaskFlow.renderCurrentView();
     }
 
     setTimeout(function() { TaskFlow.openTaskPanel(taskId); }, 80);

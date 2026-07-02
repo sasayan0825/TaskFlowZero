@@ -6,6 +6,18 @@
 (function () {
   'use strict';
 
+  // ── プラグインメタ情報を登録（設定画面「プラグイン」ペインに表示） ──
+  if (typeof TaskFlow !== 'undefined' && typeof TaskFlow.registerPlugin === 'function') {
+    TaskFlow.registerPlugin({
+      id:          'lang',
+      name:        '言語切り替え / Language Switch',
+      description: 'UIを日本語／英語で切り替えます。' +
+                   'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
+                   '他のプラグインよりも先に読み込んでください。',
+      version:     '1.2.0',
+    });
+  }
+
   const STORAGE_KEY = 'taskflow_lang';
 
   // ── 英語月名 ─────────────────────────────────────────────
@@ -273,7 +285,7 @@
     '例: v1.0リリース':                  'e.g. v1.0 Release',
     '✏️ 自分の変更':                      '✏️ My Changes',
 
-    // ── プラグイン管理UI ────────────────────────────────────
+    // ── プラグイン管理UI（設定画面「プラグイン」ペイン） ────
     'プラグイン管理':                     'Plugin Manager',
     '🔌 プラグイン管理':                  '🔌 Plugin Manager',
     'インストール済み':                   'Installed',
@@ -287,8 +299,14 @@
     '変更後はページをリロードして反映':   'Save & reload to apply changes',
     'plugins.js を保存しました。ページをリロードして反映してください。':
       'plugins.js saved. Reload the page to apply changes.',
-    '⠿ ドラッグで読み込み順を変更できます。削除してもJSファイルは残ります。':
-      '⠿ Drag to reorder. Removing from list keeps the JS file.',
+    '⠿ ドラッグで読み込み順を変更できます。チェックを外すと無効化されます（リロードで反映）。削除してもJSファイルは残ります。':
+      '⠿ Drag to reorder. Unchecking disables the plugin (reload to apply). Removing from list keeps the JS file.',
+    '説明未登録':                         'No description',
+    'このプラグインには設定項目がありません': 'This plugin has no configurable settings',
+    '設定を保存しました（リロードで反映）': 'Settings saved (reload to apply)',
+
+    // ── プラグイン個別設定モーダル ──────────────────────────
+    'プラグイン設定':                     'Plugin Settings',
 
     // ── 競合ダイアログ ──────────────────────────────────────
     '保存競合が検出されました':           'Save Conflict Detected',
@@ -436,6 +454,77 @@
     'アバター画像の保存に失敗しました':   'Failed to save avatar image',
     'アバター画像を保存しました':         'Avatar image saved',
     'アバター画像を削除しました':         'Avatar image deleted',
+
+    // ── 設定画面（全体設定） ────────────────────────────────
+    '設定':                               'Settings',
+    '⚙️ 設定':                            '⚙️ Settings',
+    'アプリ全体の設定を管理します':       'Manage application-wide settings',
+    '📋 バージョン':                      '📋 Version',
+    '🔌 プラグイン':                      '🔌 Plugins',
+    'アプリバージョン情報':               'App Version Info',
+    'バージョン:':                        'Version:',
+    '最終更新:':                          'Last updated:',
+    'プラグイン開発者ガイド':             'Plugin Developer Guide',
+    'バグ報告・機能要望 (Issues)':        'Report Bugs / Feature Requests (Issues)',
+    '使用ライブラリ':                     'Libraries Used',
+    'marked.js — Markdown パース（MIT）':       'marked.js — Markdown parsing (MIT)',
+    'Chart.js — グラフ描画（MIT）':              'Chart.js — Charts (MIT)',
+    'highlight.js — シンタックスハイライト（BSD-3-Clause）': 'highlight.js — Syntax highlighting (BSD-3-Clause)',
+
+    // ── プロジェクト設定モーダル（基本設定タブ） ────────────
+    '⚙️ プロジェクト設定':                '⚙️ Project Settings',
+    'プロジェクト設定':                   'Project Settings',
+    '基本設定':                           'Basic',
+    'テンプレート':                       'Templates',
+    'タブ表示設定':                       'Tab Visibility',
+    'カンバン':                           'Kanban',
+    'ガントチャート':                     'Gantt Chart',
+    'バーンダウン':                       'Burndown',
+    'Wiki':                               'Wiki',
+    '※ リストタブは常に表示されます':     '※ The List tab is always shown',
+    'リスト一覧 列表示設定':              'List View Column Visibility',
+    'SP':                                 'SP',
+    '工数（予定）':                       'Est. Hours',
+    '工数（実績）':                       'Actual Hours',
+    '⚙️ プロジェクト設定を開く':          '⚙️ Open Project Settings',
+    'この表示はプロジェクト設定で非表示になっています': 'This view is hidden in project settings',
+
+    // ── プロジェクト設定モーダル（テンプレートタブ） ────────
+    'タスクテンプレート':                 'Task Templates',
+    '＋ テンプレートを追加':              '＋ Add Template',
+    'テンプレートを追加':                 'Add Template',
+    'テンプレートを編集':                 'Edit Template',
+    'テンプレート名 *':                   'Template Name *',
+    '例: デプロイチェックリスト':         'e.g. Deployment Checklist',
+    '本文（詳細）':                       'Body (Description)',
+    '初期チェックリスト（1行1項目）':     'Initial Checklist (one item per line)',
+    'テンプレート名を入力してください':   'Please enter a template name',
+    'チェックリストなし':                 'No checklist',
+
+    // ── プロジェクト設定モーダル（ラベルタブ） ──────────────
+    'ラベル管理':                         'Label Management',
+    '＋ ラベルを追加':                    '＋ Add Label',
+    'ラベルを追加':                       'Add Label',
+    'ラベルを編集':                       'Edit Label',
+    'ラベル名 *':                         'Label Name *',
+    '例: バグ':                          'e.g. Bug',
+    '色':                                 'Color',
+    'ラベル名を入力してください':         'Please enter a label name',
+    'プロジェクト設定を保存しました':     'Project settings saved',
+
+    // ── 全体検索プラグイン（plugin_search.js） ──────────────
+    '🔍 全体検索':                        '🔍 Global Search',
+    '全体検索':                           'Global Search',
+    '全プロジェクトのタスク、コメント、Wikiから横断的に検索します': 'Search across tasks, comments, and Wiki in all projects',
+    '検索キーワードを入力...':            'Enter search keywords...',
+    'すべての項目':                       'All Items',
+    'タスク・詳細':                       'Tasks & Details',
+    'コメント':                           'Comments',
+    'Wiki・概要':                        'Wiki & Overview',
+    '完了プロジェクトを除外':             'Exclude archived projects',
+    '検索キーワードを入力してください':   'Please enter search keywords',
+    '📖 Wiki / プロジェクト概要':          '📖 Wiki / Project Overview',
+    '📋 タスク':                          '📋 Task',
   };
 
   let _lang = 'ja';
@@ -477,6 +566,11 @@
     s = s.replace(/^「(.+)」フォルダを開いてください$/, 'Please open the "$1" folder');
     s = s.replace(/^「(.+)」を削除しますか？$/, 'Delete "$1"?');
     s = s.replace(/^"(.+)" をプラグインリストから削除しますか？\n（JSファイルは削除されません）$/, 'Remove "$1" from plugin list?\n(JS file will not be deleted)');
+    // プラグイン有効/無効切り替えトースト（設定画面「プラグイン」ペイン）
+    s = s.replace(/^(.+) を有効にしました（リロードで反映）$/, '$1 enabled (reload to apply)');
+    s = s.replace(/^(.+) を無効にしました（リロードで反映）$/, '$1 disabled (reload to apply)');
+    // テンプレート適用トースト（プロジェクト設定 → テンプレート → タスク作成モーダル）
+    s = s.replace(/^テンプレート「(.+)」を適用しました$/, 'Template "$1" applied');
     
     s = s.replace(/^「(.+)」はすでに存在します。別の名前を入力してください$/, '"$1" already exists. Please enter a different name');
     s = s.replace(/^「(.+)」→「(.+)」に変更しました（(\d+)件のプロジェクトを更新）$/, 'Renamed "$1" → "$2" ($3 projects updated)');
