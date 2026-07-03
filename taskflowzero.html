@@ -9350,8 +9350,12 @@ window.TaskFlow = {
     _renderPluginSidebarItems();
   },
   // ボタンのラベルを動的に更新する（updateBadge等で使用）
-  updateSidebarItem(id, iconOrLabel, label) {
-    // 引数形式: (id, label) 旧形式 / (id, icon, label) 新形式
+  // opts: { color, fontWeight, hidden } を渡すと def に保存され、
+  // renderSidebar() 等によるプラグイン項目の再生成後も見た目が復元される。
+  // （以前は呼び出し側が btn.style を直接書き換えていたため、サイドバーが
+  // 再描画されるたびにスタイルが失われるバグがあった）
+  updateSidebarItem(id, iconOrLabel, label, opts) {
+    // 引数形式: (id, label) 旧形式 / (id, icon, label[, opts]) 新形式
     let icon, labelText;
     if (label === undefined) {
       // 旧形式: (id, label) → iconは既存のまま
@@ -9365,6 +9369,11 @@ window.TaskFlow = {
     if (def) {
       def.label = labelText;
       if (icon !== null) def.icon = icon;
+      if (opts && typeof opts === 'object') {
+        if ('color' in opts)      def.color = opts.color;
+        if ('fontWeight' in opts) def.fontWeight = opts.fontWeight;
+        if ('hidden' in opts)     def.hidden = opts.hidden;
+      }
     }
     const btn = document.getElementById('plugin-sidebar-' + id);
     if (btn) {
@@ -9378,6 +9387,13 @@ window.TaskFlow = {
       }
       if (labelSpan) labelSpan.textContent = labelText;
       if (iconSpan && icon !== null) iconSpan.textContent = icon;
+      // スタイルもその場で即時反映（def への保存により次回再描画時も維持される）
+      const btnNow = document.getElementById('plugin-sidebar-' + id);
+      if (btnNow && def) {
+        if (def.color !== undefined)      btnNow.style.color = def.color;
+        if (def.fontWeight !== undefined) btnNow.style.fontWeight = def.fontWeight;
+        if (def.hidden !== undefined)     btnNow.style.display = def.hidden ? 'none' : '';
+      }
     }
   },
 
@@ -9445,6 +9461,12 @@ function _renderPluginSidebarItems() {
     btn.style.cssText = 'width:100%;text-align:left;background:none;border:none;cursor:pointer;' +
       'color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;border-radius:var(--radius);display:flex;align-items:center;gap:8px;box-sizing:border-box';
     btn.id = 'plugin-sidebar-' + def.id;
+    // 動的スタイル（updateSidebarItem の opts で保存されたもの）を復元
+    // これが無いと、サイドバー再描画（プロジェクト以外の項目選択など）のたびに
+    // プラグインが設定した色・太字・非表示状態が失われてしまう
+    if (def.color !== undefined)      btn.style.color = def.color;
+    if (def.fontWeight !== undefined) btn.style.fontWeight = def.fontWeight;
+    if (def.hidden) btn.style.display = 'none';
     // def.icon が明示されていればそれを使用、なければラベルから分離
     const labelStr = def.label || '';
     let iconPart, textPart;
