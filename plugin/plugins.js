@@ -8,6 +8,9 @@
 
   const PLUGINS = [
     'plugin_lang.js',
+    'plugin_overdue_badge.js',
+    'plugin_search.js',
+    'plugin_csv_export.js',
   ];
 
   var base = (function () {

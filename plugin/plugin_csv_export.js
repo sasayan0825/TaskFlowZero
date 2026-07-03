@@ -6,6 +6,22 @@
 (function () {
   'use strict';
 
+  var PLUGIN_ID = 'csv-export';
+
+  // ── プラグインメタ情報を登録 ─────────────────────────────
+  // 設定画面「プラグイン」ペインに説明・バージョンを表示するために呼ぶ。
+  // TaskFlow 本体のバージョンが registerPlugin に対応していない場合は
+  // 何もしない（後方互換）。
+  if (typeof TaskFlow !== 'undefined' && typeof TaskFlow.registerPlugin === 'function') {
+    TaskFlow.registerPlugin({
+      id:          PLUGIN_ID,
+      name:        'CSVエクスポート',
+      description: 'タスク一覧をCSVファイルとして出力します。' +
+                   '現在のプロジェクトのみ、または全プロジェクトをまとめて1ファイルに出力できます。',
+      version:     '1.0.0',
+    });
+  }
+
   // ── 言語定義 ─────────────────────────────────────────────
   var DICT = {
     ja: {
@@ -172,8 +188,8 @@
 
   // ── サイドバー登録 ────────────────────────────────────────
   document.addEventListener('taskflow-ready', function () {
-    TaskFlow.addSidebarItem({ id: 'csv-export', label: t().sidebarLabel, onclick: buildModal });
+    TaskFlow.addSidebarItem({ id: PLUGIN_ID, label: t().sidebarLabel, onclick: buildModal });
   });
 
-  console.log('[plugin_csv_export] loaded');
+  console.log('[plugin_csv_export] loaded v1.0.0');
 })();
