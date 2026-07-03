@@ -142,14 +142,17 @@
       }
 
       // showZero=false かつ 0件のときはサイドバー項目を非表示
-      var btn = document.getElementById('plugin-sidebar-' + ITEM_ID);
-      if (btn) {
-        btn.style.display = (count === 0 && !cfg.showZero) ? 'none' : '';
-        btn.style.color = color;
-        btn.style.fontWeight = weight;
-      }
-
-      TaskFlow.updateSidebarItem(ITEM_ID, icon, label);
+      // 色・太字・非表示状態は opts として渡し、TaskFlow 側の def に保存してもらう。
+      // （以前は document.getElementById() で取得したボタンに直接 style を
+      //   書き込んでいたが、renderSidebar() がプロジェクト以外の項目選択のたびに
+      //   プラグインサイドバー項目を作り直すため、その都度スタイルが失われ
+      //   「非プロジェクト項目を選択すると赤文字が黒に戻る」バグの原因になっていた）
+      var hidden = (count === 0 && !cfg.showZero);
+      TaskFlow.updateSidebarItem(ITEM_ID, icon, label, {
+        color: color,
+        fontWeight: weight,
+        hidden: hidden,
+      });
     } catch (e) {
       console.error('[plugin_overdue_badge] updateBadge error:', e);
     }
