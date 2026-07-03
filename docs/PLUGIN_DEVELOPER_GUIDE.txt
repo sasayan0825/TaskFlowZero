@@ -2,6 +2,14 @@
   TaskFlowZero プラグイン開発者ガイド
 ================================================================================
 
+  対象バージョン: TaskFlowZero v1.1.0（2026-07-01）
+  本ガイド最終更新: 2026-07-03
+    - 4章「公開APIリファレンス」を全面的に詳細化
+    - openModal / closeModal / viewFadeIn（4-2）を追加
+    - hideAllViews / switchToPluginView（4-5）を追加
+    - addSidebarItem の icon フィールド、updateSidebarItem の opts 引数
+      （color / fontWeight / hidden）を追加ドキュメント化
+
 目次
   1. はじめに ― 第三者が作れますか？
   2. プラグインの仕組み
@@ -50,6 +58,9 @@
   - 設定画面でプラグインごとの設定項目を定義・編集できる ★新規
   - 設定値を API 経由で読み取って動作に反映できる ★新規
   - 設定画面でプラグインの有効/無効を切り替える ★新規
+  - 独自のモーダルダイアログを表示する（openModal/closeModal）
+  - サイドバー項目クリック等で独自の全画面ビューに切り替える
+    （hideAllViews/switchToPluginView）
 
 【現在制約があること ⚠️】
   - addProjectSettingTab API はあるがモーダル側描画が未実装
@@ -234,6 +245,67 @@ TaskFlow.switchView(view)
   引数: view (string) - 'list'|'kanban'|'gantt'|'burndown'|'wiki'|カスタムID
   説明: 指定したビューに切り替えます。
 
+TaskFlow.openModal(id)
+  引数: id (string) - モーダル要素の DOM id
+  戻り値: なし
+  説明: 指定 id を持つモーダル要素を表示します（フェードイン等の
+        トランジションはCSS側で自動適用されます）。
+        要素が存在しない場合は何もしません。
+        モーダル要素自体はプラグイン側で事前に作成しておく必要があります
+        （TaskFlow が自動生成するわけではありません）。
+
+  想定するDOM構造（overdue-badge / csv-export プラグインの実例）:
+    <div id="my-plugin-modal" class="modal-overlay">
+      <div class="modal">
+        <!-- ここにタイトル・本文・ボタン等を組み立てる -->
+      </div>
+    </div>
+
+  例）
+    var overlay = document.createElement('div');
+    overlay.id = 'my-plugin-modal';
+    overlay.className = 'modal-overlay';
+    // オーバーレイクリックで閉じる
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) TaskFlow.closeModal('my-plugin-modal');
+    });
+    var box = document.createElement('div');
+    box.className = 'modal';
+    box.textContent = 'Hello';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    TaskFlow.openModal('my-plugin-modal');
+
+TaskFlow.closeModal(id, callback)
+  引数: id       (string)             - モーダル要素の DOM id
+        callback (function, 省略可)   - 閉じるトランジション完了後に呼ばれる
+  戻り値: なし
+  説明: 指定 id のモーダルを閉じます。閉じるアニメーション
+        （opacityトランジション、最大約260ms）の完了を待ってから
+        callback を実行し、要素を display:none にします。
+        トランジションが発火しない環境向けに 260ms のフォールバック
+        タイマーも内蔵されているため、callback は必ず呼ばれます。
+
+  例）
+    TaskFlow.closeModal('my-plugin-modal', function() {
+      console.log('モーダルが完全に閉じました');
+    });
+
+TaskFlow.viewFadeIn(el)
+  引数: el (HTMLElement)
+  戻り値: なし
+  説明: 指定要素にフェードイン演出（opacity + view-enter クラス）を
+        適用します。requestAnimationFrame を使ってCSSトランジションを
+        確実に発火させています。カスタムビュー（addViewTab / 独自の
+        全画面ビュー）を表示する際に本体の画面遷移と統一感を出すために
+        使います。
+
+  例）
+    var myView = document.getElementById('my-plugin-view');
+    myView.style.display = 'flex';
+    TaskFlow.viewFadeIn(myView);
+
 ────────────────────────────────────────
 4-3. タスク操作
 ────────────────────────────────────────
@@ -353,25 +425,62 @@ TaskFlow.emit(eventName, data)
 
 TaskFlow.addSidebarItem(def)
   引数: def オブジェクト
-    id      (string, 必須) - ユニークなID
-    label   (string, 必須) - ボタンのテキスト（絵文字使用可）
+    id      (string, 必須)   - ユニークなID
+    label   (string, 必須)   - ボタンのテキスト（絵文字使用可）
+    icon    (string, 省略可) - アイコン部分を明示的に分離したい場合に指定
     onclick (function, 必須) - クリック時のコールバック
   説明: サイドバー下部にボタンを追加します。
+        icon を省略した場合、label 文字列の先頭にある絵文字（または
+        先頭1文字）が自動的にアイコンとして抽出され、残りがラベル
+        テキストとして表示されます。動的に更新する予定がある場合は
+        icon を明示的に分けて渡しておくと updateSidebarItem() での
+        個別更新が安定します。
+        同じ id を持つアイテムは重複登録されません（初回のみ有効）。
 
   例）
     TaskFlow.addSidebarItem({
       id:      'myplugin-sync',
-      label:   '🔄 同期',
+      icon:    '🔄',
+      label:   '同期',
       onclick: function() { /* 処理 */ }
     });
 
-TaskFlow.updateSidebarItem(id, icon, label)
-  引数: id (string), icon (string), label (string)
-  説明: サイドバーアイテムのアイコン・ラベルを動的に更新します。
-        旧形式 updateSidebarItem(id, label) も引き続き使えます。
+TaskFlow.updateSidebarItem(id, icon, label, opts)
+  引数: id    (string) - addSidebarItem() で登録した id
+        icon  (string | null) - 新しいアイコン。既存のままにする場合は null
+        label (string) - 新しいラベルテキスト
+        opts  (object, 省略可) - 見た目を動的に変更する場合に指定
+          color      (string, 省略可) - 文字色。CSS値または
+                     var(--red) 等のデザイントークン（6章参照）
+          fontWeight (string, 省略可) - 例: '600' | 'normal'
+          hidden     (boolean, 省略可) - true でアイテムを非表示にする
+        旧形式 updateSidebarItem(id, label) （2引数）も後方互換で使えます。
 
-  例）
-    TaskFlow.updateSidebarItem('overdue-badge', '⚠️', '期限切れ 3件');
+  説明: サイドバーアイテムのアイコン・ラベル・スタイルを動的に更新します。
+
+        【重要】opts で渡した color / fontWeight / hidden は、
+        addSidebarItem() 時の def オブジェクトに保存されます。
+        renderSidebar() はプロジェクト以外の項目（マイタスク・設定等）を
+        選択するたびに毎回呼ばれ、その内部でプラグインのサイドバー項目は
+        DOMごと作り直されます。このとき保存された opts の値を使って
+        見た目が自動的に復元されるため、色などが再描画のたびに
+        デフォルトへ戻ってしまうことはありません。
+        逆に言うと、opts を使わず document.getElementById() で
+        直接 btn.style を書き換える方法は、再描画のたびにスタイルが
+        失われるため非推奨です。
+
+  例）期限切れタスクの件数に応じて色を変えるバッジ（plugin_overdue_badge.js の実装例）
+    var count = getOverdueTasks().length;
+    TaskFlow.updateSidebarItem(
+      'overdue-badge',
+      count > 0 ? '⚠️' : '✅',
+      count > 0 ? '期限切れ ' + count + '件' : '期限切れなし',
+      {
+        color:      count > 0 ? 'var(--red)' : 'var(--muted)',
+        fontWeight: count > 0 ? '600' : 'normal',
+        hidden:     false,
+      }
+    );
 
 TaskFlow.addViewTab(def)
   引数: def オブジェクト
@@ -401,6 +510,50 @@ TaskFlow.addProjectSettingTab(def)
   説明: プロジェクト設定モーダルにタブを追加します。
         onSave はプロジェクト保存時に呼ばれます。
   ※ モーダルのタブUI描画は未実装です。タブボタンはDOM操作で追加してください。
+
+TaskFlow.hideAllViews()
+  引数: なし
+  戻り値: なし
+  説明: 本体の標準ビュー（プロジェクト一覧・プロジェクト詳細・マイタスク・
+        設定画面）と、.plugin-custom-view クラスを持つ全てのプラグイン
+        カスタムビューを非表示にします。
+        プラグインが独自の全画面ビュー（サイドバー項目クリックで開く
+        別画面など）を表示する前に、他の画面と重ならないよう呼び出す
+        ためのものです（plugin_overdue_badge.js の openOverdueTask() で
+        別プロジェクトのタスクへジャンプする際に使用）。
+
+  例）
+    var myView = document.getElementById('my-plugin-fullview');
+    TaskFlow.hideAllViews();
+    myView.style.display = 'flex';
+    TaskFlow.viewFadeIn(myView);
+
+TaskFlow.switchToPluginView(el)
+  引数: el (HTMLElement) - 表示したいカスタムビュー要素
+  戻り値: なし
+  説明: hideAllViews() + 表示 + viewFadeIn() をまとめて行う簡易API です。
+        呼び出すと el に 'plugin-custom-view' クラスが付与されるため、
+        以降 hideAllViews() が呼ばれた際にも自動的に隠す対象として
+        扱われるようになります。内部的には以下と等価です。
+
+          el.classList.add('plugin-custom-view');
+          TaskFlow.hideAllViews();
+          el.style.display = 'block';
+          TaskFlow.viewFadeIn(el);
+
+  例）
+    document.addEventListener('taskflow-ready', function () {
+      var view = document.createElement('div');
+      view.id = 'my-plugin-fullview';
+      view.style.cssText = 'display:none;padding:24px';
+      view.textContent = 'プラグイン独自の全画面ビュー';
+      document.body.appendChild(view);
+
+      TaskFlow.addSidebarItem({
+        id: 'my-fullview', icon: '🖥️', label: 'マイビュー',
+        onclick: function() { TaskFlow.switchToPluginView(view); }
+      });
+    });
 
 ────────────────────────────────────────
 4-6. プラグイン管理API（メタ情報・設定） ★新規
