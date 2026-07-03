@@ -576,9 +576,9 @@ html.light .hljs-tag{color:var(--text)}
 .md-preview th{background:var(--surface3);font-weight:600}
 .md-preview hr{border:none;border-top:1px solid var(--border);margin:12px 0}
 .md-preview img{max-width:100%;height:auto;border-radius:var(--radius);cursor:zoom-in;display:block;margin:4px 0}
-#md-img-lightbox{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);cursor:zoom-out;align-items:center;justify-content:center}
+#md-img-lightbox{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);cursor:zoom-out;align-items:center;justify-content:center;overflow:hidden}
 #md-img-lightbox.open{display:flex}
-#md-img-lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:var(--radius);box-shadow:0 8px 40px rgba(0,0,0,.6);cursor:zoom-out}
+#md-img-lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:var(--radius);box-shadow:0 8px 40px rgba(0,0,0,.6);cursor:zoom-out;transform-origin:center center;transition:transform .04s linear;will-change:transform;-webkit-user-drag:none;user-select:none}
 .comment-list{display:flex;flex-direction:column;gap:12px;margin-bottom:12px}
 .comment-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px}
 .comment-meta{display:flex;align-items:center;gap:8px;margin-bottom:6px}
@@ -9525,18 +9525,93 @@ if(!window.showDirectoryPicker){
 </script>
 <div id="mention-popup"></div>
 <!-- Markdown image lightbox -->
-<div id="md-img-lightbox" onclick="closeMdLightbox()"><img id="md-img-lightbox-img" src="" alt="preview"></div>
+<div id="md-img-lightbox"><img id="md-img-lightbox-img" src="" alt="preview" draggable="false"></div>
 <script>
+let mdLightboxScale = 1;
+let mdLightboxTX = 0;
+let mdLightboxTY = 0;
+const MD_LIGHTBOX_MIN_SCALE = 1;
+const MD_LIGHTBOX_MAX_SCALE = 6;
+function _mdLightboxApplyTransform() {
+  const img = document.getElementById('md-img-lightbox-img');
+  img.style.transform = `translate(${mdLightboxTX}px, ${mdLightboxTY}px) scale(${mdLightboxScale})`;
+  img.style.cursor = mdLightboxScale > 1 ? 'grab' : 'zoom-out';
+}
 function openMdLightbox(src, alt) {
   const lb = document.getElementById('md-img-lightbox');
   const img = document.getElementById('md-img-lightbox-img');
   img.src = src;
   img.alt = alt || '';
+  mdLightboxScale = 1;
+  mdLightboxTX = 0;
+  mdLightboxTY = 0;
+  _mdLightboxApplyTransform();
   lb.classList.add('open');
 }
 function closeMdLightbox() {
   document.getElementById('md-img-lightbox').classList.remove('open');
+  mdLightboxScale = 1;
+  mdLightboxTX = 0;
+  mdLightboxTY = 0;
+  if (document.getElementById('md-img-lightbox-img')) _mdLightboxApplyTransform();
 }
+// マウスホイールで拡大縮小（上スクロール=拡大、下スクロール=縮小）
+document.getElementById('md-img-lightbox').addEventListener('wheel', function(e) {
+  if (!this.classList.contains('open')) return;
+  e.preventDefault();
+  const ZOOM_SPEED = 0.0015;
+  let newScale = mdLightboxScale * (1 - e.deltaY * ZOOM_SPEED);
+  newScale = Math.min(MD_LIGHTBOX_MAX_SCALE, Math.max(MD_LIGHTBOX_MIN_SCALE, newScale));
+  mdLightboxScale = newScale;
+  // 等倍まで縮小したら位置もリセット
+  if (mdLightboxScale <= MD_LIGHTBOX_MIN_SCALE) { mdLightboxTX = 0; mdLightboxTY = 0; }
+  _mdLightboxApplyTransform();
+}, { passive: false });
+// 拡大時に画像をドラッグして移動（Pointer Events：マウス／タッチ／ペン共通）
+(function initMdLightboxDrag(){
+  const img = document.getElementById('md-img-lightbox-img');
+  let dragging = false, hasDragged = false;
+  let startX = 0, startY = 0, startTX = 0, startTY = 0;
+  img.addEventListener('pointerdown', function(e) {
+    if (mdLightboxScale <= 1) return; // 等倍時はドラッグ移動しない（クリックで閉じる動作を優先）
+    dragging = true;
+    hasDragged = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    startTX = mdLightboxTX;
+    startTY = mdLightboxTY;
+    img.setPointerCapture(e.pointerId);
+    img.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  img.addEventListener('pointermove', function(e) {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged = true;
+    mdLightboxTX = startTX + dx;
+    mdLightboxTY = startTY + dy;
+    _mdLightboxApplyTransform();
+  });
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    img.style.cursor = mdLightboxScale > 1 ? 'grab' : 'zoom-out';
+  }
+  img.addEventListener('pointerup', endDrag);
+  img.addEventListener('pointercancel', endDrag);
+  // ドラッグ操作の直後はクリック扱いにしない（閉じない）
+  img.addEventListener('click', function(e) {
+    if (hasDragged) {
+      e.stopPropagation();
+      hasDragged = false;
+    }
+  });
+})();
+// 背景クリックで閉じる（画像自体のクリックはバブリングで到達）
+document.getElementById('md-img-lightbox').addEventListener('click', function(e) {
+  closeMdLightbox();
+});
 // ESC キーで閉じる
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeMdLightbox();
