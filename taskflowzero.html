@@ -455,6 +455,10 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .panel-close{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px;border-radius:4px;transition:all .15s}
 .panel-close:hover{background:var(--surface2);color:var(--text)}
 .panel-body{flex:1;overflow-y:auto;padding:20px}
+.panel-title-sticky{position:sticky;top:-20px;z-index:5;margin:-20px -20px 16px -20px;padding:20px 20px 10px 20px;background:var(--surface);transition:padding .15s,box-shadow .15s;border-bottom:1px solid transparent}
+.panel-title-sticky.scrolled{padding-top:10px;padding-bottom:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);border-bottom-color:var(--border)}
+.panel-title-sticky .panel-title-input{margin-bottom:0}
+.panel-title-sticky.scrolled .panel-title-input{font-size:14px}
 /* ── CHECKLIST ── */
 .checklist-progress-wrap{margin-bottom:10px}
 .checklist-progress-bar{height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;margin-bottom:3px}
@@ -472,6 +476,8 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .checklist-add-row{display:flex;gap:6px;margin-top:8px}
 .checklist-add-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;padding:5px 9px;font-family:inherit;outline:none;transition:border-color .15s}
 .checklist-add-input:focus{border-color:var(--accent);background:var(--surface)}
+.checklist-copy-btn{white-space:nowrap;transition:all .15s}
+.checklist-copy-btn.copied{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.4);color:var(--green)}
 /* ── ACTIVITY LOG ── */
 .activity-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0}
 .activity-icon-col{width:28px;flex-shrink:0;display:flex;justify-content:center;align-items:flex-start;padding-top:2px;position:relative;z-index:1}
@@ -484,7 +490,7 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .activity-date{font-size:10px;color:rgba(107,127,168,.55);font-family:'JetBrains Mono',monospace;margin-top:1px}
 .timeline-item-comment .comment-item{margin:0}
 /* keep old lines */
-.panel-title-input{width:100%;background:none;border:none;font-family:'Outfit',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin-bottom:16px;outline:none;border-bottom:1px solid transparent;padding-bottom:4px;transition:border-color .15s}
+.panel-title-input{width:100%;background:none;border:none;font-family:'Outfit',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin-bottom:16px;outline:none;border-bottom:1px solid transparent;padding-bottom:4px;transition:border-color .15s,font-size .15s}
 .panel-title-input:focus{border-bottom-color:var(--accent)}
 .panel-creator-bar{display:flex;align-items:center;gap:10px;margin:-10px 0 14px;flex-wrap:wrap}
 .panel-creator-bar .creator-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
@@ -1241,8 +1247,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
     <button class="panel-url-copy" id="panel-url-copy-btn" onclick="copyTaskUrl()" title="このタスクのURLをコピー">🔗 URLコピー</button>
     <button class="panel-close" onclick="closeTaskPanel()">✕</button>
   </div>
-  <div class="panel-body">
-    <input class="panel-title-input" id="panel-title" placeholder="タスクのタイトル" oninput="panelDirty=true">
+  <div class="panel-body" id="panel-body">
+    <div class="panel-title-sticky" id="panel-title-sticky">
+      <input class="panel-title-input" id="panel-title" placeholder="タスクのタイトル" oninput="panelDirty=true">
+    </div>
     <div class="panel-creator-bar" id="panel-creator-bar" style="display:none">
       <div class="creator-item">
         <span>👤</span>
@@ -1348,7 +1356,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
     <!-- チェックリスト -->
     <div style="margin-bottom:20px">
-      <div class="section-title">チェックリスト <span id="checklist-count-label" style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0"></span><div class="section-title-line"></div></div>
+      <div class="section-title">チェックリスト <span id="checklist-count-label" style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0"></span><div class="section-title-line"></div><button class="btn btn-secondary btn-xs checklist-copy-btn" id="checklist-copy-btn" onclick="copyChecklistToClipboard()" title="チェックリストをMarkdown形式でコピー">📋 コピー</button></div>
       <div class="checklist-progress-wrap" id="checklist-progress-wrap" style="display:none">
         <div class="checklist-progress-bar"><div class="checklist-progress-fill" id="checklist-progress-fill"></div></div>
         <div class="checklist-progress-label" id="checklist-progress-label"></div>
@@ -7598,6 +7606,11 @@ function _openTaskPanelInner(taskId){
   }
   document.getElementById('task-panel').classList.add('open');
   document.getElementById('panel-backdrop').classList.add('show');
+  // 新しいタスクを開いたらスクロール位置とタイトルの縮小状態をリセット
+  const _panelBodyEl = document.getElementById('panel-body');
+  if (_panelBodyEl) _panelBodyEl.scrollTop = 0;
+  const _panelTitleWrap = document.getElementById('panel-title-sticky');
+  if (_panelTitleWrap) _panelTitleWrap.classList.remove('scrolled');
 
   // Update URL hash
   const p2 = getProject(state.currentProjectId);
@@ -9117,6 +9130,53 @@ function copyTaskUrl() {
     prompt('このURLをコピーしてください:', url);
   });
 }
+
+function copyChecklistToClipboard() {
+  const t = _panelTaskId ? getTask(state.currentProjectId, _panelTaskId) : null;
+  const items = (t && t.checklist) || [];
+  const btn = document.getElementById('checklist-copy-btn');
+  if (!items.length) {
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '項目なし';
+      setTimeout(() => { btn.textContent = orig; }, 1200);
+    }
+    return;
+  }
+  const text = items.map(i => `- [${i.checked ? 'x' : ' '}] ${i.text}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✅ コピー完了';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+  }).catch(() => {
+    // Fallback: prompt
+    prompt('チェックリストをコピーしてください:', text);
+  });
+}
+
+// Sticky task-title: shrink + shadow once the panel body is scrolled
+(function initPanelTitleSticky(){
+  const body = document.getElementById('panel-body');
+  const titleWrap = document.getElementById('panel-title-sticky');
+  if (!body || !titleWrap) return;
+  // ヒステリシス: ON/OFFで異なる閾値を使い、境界付近での連続切り替え（チラつき）を防ぐ
+  const ENTER_AT = 16; // これを超えたら縮小
+  const EXIT_AT  = 4;  // これを下回ったら元に戻す
+  body.addEventListener('scroll', () => {
+    const isScrolled = titleWrap.classList.contains('scrolled');
+    if (!isScrolled && body.scrollTop > ENTER_AT) {
+      titleWrap.classList.add('scrolled');
+    } else if (isScrolled && body.scrollTop < EXIT_AT) {
+      titleWrap.classList.remove('scrolled');
+    }
+  });
+})();
 
 // Listen for hash changes (e.g. browser back/forward)
 window.addEventListener('hashchange', () => {
