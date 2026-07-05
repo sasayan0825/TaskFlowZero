@@ -162,6 +162,10 @@
     'タスクはありません':                 'No tasks',
     'タスクなし':                         'No tasks',
     'チェックリスト':                     'Checklist',
+    '📋 コピー':                          '📋 Copy',
+    'チェックリストをMarkdown形式でコピー': 'Copy checklist as Markdown',
+    '項目なし':                           'No items',
+    'チェックリストをコピーしてください:': 'Please copy this checklist:',
     '見積(h)':                           'Est.(h)',
     '実績(h)':                           'Actual(h)',
 
