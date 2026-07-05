@@ -471,8 +471,10 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .panel-title-avatar-wrap{display:inline-flex;flex-shrink:0}
 .panel-title-avatar{width:22px;height:22px;border-radius:50%;background:var(--surface3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--accent2);flex-shrink:0}
 /* ── META ACCORDION ── */
-.panel-meta-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:2px 2px 8px 2px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;transition:color .15s}
+.panel-meta-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:4px 8px;margin:0 0 6px 0;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;border-radius:6px;border:1px solid transparent;transition:background .15s,border-color .15s,color .15s}
 .panel-meta-toggle:hover{color:var(--text)}
+.panel-meta-toggle.collapsed{background:rgba(79,142,255,.15);border-color:rgba(79,142,255,.4);color:var(--accent2)}
+.panel-meta-toggle.collapsed:hover{background:rgba(79,142,255,.22);color:var(--accent2)}
 .panel-meta-toggle-icon{font-size:11px;transition:transform .2s ease}
 .panel-meta-toggle.collapsed .panel-meta-toggle-icon{transform:rotate(-90deg)}
 .panel-meta-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ease,margin-bottom .25s ease;margin-bottom:20px}
