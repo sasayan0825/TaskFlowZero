@@ -216,6 +216,8 @@
     '🔗 URLコピー':                       '🔗 Copy URL',
     'このタスクを参照しているタスク':     'Tasks referencing this task',
     '💬 コメントより':                    '💬 From comment',
+    '📋 詳細情報':                        '📋 Details',
+    'クリックで詳細情報の開閉':           'Click to expand/collapse details',
     '詳細':                               'Details',
     '(Markdown対応)':                     '(Markdown supported)',
     'コメント / アクティビティ':          'Comments / Activity',
@@ -596,7 +598,7 @@
     s = s.replace(/^(\d+)件のファイルを保存中\.\.\.$/, 'Saving $1 file(s)...');
     s = s.replace(/^(\d+)件のファイルを添付しました$/, '$1 file(s) attached');
     s = s.replace(/^(.+) の添付に失敗: (.+)$/, 'Attachment failed for $1: $2');
-    s = s.replace(/^期限:(\d{4}\/\d+\/\d+)/g, 'Due: $1');
+    s = s.replace(/^期限:\s*(\d{4}\/\d+\/\d+)/g, 'Due: $1');
     s = s.replace(/^編集済み (.+)$/, 'Edited $1');
     s = s.replace(/^今日 (\d+:\d+)$/, 'Today $1');
     // フォルダ履歴の「アクセス許可あり · 今日 08:47」などの複合文字列
