@@ -784,13 +784,25 @@
     }
   }
 
-  function translateAll() {
-    if (_lang === 'ja') return;
-
-    // translateNode より先に実行しないと strong 内が翻訳済みになり条件がfalseになる
+  // ── innerHTML に <strong> 等のタグが混在し、translateNode（テキストノード単位）
+  //    では拾いきれないブロックをまとめて置換する。translateAll() と
+  //    MutationObserver の両方から呼べるよう独立関数化。
+  //    translateNode より先に実行しないと strong 内が翻訳済みになり条件がfalseになる
+  function applySpecialCaseHtmlBlocks() {
     const subtitle = document.querySelector('.loader-subtitle');
     if (subtitle && subtitle.innerHTML.includes('データを保存するフォルダ')) {
       subtitle.innerHTML = 'Open a folder to store your data, or<br>create a new one.<br>Changes are auto-saved per project.';
+    }
+
+    // ハッシュ付きリンクから来た場合の案内サブテキスト（#sample-P3-1 等）
+    // 例: リンク先のタスクを表示するには、<br><strong style="color:var(--accent2)">sample</strong> フォルダを選択する必要があります。
+    if (subtitle) {
+      const m = subtitle.innerHTML.match(
+        /^リンク先のタスクを表示するには、<br><strong style="color:var\(--accent2\)">(.+?)<\/strong> フォルダを選択する必要があります。$/
+      );
+      if (m) {
+        subtitle.innerHTML = `To view the linked task, you need to select the <br><strong style="color:var(--accent2)">${m[1]}</strong> folder.`;
+      }
     }
 
     const wi = document.querySelector('.welcome-info');
@@ -801,6 +813,24 @@
         '<strong>Open Another Folder</strong>: Select and open a shared folder<br>' +
         '<strong>New File</strong>: Create a file by specifying a storage location (shared folder)';
     }
+
+    // ハッシュ付きリンクから来た場合の上部バナー
+    // 例: <strong>sample</strong> フォルダへのリンクから来ています。<br>下の履歴または「別のフォルダを開く」から <strong>sample</strong> を選択してください。
+    const bannerText = document.getElementById('hash-folder-banner-text');
+    if (bannerText) {
+      const m2 = bannerText.innerHTML.match(
+        /^<strong>(.+?)<\/strong> フォルダへのリンクから来ています。<br>下の履歴または「別のフォルダを開く」から <strong>(.+?)<\/strong> を選択してください。$/
+      );
+      if (m2) {
+        bannerText.innerHTML = `You followed a link to the <strong>${m2[1]}</strong> folder.<br>Select <strong>${m2[2]}</strong> from history or "Open Another Folder".`;
+      }
+    }
+  }
+
+  function translateAll() {
+    if (_lang === 'ja') return;
+
+    applySpecialCaseHtmlBlocks();
 
     translateNode(document.body);
 
@@ -822,6 +852,8 @@
     if (_lang === 'ja') return;
     _observer = new MutationObserver((mutations) => {
       let needsActivityTrans = false;
+      // initFolderHistory() 等、非同期で後から書き込まれる innerHTML ブロックを検知するたびに再チェックする
+      applySpecialCaseHtmlBlocks();
       mutations.forEach(m => {
         // characterData: textContent の直接変更（burndown-period-notice など）
         if (m.type === 'characterData') {
