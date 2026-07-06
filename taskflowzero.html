@@ -8800,8 +8800,15 @@ function toggleEffortPanel() {
 }
 
 function autoResizeCmtTextarea(el) {
+  // 高さをリセットする瞬間、panel-body の scrollHeight が一時的に縮み、
+  // ブラウザが scrollTop を新しい最大値にクランプしてしまう（縮小後は自動復元されない）。
+  // そのため、リサイズ前後で panel-body のスクロール位置を保存・復元して
+  // 入力のたびに画面が上にずれる問題を防ぐ。
+  const panelBody = el.closest('.panel-body');
+  const prevScrollTop = panelBody ? panelBody.scrollTop : null;
   el.style.height = 'auto';
   el.style.height = Math.max(70, el.scrollHeight) + 'px';
+  if (panelBody && prevScrollTop !== null) panelBody.scrollTop = prevScrollTop;
 }
 
 let _editingCommentIdx = -1;
