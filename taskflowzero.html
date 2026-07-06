@@ -479,6 +479,8 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .panel-meta-toggle.collapsed .panel-meta-toggle-icon{transform:rotate(-90deg)}
 .panel-meta-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ease,margin-bottom .25s ease;margin-bottom:20px}
 .panel-meta-wrap.collapsed{grid-template-rows:0fr;margin-bottom:0}
+.panel-meta-collapsed-labels{display:none;flex-wrap:wrap;gap:6px;padding:0 8px;margin:8px 0 20px}
+.panel-meta-collapsed-labels.visible{display:flex}
 .panel-meta-inner{overflow:hidden;min-height:0}
 /* ── CHECKLIST ── */
 .checklist-progress-wrap{margin-bottom:10px}
@@ -1355,6 +1357,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         </div>
       </div>
     </div></div></div>
+    <div class="panel-meta-collapsed-labels" id="panel-meta-collapsed-labels"></div>
 
     <!-- 詳細 -->
     <div style="margin-bottom:20px">
@@ -7785,6 +7788,17 @@ function renderPanelLabels(labels){
   document.getElementById('panel-labels-display').innerHTML=labels.map((l,i)=>
     `<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44;margin-right:4px;display:inline-flex;align-items:center;gap:4px">${esc(l)} <span style="cursor:pointer;opacity:.6" onclick="removePanelLabel(${i})">✕</span></span>`
   ).join('');
+  _renderPanelMetaCollapsedLabels(labels);
+}
+
+// 「詳細情報」を閉じている間、その代わりに表示するラベル一覧（詳細情報 と 詳細 の間）
+function _renderPanelMetaCollapsedLabels(labels){
+  const el = document.getElementById('panel-meta-collapsed-labels');
+  if (!el) return;
+  el.innerHTML = (labels||[]).map(l=>
+    `<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`
+  ).join('');
+  el.classList.toggle('visible', _panelMetaCollapsed && (labels||[]).length>0);
 }
 
 function addPanelLabel(){
@@ -9210,9 +9224,14 @@ function _applyPanelMetaCollapsed(collapsed) {
   const wrap   = document.getElementById('panel-meta-wrap');
   const toggle = document.getElementById('panel-meta-toggle');
   const titleWrap = document.getElementById('panel-title-sticky');
+  const collapsedLabels = document.getElementById('panel-meta-collapsed-labels');
   if (wrap)   wrap.classList.toggle('collapsed', collapsed);
   if (toggle) toggle.classList.toggle('collapsed', collapsed);
   if (titleWrap) titleWrap.classList.toggle('meta-collapsed', collapsed);
+  if (collapsedLabels) {
+    const t = getTask(state.currentProjectId, _panelTaskId);
+    collapsedLabels.classList.toggle('visible', collapsed && !!(t && t.labels && t.labels.length));
+  }
 }
 
 function togglePanelMetaCollapse() {
