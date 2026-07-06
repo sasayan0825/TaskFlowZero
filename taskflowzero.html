@@ -1268,6 +1268,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
     <button class="panel-like-btn" id="panel-like-btn" onclick="toggleTaskLike()" title="いいね"></button>
     <button class="panel-bookmark-btn" id="panel-bookmark-btn" onclick="toggleTaskBookmark()" title="ブックマーク"></button>
     <button class="panel-url-copy" id="panel-url-copy-btn" onclick="copyTaskUrl()" title="このタスクのURLをコピー">🔗 URLコピー</button>
+    <button class="panel-url-copy" id="panel-ref-create-btn" onclick="createReferenceTask()" title="このタスクの内容を引き継いで新規タスクを作成">📄 参照作成</button>
     <span class="panel-due-badge" id="panel-due-badge"></span>
     <button class="panel-close" onclick="closeTaskPanel()">✕</button>
   </div>
@@ -1551,6 +1552,11 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       </div>
       <div class="form-group"><label class="form-label">マイルストーン</label>
         <select class="form-select" id="tm-milestone"><option value="">未割り当て</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">見積もり工数 (h)</label>
+        <input class="form-input" type="number" id="tm-estimated" min="0" step="0.5" placeholder="0" style="text-align:right">
       </div>
     </div>
     <div class="form-group">
@@ -7401,6 +7407,7 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-start').value='';
   document.getElementById('tm-due').value='';
   document.getElementById('tm-milestone').value='';
+  document.getElementById('tm-estimated').value='';
   document.getElementById('tm-description').value='';
   // 作成者: マイタスクで設定された名前を初期値にセット（変更可）
   const _myName = localStorage.getItem(_myNameKey()) || '';
@@ -7533,7 +7540,8 @@ function saveNewTask(){
   const labels = [...document.getElementById('tm-labels-display').querySelectorAll('[data-label]')].map(el=>el.dataset.label);
   const _creatorVal = document.getElementById('tm-creator').value.trim();
   const _createdAtTime = new Date().toISOString();
-  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours:0,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[],likes:[],bookmarks:[]};
+  const estimatedHours = parseFloat(document.getElementById('tm-estimated').value)||0;
+  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[],likes:[],bookmarks:[]};
   p.tasks.push(task);
   closeTaskModal(); autoSave(state.currentProjectId); renderCurrentView(); renderSidebar(); updateFilters();
   toast(`タスク #${task.number} を追加しました`,'success');
@@ -9194,6 +9202,60 @@ function copyTaskUrl() {
     // Fallback: prompt
     prompt('このURLをコピーしてください:', url);
   });
+}
+
+// ── 参照作成（現在のタスクの内容を引き継いで新規タスク作成画面を開く）──
+function createReferenceTask() {
+  const t = _panelTaskId ? getTask(state.currentProjectId, _panelTaskId) : null;
+  if (!t) return;
+
+  // パネル上の未保存の編集内容も含めて、現在表示されている値を取得
+  const title       = (document.getElementById('panel-title').value.trim()) || t.title || '';
+  const startDate   = document.getElementById('panel-start').value || '';
+  const dueDate     = document.getElementById('panel-due').value || '';
+  const storyPoints = parseInt(document.getElementById('panel-points').value) || 0;
+  const milestoneId = document.getElementById('panel-milestone').value || '';
+  const description = document.getElementById('panel-desc').value || '';
+  const labels       = [...(t.labels || [])];
+  const estimatedHours = t.estimatedHours || 0;
+  const checklistTexts = (t.checklist || []).map(c => c.text).filter(Boolean);
+
+  openTaskModal('todo');
+
+  document.getElementById('tm-title').value = title;
+  document.getElementById('tm-start').value = startDate;
+  document.getElementById('tm-due').value = dueDate;
+  document.getElementById('tm-points').value = String(storyPoints);
+  document.getElementById('tm-milestone').value = milestoneId;
+  document.getElementById('tm-description').value = description;
+  document.getElementById('tm-estimated').value = estimatedHours > 0 ? estimatedHours : '';
+
+  // チェックリストを引き継ぐ
+  const clContainer = document.getElementById('tm-checklist');
+  clContainer.innerHTML = '';
+  checklistTexts.forEach(text => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px';
+    row.innerHTML = `<span style="color:var(--muted);font-size:12px;flex-shrink:0">☐</span>
+      <input class="form-input" value="${esc(text)}" style="flex:1;font-size:13px" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('tm-checklist-input').focus();}">
+      <button type="button" onclick="this.parentNode.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;flex-shrink:0;padding:0 2px">✕</button>`;
+    clContainer.appendChild(row);
+  });
+
+  // ラベルを引き継ぐ
+  const labelDisplay = document.getElementById('tm-labels-display');
+  labelDisplay.innerHTML = '';
+  labels.forEach(lname => {
+    const c = getLabelColor(lname);
+    const span = document.createElement('span');
+    span.className = 'label-chip';
+    span.style.cssText = `background:${c}22;color:${c};border:1px solid ${c}44`;
+    span.dataset.label = lname;
+    span.innerHTML = `${esc(lname)} <span style="cursor:pointer;opacity:.6" onclick="this.closest('.label-chip').remove()">✕</span>`;
+    labelDisplay.appendChild(span);
+  });
+
+  toast(`#${t.number} の内容を引き継いで新規タスク作成画面を開きました`, 'success');
 }
 
 function copyChecklistToClipboard() {
