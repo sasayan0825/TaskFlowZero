@@ -7590,7 +7590,7 @@ function _openTaskPanelInner(taskId){
     document.getElementById('comment-update-btn').style.display  = 'none';
     document.getElementById('comment-cancel-edit-btn').style.display = 'none';
   }
-  document.getElementById('panel-task-num').textContent='#'+(t.number||'?');
+  document.getElementById('panel-task-num').textContent='#P'+(p.number!=null?p.number:'?')+'-'+(t.number||'?');
   document.getElementById('panel-title').value=t.title;
 
   // ── 作成者バー描画 ───────────────────────────────────────────
