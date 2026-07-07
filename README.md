@@ -4,9 +4,10 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.0.0-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.0-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
+📥 **<a href="https://raw.githubusercontent.com/sasayan0825/TaskFlowZero/main/taskflowzero.html" download>ダウンロード →</a>**
 
 🇺🇸 [English README](./README.en.md)
 
@@ -16,7 +17,7 @@
 
 客先常駐・社内ネットワーク限定・インターネット接続不可——そんな環境でも、プロジェクト管理をしたい人のために作りました。
 
-JiraもNotionもAsanaも、クラウドにデータを送ります。TaskFlowZeroは違います。**すべてのデータがあなたのPC・あなたのネットワーク上に残ります。**
+多くのクラウド型プロジェクト管理ツールは、クラウドにデータを送ります。TaskFlowZeroは違います。**すべてのデータがあなたのPC・あなたのネットワーク上に残ります。**
 
 HTMLファイル1つ。それだけです。
 

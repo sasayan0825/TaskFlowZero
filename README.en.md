@@ -4,9 +4,10 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.0.0-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.0-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
+📥 **<a href="https://raw.githubusercontent.com/sasayan0825/TaskFlowZero/main/taskflowzero.html" download>Download →</a>**
 
 🇯🇵 [日本語版 README はこちら](./README.md)
 
@@ -17,7 +18,7 @@
 Built for engineers who can't use cloud tools at work.
 
 On-site at a client? Strict security policies? No internet access?  
-Jira, Notion, and Asana all send your data to the cloud. TaskFlowZero doesn't.  
+Most cloud-based project management tools send your data to the cloud. TaskFlowZero doesn't.  
 **Everything stays on your PC or your company's network. Always.**
 
 One HTML file. That's it.
