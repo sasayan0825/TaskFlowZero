@@ -7,7 +7,8 @@
 [![Version](https://img.shields.io/badge/version-v1.1.0-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
-📥 **<a href="https://raw.githubusercontent.com/sasayan0825/TaskFlowZero/main/taskflowzero.html" download>Download →</a>**
+
+📥 **[Download →](https://github.com/sasayan0825/TaskFlowZero/releases/download/v1.1.0/taskflowzero.html)**
 
 🇯🇵 [日本語版 README はこちら](./README.md)
 
