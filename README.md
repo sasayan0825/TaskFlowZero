@@ -8,7 +8,7 @@
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
-📥 **[ダウンロード →](https://github.com/sasayan0825/TaskFlowZero/releases/download/v1.1.0/taskflowzero.html)**
+📥 **[ダウンロード →](https://github.com/sasayan0825/TaskFlowZero/releases/latest/download/taskflowzero.html)**
 
 🇺🇸 [English README](./README.en.md)
 
