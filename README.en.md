@@ -142,13 +142,13 @@ Extend functionality by editing `plugin/plugins.js` — no changes to the main H
 
 ### Plugin Manager UI
 
-Click the 🔌 button in the top-right header to manage plugins through a GUI — no need to edit `plugin/plugins.js` manually.
+Open the "⚙️ Settings" menu in the sidebar, then go to "🔌 Plugins" to manage plugins through a GUI — no need to edit `plugin/plugins.js` manually.
 
 - **Install:** Drop a JS file onto the panel, or use the file picker
 - **Reorder:** Drag and drop to change load order
 - **Remove:** Remove from the list (the JS file itself is kept)
 
-> **First time only:** Clicking 🔌 will prompt you to select the `plugin/` folder. It's remembered automatically after that.
+> **First time only:** Opening "🔌 Plugins" will prompt you to select the `plugin/` folder. It's remembered automatically after that.
 
 See [PLUGIN_DEVELOPER_GUIDE.txt](plugin/PLUGIN_DEVELOPER_GUIDE.txt) to build your own plugins.
 
