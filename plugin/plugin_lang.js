@@ -218,6 +218,8 @@
 
     // ── タスク詳細パネル ────────────────────────────────────
     '🔗 URLコピー':                       '🔗 Copy URL',
+    '📄 参照作成':                        '📄 Create Reference',
+    'このタスクの内容を引き継いで新規タスクを作成': 'Create a new task carrying over this task\'s content',
     'このタスクを参照しているタスク':     'Tasks referencing this task',
     '💬 コメントより':                    '💬 From comment',
     '📋 詳細情報':                        '📋 Details',
@@ -559,6 +561,7 @@
     s = s.replace(/^インストール失敗: (.+)$/, 'Install failed: $1');
     s = s.replace(/^保存失敗: (.+)$/, 'Save failed: $1');
     s = s.replace(/^#(\d+) を作成しました$/, '#$1 created');
+    s = s.replace(/^#(\d+) の内容を引き継いで新規タスク作成画面を開きました$/, 'Opened new task screen with content carried over from #$1');
     s = s.replace(/^マイルストーン → (.+) に変更$/, 'Milestone → $1 changed');
     s = s.replace(/^貼り付けに失敗しました: (.+)$/, 'Paste failed: $1');
     s = s.replace(/^添付に失敗しました: (.+)$/, 'Attachment failed: $1');
