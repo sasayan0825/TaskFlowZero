@@ -972,8 +972,8 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <div style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text)">アプリバージョン情報</div>
             <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:inline-flex;flex-direction:column;gap:10px;min-width:300px">
               <div style="font-size:20px;font-weight:700;color:var(--accent2)">⚡ TaskFlowZero</div>
-              <div style="font-size:13px;color:var(--muted)">バージョン: <span style="color:var(--text);font-family:'JetBrains Mono',monospace" id="settings-version-num">1.1.0</span></div>
-              <div style="font-size:13px;color:var(--muted)">最終更新: <span style="color:var(--text)" id="settings-version-date">2026-07-01</span></div>
+              <div style="font-size:13px;color:var(--muted)">バージョン: <span style="color:var(--text);font-family:'JetBrains Mono',monospace" id="settings-version-num">1.1.1</span></div>
+              <div style="font-size:13px;color:var(--muted)">最終更新: <span style="color:var(--text)" id="settings-version-date">2026-07-09</span></div>
               <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px">
                 <a href="https://github.com/sasayan0825/TaskFlowZero" target="_blank" rel="noopener"
                   style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent2);text-decoration:none">
@@ -1882,6 +1882,7 @@ function _initNavTooltips() {
   const navItems = [
     { id: 'nav-all',      label: 'すべてのプロジェクト' },
     { id: 'nav-my-tasks', label: 'マイタスク' },
+    { id: 'nav-settings', label: '設定' },
   ];
   navItems.forEach(function(item) {
     const el = document.getElementById(item.id);
@@ -7971,17 +7972,28 @@ function tfzResolve(key) {
   return _fileCache.get(key) || null;
 }
 
+// marked.js がレンダリング時にパーセントエンコードした URL を元のキーに戻す
+// （日本語等の非ASCII文字や空白は marked.js によって %XX 形式にエンコードされるため）
+function _decodeTfzKey(key) {
+  try {
+    return decodeURIComponent(key);
+  } catch (e) {
+    // 不正なエンコード列の場合は %20 のみ手動で戻してフォールバック
+    return key.replace(/%20/g, ' ');
+  }
+}
+
 // Markdown レンダリング後HTML内の tfz:// を実際の URL に変換
 function linkifyTfz(html) {
   // <img src="tfz://..."> → Blob URL
   html = html.replace(/src="tfz:\/\/([^"]+)"/g, (_, key) => {
-    const decodedKey = key.replace(/%20/g, ' ');
+    const decodedKey = _decodeTfzKey(key);
     const url = tfzResolve(decodedKey);
     return url ? `src="${url}" data-tfz="${decodedKey}"` : `src="" data-tfz-missing="${decodedKey}" alt="（ファイルが見つかりません: ${decodedKey}）"`;
   });
   // <a href="tfz://..."> → ダウンロードリンク
   html = html.replace(/href="tfz:\/\/([^"]+)"/g, (_, key) => {
-    const decodedKey = key.replace(/%20/g, ' ');
+    const decodedKey = _decodeTfzKey(key);
     const url = tfzResolve(decodedKey);
     const rawFname = decodedKey.split('/').pop() || decodedKey;
     const fname = rawFname.replace(/^\d{17}_/, '');
