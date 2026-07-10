@@ -972,8 +972,8 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <div style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text)">アプリバージョン情報</div>
             <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:inline-flex;flex-direction:column;gap:10px;min-width:300px">
               <div style="font-size:20px;font-weight:700;color:var(--accent2)">⚡ TaskFlowZero</div>
-              <div style="font-size:13px;color:var(--muted)">バージョン: <span style="color:var(--text);font-family:'JetBrains Mono',monospace" id="settings-version-num">1.1.1</span></div>
-              <div style="font-size:13px;color:var(--muted)">最終更新: <span style="color:var(--text)" id="settings-version-date">2026-07-09</span></div>
+              <div style="font-size:13px;color:var(--muted)">バージョン: <span style="color:var(--text);font-family:'JetBrains Mono',monospace" id="settings-version-num"></span></div>
+              <div style="font-size:13px;color:var(--muted)">最終更新: <span style="color:var(--text)" id="settings-version-date"></span></div>
               <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px">
                 <a href="https://github.com/sasayan0825/TaskFlowZero" target="_blank" rel="noopener"
                   style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent2);text-decoration:none">
@@ -1444,7 +1444,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div style="display:flex;gap:12px;align-items:center">
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text)">
               見積 (h)
-              <input type="number" id="effort-estimated" min="0" step="0.5" placeholder="0" style="width:72px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;padding:4px 8px;outline:none;text-align:right">
+              <input type="number" id="effort-estimated" step="0.5" placeholder="0" style="width:72px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;padding:4px 8px;outline:none;text-align:right">
             </label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text)">
               実績 (h)
@@ -2893,6 +2893,15 @@ function _migrateProjectFields(projects) {
         if (c.done !== undefined && c.checked === undefined) c.checked = c.done;
         if (c.checked === undefined) c.checked = false;
       });
+      // baseEstimatedHours フィールド補完（旧形式からの移行）
+      // 旧ロジックはコメント追加/編集/削除のたびに recalcHours が effortLog合計のみで
+      // estimatedHours を上書きしていたため、コメントが1件でも存在するタスクは
+      // 既に作成時の値が失われ、estimatedHours = effortLog合計 になっている可能性が高い。
+      // そのため、コメントが無いタスクのみ現在値を作成時ベース値とみなして移行し、
+      // コメントが存在するタスクは base=0 とする（現在の合計値をそのまま維持し、二重加算を防ぐ）。
+      if (t.baseEstimatedHours === undefined) {
+        t.baseEstimatedHours = (!t.comments || t.comments.length === 0) ? (t.estimatedHours || 0) : 0;
+      }
     });
   });
   let maxNum = Math.max(0, ...projects.map(p => p.number || 0));
@@ -3380,7 +3389,10 @@ function threeWayMerge(base, mine, disk) {
       const taskFields = mergeEntityFields(
         tb, tm, td,
         // creator / createdAtTime は作成時の記録なので競合比較から除外し、下で保護する
-        ['title','status','assignee','startDate','dueDate','storyPoints','estimatedHours','actualHours','description','milestoneId','labels','completedAt'],
+        // estimatedHours/actualHoursはbaseEstimatedHours+コメントeffortLogから導出される値なので
+        // フィールド単位の競合比較対象から外し、代わりに独立入力値であるbaseEstimatedHoursを対象にする。
+        // 導出値は下のrecalcHours(mergedT)でコメントマージ後に再計算する。
+        ['title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','completedAt','completedAtTime'],
         pid, tid
       );
       taskFields.autoFields.forEach(f => { mergedT[f] = tm[f]; autoMerged++; });
@@ -3497,6 +3509,9 @@ function threeWayMerge(base, mine, disk) {
       const mergedComIds = new Set(mergedComments.map(c => c.id));
       const allTombstones = new Set([...deletedIds, ...diskDeletedIds]);
       mergedT._deletedCommentIds = [...allTombstones].filter(id => !mergedComIds.has(id));
+
+      // baseEstimatedHoursとマージ後のコメントeffortLogから estimatedHours/actualHours を再計算
+      recalcHours(mergedT);
 
       if (taskFields.conflictFields.length > 0) {
         conflicts.push({
@@ -4282,6 +4297,8 @@ function _buildActivityEvents(myName) {
   function add(dateStr, ev) {
     if (!dateStr || dateStr.length < 10) return;
     const d = dateStr.length === 10 ? dateStr : localDateStr(new Date(dateStr));
+    ev.at = dateStr;
+    ev.hasTime = dateStr.length > 10;
     if (!byDate[d]) byDate[d] = [];
     byDate[d].push(ev);
   }
@@ -4290,7 +4307,7 @@ function _buildActivityEvents(myName) {
     (p.tasks || []).forEach(t => {
       // タスク完了（担当者）
       if (t.assignee === myName && t.completedAt) {
-        add(t.completedAt, { type:'complete', icon:'✅', text:`タスク完了: <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+        add(t.completedAtTime || t.completedAt, { type:'complete', icon:'✅', text:`タスク完了: <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
       }
       // タスク作成（作成者）
       if (t.creator === myName) {
@@ -4465,8 +4482,9 @@ function _renderActivityTabContent(myName) {
   let detailHtml = '';
   if (_myActivitySelDate) {
     const evts = byDate[_myActivitySelDate] || [];
-    const typeOrder = { complete:0, create:1, effort:2, comment:3 };
-    const sorted = [...evts].sort((a,b) => (typeOrder[a.type]??9) - (typeOrder[b.type]??9));
+    // 時刻情報のあるものは実時刻順、時刻不明（日付のみ）のものはその日の先頭にまとめる
+    const sortKey = ev => ev.hasTime ? new Date(ev.at).getTime() : new Date(ev.at + 'T00:00:00').getTime() - 1;
+    const sorted = [...evts].sort((a,b) => sortKey(a) - sortKey(b));
 
     // ── プロジェクト別実績集計 ──────────────────────────────────────
     const projMap = new Map(); // pid -> { pname, pc, actual, complete, create, comment, checklist }
@@ -4516,7 +4534,10 @@ function _renderActivityTabContent(myName) {
           <span style="font-size:15px;flex-shrink:0;margin-top:1px">${ev.icon}</span>
           <div style="flex:1;min-width:0">
             <div style="font-size:12px;line-height:1.5">${ev.text}</div>
-            <div style="margin-top:3px"><span style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span></div>
+            <div style="margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span>
+              <span style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">${ev.hasTime ? fmtDatetime(ev.at).split(' ')[1] : '時刻不明'}</span>
+            </div>
           </div>
           <span style="font-size:10px;color:var(--muted);flex-shrink:0;margin-top:2px">→</span>
         </div>`).join('')
@@ -4755,8 +4776,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.1';
-const APP_VERSION_DATE = '2026-07-09';
+const APP_VERSION      = '1.1.2';
+const APP_VERSION_DATE = '2026-07-10';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -5997,8 +6018,8 @@ function onDrop(e,status){
   const p = getProject(state.currentProjectId); if(!p)return;
   const t = p.tasks.find(x=>x.id===tid); if(!t)return;
   const old = t.status; t.status=status;
-  if(status==='done'&&!t.completedAt) t.completedAt=today();
-  else if(status!=='done') t.completedAt=null;
+  if(status==='done'&&!t.completedAt){ t.completedAt=today(); t.completedAtTime=new Date().toISOString(); }
+  else if(status!=='done'){ t.completedAt=null; t.completedAtTime=null; }
   autoSave(state.currentProjectId); renderKanban(); renderSidebar();
   if(old!==status) toast(`#${t.number} を「${STATUSES.find(s=>s.id===status)?.label}」に移動`,'success');
 }
@@ -7542,7 +7563,7 @@ function saveNewTask(){
   const _creatorVal = document.getElementById('tm-creator').value.trim();
   const _createdAtTime = new Date().toISOString();
   const estimatedHours = parseFloat(document.getElementById('tm-estimated').value)||0;
-  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,comments:[],checklist:checklistItems,activity:[],likes:[],bookmarks:[]};
+  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours,baseEstimatedHours:estimatedHours,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,completedAtTime:status==='done'?_createdAtTime:null,comments:[],checklist:checklistItems,activity:[],likes:[],bookmarks:[]};
   p.tasks.push(task);
   closeTaskModal(); autoSave(state.currentProjectId); renderCurrentView(); renderSidebar(); updateFilters();
   toast(`タスク #${task.number} を追加しました`,'success');
@@ -7846,8 +7867,10 @@ function savePanelTask(){
   t.milestoneId=document.getElementById('panel-milestone').value||null;
   if(newStatus==='done'){
     t.completedAt = document.getElementById('panel-completed').value || today();
+    if(oldStatus!==newStatus) t.completedAtTime = new Date().toISOString();
   } else {
     t.completedAt = null;
+    t.completedAtTime = null;
   }
 
   // ── Activity logging ──
@@ -8782,15 +8805,19 @@ function fmtDatetime(iso) {
   } catch(e){ return iso.slice(0,16); }
 }
 
-// ── 工数再計算（コメントの effortLog を全件集計）────────────────
+// ── 工数再計算（タスク作成時のベース見積 + コメントeffortLogの集計）──
+// 見積: baseEstimatedHours（作成時に設定した基準値）+ 各コメントのestimated（マイナス調整も可）。
+//       合計がマイナスにならないよう0でクランプする。
+// 実績: コメントのactualを単純加算（マイナス入力は不可のため常に0以上）。
 function recalcHours(t) {
-  let est = 0, act = 0;
+  let est = t.baseEstimatedHours || 0, act = 0;
   (t.comments||[]).forEach(c => {
     if (c.effortLog) {
       est += c.effortLog.estimated || 0;
       act += c.effortLog.actual    || 0;
     }
   });
+  est = Math.max(0, est);
   t.estimatedHours = Math.round(est * 100) / 100;
   t.actualHours    = Math.round(act * 100) / 100;
 }
@@ -8881,7 +8908,7 @@ function updateComment() {
   c.editedAt = new Date().toISOString();
   const estVal = parseFloat(document.getElementById('effort-estimated').value) || 0;
   const actVal = parseFloat(document.getElementById('effort-actual').value)    || 0;
-  if (estVal > 0 || actVal > 0) {
+  if (estVal !== 0 || actVal > 0) {
     c.effortLog = { estimated: estVal, actual: actVal };
   } else {
     delete c.effortLog;
@@ -8902,7 +8929,7 @@ function addComment(){
   const comment={id:uid(),author,text,createdAt:new Date().toISOString(),likes:[],bookmarks:[]};
   const estVal=parseFloat(document.getElementById('effort-estimated').value)||0;
   const actVal=parseFloat(document.getElementById('effort-actual').value)||0;
-  if(estVal>0||actVal>0) comment.effortLog={estimated:estVal,actual:actVal};
+  if(estVal!==0||actVal>0) comment.effortLog={estimated:estVal,actual:actVal};
   t.comments.push(comment);
   recalcHours(t);
   document.getElementById('comment-author').value=author;
@@ -9457,10 +9484,15 @@ window.TaskFlow = {
     const task = Object.assign({
       id: uid(), number: p.nextTaskNum++, title: '', description: '',
       status: 'todo', assignee: '', startDate: '', dueDate: '',
-      completedAt: null, storyPoints: 0, estimatedHours: 0, actualHours: 0, milestoneId: null,
+      completedAt: null, completedAtTime: null, storyPoints: 0, estimatedHours: 0, baseEstimatedHours: 0, actualHours: 0, milestoneId: null,
       labels: [], createdAt: today(), checklist: [], comments: [], activity: [],
     }, fields);
-    if (task.status === 'done' && !task.completedAt) task.completedAt = today();
+    // fieldsでestimatedHoursのみ指定されbaseEstimatedHoursが未指定の場合、
+    // それを作成時ベース値として補完する（以後のコメント集計で消えないようにするため）
+    if (fields && fields.estimatedHours !== undefined && fields.baseEstimatedHours === undefined) {
+      task.baseEstimatedHours = fields.estimatedHours;
+    }
+    if (task.status === 'done' && !task.completedAt) { task.completedAt = today(); task.completedAtTime = new Date().toISOString(); }
     p.tasks.push(task);
     return task;
   },
@@ -9469,8 +9501,15 @@ window.TaskFlow = {
     if (!p) return null;
     const task = p.tasks.find(t => t.id === taskId);
     if (!task) return null;
+    const wasDone = task.status === 'done';
     Object.assign(task, changes);
-    if (task.status === 'done' && !task.completedAt) task.completedAt = today();
+    // estimatedHoursのみ変更されbaseEstimatedHoursが指定されていない場合、
+    // ベース値も同期しておく（次回コメント集計時に消えないようにするため）
+    if (changes && changes.estimatedHours !== undefined && changes.baseEstimatedHours === undefined) {
+      task.baseEstimatedHours = changes.estimatedHours;
+    }
+    if (task.status === 'done' && !wasDone) { task.completedAt = task.completedAt || today(); task.completedAtTime = new Date().toISOString(); }
+    else if (task.status !== 'done') { task.completedAt = null; task.completedAtTime = null; }
     return task;
   },
 
