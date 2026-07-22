@@ -945,7 +945,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <select id="my-name-select" onchange="onMyNameChange()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:13px;padding:5px 10px;border-radius:var(--radius);outline:none;cursor:pointer">
             <option value="">-- 選択してください --</option>
           </select>
-          <button class="btn btn-secondary btn-sm" id="avatar-edit-btn" onclick="openAvatarModal()" title="アバター画像を設定" style="display:none">🖼</button>
+          <button class="btn btn-secondary btn-sm" id="avatar-edit-btn" onclick="openAvatarModal()" title="アバター画像を設定" style="display:none">🖼️</button>
           <button class="btn btn-secondary btn-sm" id="rename-name-btn" onclick="renameMyName()" title="担当者名を変更" style="display:none">✏️ 名前変更</button>
         </div>
       </div>
@@ -1618,7 +1618,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 <!-- AVATAR MODAL -->
 <div class="modal-overlay" id="avatar-modal">
   <div class="modal" style="width:420px">
-    <div class="modal-title">🖼 アバター画像の設定</div>
+    <div class="modal-title">🖼️ アバター画像の設定</div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:8px 0">
       <!-- プレビュー -->
       <div id="avatar-preview-wrap" style="width:96px;height:96px;border-radius:50%;overflow:hidden;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:var(--accent2);border:3px solid var(--border);flex-shrink:0">
@@ -2125,17 +2125,17 @@ async function writePluginsToDir(dirHandle, plugins) {
   await w.close();
 }
 
-// plugins.js（ディスク上の実体）と settings.json（有効/無効を含む全記録）を
+// plugins.js（ディスク上の実体）と plugin-settings.json（有効/無効を含む全記録）を
 // マージして _pluginList を組み立てる。
-// 無効化されて plugins.js から除外されたプラグインも settings.json から復元し、
+// 無効化されて plugins.js から除外されたプラグインも plugin-settings.json から復元し、
 // 一覧上では「チェックOFF」状態で表示し続ける。
 function _buildPluginListFromDiskAndSettings(filesOnDisk) {
-  // settings.json に記録済みのファイル名（無効化されて plugins.js から消えたものも含む）
-  const settingsFiles = (state.settings && state.settings.plugins && state.settings.plugins.value || [])
+  // plugin-settings.json に記録済みのファイル名（無効化されて plugins.js から消えたものも含む）
+  const settingsFiles = (state.pluginSettings && state.pluginSettings.plugins && state.pluginSettings.plugins.value || [])
     .map(v => typeof v === 'object' ? v.file : v)
     .filter(Boolean);
 
-  // 順序: plugins.js の順番を基本とし、settings.json にしか存在しないもの（=無効化済み）を末尾に追加
+  // 順序: plugins.js の順番を基本とし、plugin-settings.json にしか存在しないもの（=無効化済み）を末尾に追加
   const merged = [...filesOnDisk];
   settingsFiles.forEach(f => {
     if (!merged.includes(f)) merged.push(f);
@@ -2162,6 +2162,9 @@ async function initPluginPane() {
       if (perm !== 'granted') {
         await _pluginDirHandle.requestPermission({ mode: 'readwrite' });
       }
+      // このタイミングで plugin-settings.json を読み込む（アプリ起動時に権限未許可で
+      // 読めていなかった場合のフォールバック。既存ファイルがあればそれを尊重する）
+      await loadPluginSettings();
       const filesOnDisk = await readPluginsFromDir(_pluginDirHandle);
       _pluginList = _buildPluginListFromDiskAndSettings(filesOnDisk);
       renderPluginList();
@@ -2178,6 +2181,10 @@ async function initPluginPane() {
     const dir = await window.showDirectoryPicker(opts);
     _pluginDirHandle = dir;
     await savePluginDirToIDB(dir);
+    // 新規に選んだ plugin フォルダの plugin-settings.json を読み込む
+    // （既存フォルダを選んだ場合は既存の設定を引き継ぎ、旧 settings.json に
+    // 残っていた設定があれば移行する）
+    await loadPluginSettings();
     const filesOnDisk = await readPluginsFromDir(dir);
     _pluginList = _buildPluginListFromDiskAndSettings(filesOnDisk);
     renderPluginList();
@@ -2202,7 +2209,7 @@ function renderPluginList() {
   }
   container.innerHTML = '';
   _pluginList.forEach((name, idx) => {
-    // settings.jsonの enabled/config を参照
+    // plugin-settings.jsonの enabled/config を参照
     const settingsEntry = _getPluginSettingsEntry(name);
     const isEnabled = settingsEntry ? settingsEntry.enabled !== false : true;
     // TaskFlow.registerPlugin() で登録されたメタ情報を参照（照合は_findPluginMetaで統一）
@@ -2266,18 +2273,18 @@ function renderPluginList() {
   });
 }
 
-// settings.json から特定プラグインのエントリを取得（なければ null）
+// plugin-settings.json から特定プラグインのエントリを取得（なければ null）
 function _getPluginSettingsEntry(file) {
-  if (!state.settings || !state.settings.plugins) return null;
-  const arr = state.settings.plugins.value || [];
+  if (!state.pluginSettings || !state.pluginSettings.plugins) return null;
+  const arr = state.pluginSettings.plugins.value || [];
   return arr.find(v => (typeof v === 'object' ? v.file : v) === file) || null;
 }
 
-// プラグインの有効/無効を settings.json に反映
+// プラグインの有効/無効を plugin-settings.json に反映
 function togglePluginEnabled(file, enabled, itemEl) {
-  if (!state.settings) return;
-  if (!state.settings.plugins) state.settings.plugins = { value: [], _updatedAt: new Date().toISOString() };
-  let arr = state.settings.plugins.value;
+  if (!state.pluginSettings) return;
+  if (!state.pluginSettings.plugins) state.pluginSettings.plugins = { value: [], _updatedAt: new Date().toISOString() };
+  let arr = state.pluginSettings.plugins.value;
   let entry = arr.find(v => (typeof v === 'object' ? v.file : v) === file);
   if (!entry) {
     entry = { file, enabled, config: {} };
@@ -2291,11 +2298,11 @@ function togglePluginEnabled(file, enabled, itemEl) {
       entry.enabled = enabled;
     }
   }
-  state.settings.plugins._updatedAt = new Date().toISOString();
+  state.pluginSettings.plugins._updatedAt = new Date().toISOString();
   if (itemEl) itemEl.style.opacity = enabled ? '1' : '0.5';
   markPluginDirty();
-  // settings.json に即時保存
-  _writeSettings().then(() => {
+  // plugin-settings.json に即時保存
+  _writePluginSettings().then(() => {
     toast(`${file} を${enabled?'有効':'無効'}にしました（リロードで反映）`, 'success');
   });
 }
@@ -2380,7 +2387,7 @@ function openPluginConfig(file) {
 
 async function savePluginConfig() {
   const file = _pluginConfigTargetFile;
-  if (!file || !state.settings) return;
+  if (!file || !state.pluginSettings) return;
 
   const meta = _findPluginMeta(file);
   if (!meta) return;
@@ -2395,9 +2402,9 @@ async function savePluginConfig() {
     else config[s.key] = el.value;
   });
 
-  // settings.json に保存
-  if (!state.settings.plugins) state.settings.plugins = { value: [], _updatedAt: new Date().toISOString() };
-  const arr = state.settings.plugins.value;
+  // plugin-settings.json に保存
+  if (!state.pluginSettings.plugins) state.pluginSettings.plugins = { value: [], _updatedAt: new Date().toISOString() };
+  const arr = state.pluginSettings.plugins.value;
   let entry = arr.find(v => (typeof v === 'object' ? v.file : v) === file);
   if (!entry) {
     entry = { file, enabled: true, config };
@@ -2409,8 +2416,8 @@ async function savePluginConfig() {
   } else {
     entry.config = config;
   }
-  state.settings.plugins._updatedAt = new Date().toISOString();
-  await _writeSettings();
+  state.pluginSettings.plugins._updatedAt = new Date().toISOString();
+  await _writePluginSettings();
   closeModal('plugin-config-modal');
   toast('設定を保存しました（リロードで反映）', 'success');
 }
@@ -2511,15 +2518,15 @@ async function savePluginsJs() {
       return !entry || entry.enabled !== false;
     });
     await writePluginsToDir(_pluginDirHandle, enabledPlugins);
-    // settings.json も更新（plugins.value の順序を _pluginList に合わせる）
-    if (state.settings && state.settings.plugins) {
-      const known = new Map((state.settings.plugins.value || []).map(v => [
+    // plugin-settings.json も更新（plugins.value の順序を _pluginList に合わせる）
+    if (state.pluginSettings && state.pluginSettings.plugins) {
+      const known = new Map((state.pluginSettings.plugins.value || []).map(v => [
         typeof v === 'object' ? v.file : v,
         typeof v === 'object' ? v : { file: v, enabled: true, config: {} }
       ]));
-      state.settings.plugins.value = _pluginList.map(f => known.get(f) || { file: f, enabled: true, config: {} });
-      state.settings.plugins._updatedAt = new Date().toISOString();
-      await _writeSettings();
+      state.pluginSettings.plugins.value = _pluginList.map(f => known.get(f) || { file: f, enabled: true, config: {} });
+      state.pluginSettings.plugins._updatedAt = new Date().toISOString();
+      await _writePluginSettings();
     }
     _pluginDirty = false;
     pluginSetSaving(false);
@@ -4776,8 +4783,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.2';
-const APP_VERSION_DATE = '2026-07-10';
+const APP_VERSION      = '1.1.3';
+const APP_VERSION_DATE = '2026-07-22';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -4810,9 +4817,16 @@ function showSettingsPane(pane) {
   if (pane === 'plugins') initPluginPane();
 }
 
-// ── settings.json 読み書き ──────────────────────
+// ── settings.json（プロジェクトフォルダ直下・アプリ全体設定） ──────────────
+// v1.1.3〜: プラグイン関連の設定値は持たない。プラグイン設定は plugin フォルダ
+// 直下の plugin-settings.json に分離済み（将来の非プラグイン設定のための
+// 空のシェルとして維持）。
 const _SETTINGS_DEFAULT = () => ({
-  version: '1.0',
+  version: '1.0'
+});
+
+// ── plugin-settings.json（plugin フォルダ直下・プラグイン専用設定） ────────
+const _PLUGIN_SETTINGS_DEFAULT = () => ({
   plugins: { value: [], _updatedAt: new Date().toISOString() }
 });
 
@@ -4827,21 +4841,74 @@ async function loadSettings() {
     state.settings = _SETTINGS_DEFAULT();
     await _writeSettings();
   }
-  // plugins.js（読み込み順・実ファイル一覧の正）と settings.json（有効/無効・個別設定）を突き合わせる
+  // plugin フォルダ側の plugin-settings.json を読み込む
+  // （旧バージョンの settings.json にプラグイン設定が残っていれば一度だけ移行する）
+  await loadPluginSettings();
+  // plugins.js（読み込み順・実ファイル一覧の正）と plugin-settings.json（有効/無効・個別設定）を突き合わせる
   await _reconcilePluginsWithDisk();
 }
 
-// plugins.js（ディスク実体）と settings.json（有効/無効記録）を突き合わせる。
-// settings.json に記録済みのエントリは常に保持し、
-// plugins.js にあって settings.json にないものを enabled:true で追加する。
-// （plugins.js から除外された=無効化済みプラグインも settings.json から消さない）
+// plugin フォルダ配下の plugin-settings.json を読み込む/初期化する。
+// plugin フォルダが未設定・未許可の場合はメモリ上のデフォルトのみ保持する
+// （実ファイルへの書き込みは行わない）。
+async function loadPluginSettings() {
+  if (!_pluginDirHandle) {
+    _pluginDirHandle = await loadPluginDirFromIDB();
+  }
+  if (!_pluginDirHandle) {
+    state.pluginSettings = state.pluginSettings || _PLUGIN_SETTINGS_DEFAULT();
+    return;
+  }
+
+  try {
+    const perm = await _pluginDirHandle.queryPermission({ mode: 'read' });
+    if (perm !== 'granted') {
+      state.pluginSettings = state.pluginSettings || _PLUGIN_SETTINGS_DEFAULT();
+      return;
+    }
+  } catch(e) {
+    state.pluginSettings = state.pluginSettings || _PLUGIN_SETTINGS_DEFAULT();
+    return;
+  }
+
+  let existedOnDisk = false;
+  try {
+    const fh   = await _pluginDirHandle.getFileHandle('plugin-settings.json');
+    const text = await (await fh.getFile()).text();
+    state.pluginSettings = JSON.parse(text);
+    existedOnDisk = true;
+  } catch(e) {
+    state.pluginSettings = _PLUGIN_SETTINGS_DEFAULT();
+  }
+
+  // 旧 settings.json（プロジェクトフォルダ直下）に残っているプラグイン設定
+  const legacyPlugins = state.settings && state.settings.plugins;
+
+  // plugin-settings.json がまだ存在しなかった場合のみ、旧設定を一度だけ引き継ぐ
+  // （既に plugin-settings.json がある場合はそちらを正とする）
+  if (!existedOnDisk && legacyPlugins) {
+    state.pluginSettings.plugins = legacyPlugins;
+  }
+  await _writePluginSettings();
+
+  // 移行済みなので旧 settings.json 側からは削除して書き戻す
+  if (legacyPlugins) {
+    delete state.settings.plugins;
+    await _writeSettings();
+  }
+}
+
+// plugins.js（ディスク実体）と plugin-settings.json（有効/無効記録）を突き合わせる。
+// plugin-settings.json に記録済みのエントリは常に保持し、
+// plugins.js にあって plugin-settings.json にないものを enabled:true で追加する。
+// （plugins.js から除外された=無効化済みプラグインも plugin-settings.json から消さない）
 async function _reconcilePluginsWithDisk() {
-  if (!state.settings) return;
-  if (!state.settings.plugins) state.settings.plugins = { value: [], _updatedAt: new Date().toISOString() };
-  if (!Array.isArray(state.settings.plugins.value)) state.settings.plugins.value = [];
+  if (!state.pluginSettings) return;
+  if (!state.pluginSettings.plugins) state.pluginSettings.plugins = { value: [], _updatedAt: new Date().toISOString() };
+  if (!Array.isArray(state.pluginSettings.plugins.value)) state.pluginSettings.plugins.value = [];
 
   // 後方互換: 旧形式（文字列配列）が残っていたらオブジェクト配列に変換
-  state.settings.plugins.value = state.settings.plugins.value.map(v =>
+  state.pluginSettings.plugins.value = state.pluginSettings.plugins.value.map(v =>
     typeof v === 'string' ? { file: v, enabled: true, config: {} } : v
   );
 
@@ -4858,21 +4925,21 @@ async function _reconcilePluginsWithDisk() {
     filesOnDisk = await readPluginsFromDir(_pluginDirHandle);
   } catch(e) { return; }
 
-  const known = new Map(state.settings.plugins.value.map(v => [v.file, v]));
+  const known = new Map(state.pluginSettings.plugins.value.map(v => [v.file, v]));
 
-  // plugins.js にあって settings.json に無いものを enabled:true で追加
+  // plugins.js にあって plugin-settings.json に無いものを enabled:true で追加
   filesOnDisk.forEach(file => {
     if (!known.has(file)) {
       known.set(file, { file, enabled: true, config: {} });
     }
   });
 
-  // 順序: plugins.js の順 → settings.json にしかないもの（無効化済み）を末尾に
+  // 順序: plugins.js の順 → plugin-settings.json にしかないもの（無効化済み）を末尾に
   const ordered = [
     ...filesOnDisk.map(f => known.get(f)),
-    ...state.settings.plugins.value.filter(v => !filesOnDisk.includes(v.file)),
+    ...state.pluginSettings.plugins.value.filter(v => !filesOnDisk.includes(v.file)),
   ];
-  state.settings.plugins.value = ordered;
+  state.pluginSettings.plugins.value = ordered;
 }
 
 async function _writeSettings() {
@@ -4885,24 +4952,36 @@ async function _writeSettings() {
   } catch(e) { console.warn('settings.json 書き込みエラー:', e); }
 }
 
-async function saveSettingsLWW(updates) {
+// plugin フォルダ直下の plugin-settings.json に書き込む
+async function _writePluginSettings() {
+  if (!_pluginDirHandle || !state.pluginSettings) return;
+  try {
+    const fh = await _pluginDirHandle.getFileHandle('plugin-settings.json', { create: true });
+    const w  = await fh.createWritable();
+    await w.write(JSON.stringify(state.pluginSettings, null, 2));
+    await w.close();
+  } catch(e) { console.warn('plugin-settings.json 書き込みエラー:', e); }
+}
+
+async function savePluginSettingsLWW(updates) {
+  if (!_pluginDirHandle) return;
   // ディスクから再読み込みして LWW マージ
   let disk = null;
   try {
-    const fh   = await state.rootDirHandle.getFileHandle('settings.json');
+    const fh   = await _pluginDirHandle.getFileHandle('plugin-settings.json');
     const text = await (await fh.getFile()).text();
     disk = JSON.parse(text);
-  } catch(e) { disk = _SETTINGS_DEFAULT(); }
+  } catch(e) { disk = _PLUGIN_SETTINGS_DEFAULT(); }
 
-  const merged = disk ? JSON.parse(JSON.stringify(disk)) : _SETTINGS_DEFAULT();
+  const merged = disk ? JSON.parse(JSON.stringify(disk)) : _PLUGIN_SETTINGS_DEFAULT();
   // フィールド単位 LWW
   for (const [key, val] of Object.entries(updates)) {
     const myTs   = val._updatedAt   || '';
     const diskTs = (disk && disk[key] && disk[key]._updatedAt) || '';
     if (myTs >= diskTs) merged[key] = val;
   }
-  state.settings = merged;
-  await _writeSettings();
+  state.pluginSettings = merged;
+  await _writePluginSettings();
 }
 
 function showMyTasks() {
@@ -9644,15 +9723,15 @@ window.TaskFlow = {
 
   // プラグイン側から自分の設定値を読む:
   //   const cfg = TaskFlow.getPluginConfig('my-plugin-id');
-  //   → settings.json の config とスキーマの default をマージした値を返す
+  //   → plugin-settings.json の config とスキーマの default をマージした値を返す
   getPluginConfig(pluginId) {
     const meta = this._pluginMeta.find(m => m.id === pluginId);
     if (!meta) return {};
     // スキーマの default 値をベースに
     const defaults = {};
     (meta.settings || []).forEach(s => { defaults[s.key] = s.default; });
-    // settings.json の値で上書き
-    const allEntries = (state.settings && state.settings.plugins && state.settings.plugins.value) || [];
+    // plugin-settings.json の値で上書き
+    const allEntries = (state.pluginSettings && state.pluginSettings.plugins && state.pluginSettings.plugins.value) || [];
     const idNorm = pluginId.replace(/_/g, '-');
     const entry = allEntries.find(v => {
       if (typeof v !== 'object' || !v.file) return false;

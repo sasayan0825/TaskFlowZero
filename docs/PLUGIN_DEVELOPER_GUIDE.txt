@@ -79,7 +79,8 @@ taskflowzero.html は起動時に以下の順序で動作します。
      （ファイルが存在しない場合は静かにスキップ）
      ※ 設定画面で無効化されたプラグインは PLUGINS から除外されます
   4. ユーザーがフォルダを選択 or 「前回のフォルダを開く」を押す
-  5. フォルダ内の project_P*.json・settings.json を読み込んで initApp() が実行される
+  5. フォルダ内の project_P*.json・settings.json、および plugin フォルダ内の
+     plugin-settings.json を読み込んで initApp() が実行される
   6. initApp() 完了後に「taskflow-ready」イベントを発火
   7. 以降はユーザー操作に応じてイベントが発火
 
@@ -108,7 +109,17 @@ taskflowzero.html は起動時に以下の順序で動作します。
   ├── project_P1.json   ← プロジェクト 1 のデータ全体
   ├── project_P2.json   ← プロジェクト 2 のデータ全体
   ├── project_P3.json
-  └── settings.json     ← アプリ全体設定（プラグイン有効/無効・個別設定含む）
+  └── settings.json     ← アプリ全体設定（v1.1.3〜: プラグイン設定は含まない）
+
+  plugin フォルダ/
+  ├── plugins.js              ← 読み込むプラグイン一覧（自動生成）
+  ├── plugin-settings.json    ← プラグイン専用設定（有効/無効・個別設定）
+  └── plugin_xxx.js            ← 各プラグイン本体
+
+  ※ v1.1.3 より、プラグインの有効/無効・個別設定は settings.json から
+    plugin フォルダ内の plugin-settings.json に分離されました。
+    旧バージョンの settings.json にデータが残っている場合は次回起動時に
+    自動で移行され、settings.json 側からは削除されます。
 
   プラグインからファイルに直接アクセスする必要はありません。
   すべてのデータは TaskFlow API 経由で読み書きしてください。
@@ -564,7 +575,8 @@ TaskFlow.switchToPluginView(el)
 バージョン・個別設定を表示・編集できる仕組みです。
 
 プラグインのロード時（IIFE の先頭）に TaskFlow.registerPlugin() を呼ぶことで
-設定画面にメタ情報が表示されます。設定値は settings.json に保存され、
+設定画面にメタ情報が表示されます。設定値は plugin フォルダ内の
+plugin-settings.json（v1.1.3〜。旧: settings.json）に保存され、
 TaskFlow.getPluginConfig() でいつでも取得できます。
 
 
@@ -629,12 +641,12 @@ TaskFlow.registerPlugin(def)
 TaskFlow.getPluginConfig(pluginId)
   引数: pluginId (string) - registerPlugin() で登録した id
   戻り値: object - { key: value, ... }
-  説明: settings.json に保存されたプラグイン設定値を取得します。
-        settings.json に値がない場合は、settings 配列の default 値を返します。
+  説明: plugin-settings.json に保存されたプラグイン設定値を取得します。
+        plugin-settings.json に値がない場合は、settings 配列の default 値を返します。
         つまり「デフォルト値 + ユーザーが変更した値」のマージ結果を返します。
 
-  呼び出し時期: taskflow-ready 以降（settings.json が読み込まれた後）。
-                settings.json 読み込み前に呼ぶと default 値のみ返します。
+  呼び出し時期: taskflow-ready 以降（plugin-settings.json が読み込まれた後）。
+                plugin-settings.json 読み込み前に呼ぶと default 値のみ返します。
 
   後方互換ガードの例:
     function getCfg() {
@@ -647,17 +659,16 @@ TaskFlow.getPluginConfig(pluginId)
 
 
 【設定値が反映されるタイミング】
-  設定画面でユーザーが値を変更・保存すると settings.json に書き込まれます。
+  設定画面でユーザーが値を変更・保存すると plugin-settings.json に書き込まれます。
   プラグイン側が getPluginConfig() を「使うたびに」呼んでいれば、
   次にその処理が走ったときから新しい値が使われます。
   ただしページリロードを必要とする設定（有効/無効など）は
   設定画面に「リロードで反映」と表示されます。
 
 
-【settings.json へのプラグイン設定の保存形式（参考）】
+【plugin-settings.json へのプラグイン設定の保存形式（参考）】
 
   {
-    "version": "1.0",
     "plugins": {
       "value": [
         {
@@ -670,7 +681,7 @@ TaskFlow.getPluginConfig(pluginId)
     }
   }
 
-  ※ プラグインから settings.json を直接操作する必要はありません。
+  ※ プラグインから plugin-settings.json を直接操作する必要はありません。
      すべて registerPlugin() / getPluginConfig() で完結します。
 
 ================================================================================

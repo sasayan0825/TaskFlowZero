@@ -1,3 +1,10 @@
+### v1.1.3 (2026-07-22)
+
+**変更**
+* プラグイン関連の設定（有効/無効・個別設定）を、プロジェクトフォルダ直下の `settings.json` から plugin フォルダ直下の新規ファイル `plugin-settings.json` に分離。プロジェクトフォルダ側に出力される `settings.json` はプラグインの設定値を持たなくなりました。
+* 旧バージョンで `settings.json` にプラグイン設定が残っている場合、次回起動時（plugin フォルダへのアクセスが可能になったタイミング）に自動で `plugin-settings.json` へ移行し、`settings.json` 側からは削除されます。plugin フォルダ側に既に設定が存在する場合はそちらを優先し、上書きしません。
+* `TaskFlow.registerPlugin()` / `TaskFlow.getPluginConfig()` など、プラグイン開発者向けAPIの呼び出し方法・戻り値に変更はありません。
+
 ### v1.1.2 (2026-07-10)
 
 **バグ修正**
