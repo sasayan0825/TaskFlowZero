@@ -1399,7 +1399,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       </div>
       <div id="checklist-items"></div>
       <div class="checklist-add-row">
-        <input class="checklist-add-input" id="checklist-new-item" placeholder="項目を追加... (Enterで追加)" onkeydown="if(event.key==='Enter'){event.preventDefault();addChecklistItem()}">
+        <input class="checklist-add-input" id="checklist-new-item" placeholder="項目を追加... (Enterで追加)" onkeydown="if(event.key==='Enter'){event.preventDefault();addChecklistItem()}" onpaste="handleChecklistPaste(event,addChecklistItem)">
         <button class="btn btn-secondary btn-xs" onclick="addChecklistItem()">追加</button>
       </div>
     </div>
@@ -1590,7 +1590,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       <div id="tm-checklist" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div>
       <div id="tm-checklist-input-row" style="display:flex;gap:6px;margin-top:6px">
         <input class="form-input" id="tm-checklist-input" placeholder="チェック項目を入力して Enter" style="flex:1"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();tmAddChecklistItem();}">
+          onkeydown="if(event.key==='Enter'){event.preventDefault();tmAddChecklistItem();}" onpaste="handleChecklistPaste(event,tmAddChecklistItem)">
         <button class="btn btn-secondary btn-sm" onclick="tmAddChecklistItem()">追加</button>
       </div>
     </div>
@@ -4783,7 +4783,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.3';
+const APP_VERSION      = '1.1.4';
 const APP_VERSION_DATE = '2026-07-22';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
@@ -5978,7 +5978,7 @@ function buildListRow(t) {
   const s = STATUSES.find(x=>x.id===t.status)||STATUSES[0];
   const diff = daysDiff(t.dueDate);
   const dueCls = diff!==null?(diff<0?'overdue':diff<=3?'soon':''):'';
-  const labels = (t.labels||[]).slice(0,2).map(l=>`<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`).join('');
+  const labels = (t.labels||[]).map(l=>`<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`).join('');
 
   // チェックリスト進捗（getTaskProgress と同じロジック: 完了ステータスで100%、それ以外は最大99%）
   const cl = t.checklist||[];
@@ -6068,7 +6068,7 @@ function createTaskCard(t, msMap) {
   card.className = 'task-card'; card.draggable = true; card.dataset.taskId = t.id;
   const diff = daysDiff(t.dueDate);
   const dueCls = diff!==null?(diff<0?'overdue':diff<=3?'soon':''):'';
-  const labels = (t.labels||[]).slice(0,2).map(l=>`<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`).join('');
+  const labels = (t.labels||[]).map(l=>`<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`).join('');
   const ms = t.milestoneId&&msMap?msMap[t.milestoneId]:null;
   card.innerHTML = `
     <div class="task-card-top">
@@ -8314,11 +8314,12 @@ function linkifyMentions(html) {
 }
 
 function linkifyTaskRefs(html) {
-  return html.replace(/#((?:[A-Za-z0-9_\u3040-\u9FFF\u30A0-\u30FF\u4E00-\u9FFF]+-)?P\d+-\d+)\b/g, (match, ref) => {
-    const m = ref.match(/^(?:(.+?)-)?P(\d+)-(\d+)$/i);
+  return html.replace(/#((?:[A-Za-z0-9_\u3040-\u9FFF\u30A0-\u30FF\u4E00-\u9FFF]+-)?P\d+-\d+(?:-C\d+)?)\b/g, (match, ref) => {
+    const m = ref.match(/^(?:(.+?)-)?P(\d+)-(\d+)(?:-C(\d+))?$/i);
     if (!m) return match;
     const folderName = m[1] || null;
     const pNum = parseInt(m[2]), tNum = parseInt(m[3]);
+    const commentNo = m[4] != null ? parseInt(m[4]) : null;
     const currentFolder = state.rootDirHandle?.name || null;
     // フォルダ名が違う場合はリンクにしない（テキストのまま）
     if (folderName && currentFolder && folderName !== currentFolder) {
@@ -8326,8 +8327,13 @@ function linkifyTaskRefs(html) {
     }
     const p = (state.data?.projects||[]).find(x => x.number === pNum);
     const t = p?.tasks.find(x => x.number === tNum);
-    const title = t ? t.title : '（見つかりません）';
-    const style = t
+    const c = (commentNo != null && t) ? (t.comments||[])[commentNo-1] : null;
+    const found = !!t && (commentNo == null || !!c);
+    let title = '（見つかりません）';
+    if (t) title = commentNo != null
+      ? (c ? `${t.title} - C${commentNo}: ${c.text.slice(0,30)}` : `${t.title}（コメント C${commentNo} が見つかりません）`)
+      : t.title;
+    const style = found
       ? 'font-family:\'JetBrains Mono\',monospace;font-size:.9em;color:var(--accent);background:rgba(79,142,255,.1);border:1px solid rgba(79,142,255,.25);border-radius:3px;padding:0 4px;cursor:pointer;text-decoration:none'
       : 'font-family:\'JetBrains Mono\',monospace;font-size:.9em;color:var(--muted);text-decoration:line-through';
     const hash = '#' + ref;
@@ -8628,6 +8634,7 @@ window._hlFn = _selfHighlight;
 
 // ── Markdown コードブロック挿入────────────────────────
 const MD_CODE_LANGS = [
+  {id:'',           label:'Text'},
   {id:'javascript', label:'JS'},
   {id:'typescript', label:'TS'},
   {id:'python',     label:'Python'},
@@ -9156,6 +9163,20 @@ function clDragEnd(e) {
   document.getElementById('checklist-items')
     .querySelectorAll('.checklist-item')
     .forEach(el => el.classList.remove('dragging','drag-over'));
+}
+
+// チェックリスト追加欄に複数行テキストをペーストした場合、1行につき1項目として追加する
+// 改行を含まない通常のペーストはブラウザ標準の挙動に任せる
+function handleChecklistPaste(e, addFn) {
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  if (!text || !/\r\n|\r|\n/.test(text)) return;
+  e.preventDefault();
+  const input = e.target;
+  const lines = text.split(/\r\n|\r|\n/).map(s => s.trim()).filter(Boolean);
+  lines.forEach(line => {
+    input.value = line;
+    addFn();
+  });
 }
 
 function addChecklistItem() {
