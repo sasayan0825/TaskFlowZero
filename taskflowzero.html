@@ -226,7 +226,7 @@ th.sortable.sort-desc::after{content:' ↓'}
 .my-task-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;transition:all .15s}
 .my-task-row:hover{border-color:var(--border2);background:var(--surface2)}
 .activity-heatmap-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;overflow-x:auto}
-.activity-detail-item{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;transition:all .15s}
+.activity-detail-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all .15s}
 .activity-detail-item:hover{border-color:var(--border2);background:var(--surface2)}
 #btn-new-project{margin:8px 12px 16px;padding:8px;background:rgba(79,142,255,.1);border:1px dashed rgba(79,142,255,.3);border-radius:var(--radius);color:var(--accent);font-size:12px;cursor:pointer;text-align:center;transition:all .15s}
 #btn-new-project:hover{background:rgba(79,142,255,.2);border-color:rgba(79,142,255,.6)}
@@ -735,6 +735,28 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
 /* ── WIKI VIEW ── */
 #wiki-view{flex:1;overflow:hidden;display:none;flex-direction:row}
+#wiki-page-sidebar{position:relative;width:180px;flex-shrink:0;overflow-x:hidden;overflow-y:auto;padding:12px 8px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s ease,padding .2s ease,border-color .2s ease}
+#wiki-page-sidebar.hidden{width:0;padding-left:0;padding-right:0;border-right-color:transparent}
+#wiki-page-sidebar.resizing{transition:none}
+#wiki-page-sidebar-inner{width:164px;flex-shrink:0;transition:opacity .15s ease;opacity:1}
+#wiki-page-sidebar.hidden #wiki-page-sidebar-inner{opacity:0}
+#wiki-page-sidebar-resize-handle{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:ew-resize;z-index:5;background:transparent;transition:background .15s}
+#wiki-page-sidebar-resize-handle:hover,#wiki-page-sidebar-resize-handle.resizing{background:rgba(79,142,255,.25)}
+#wiki-page-sidebar.hidden #wiki-page-sidebar-resize-handle{display:none}
+.wiki-page-sidebar-header{display:flex;align-items:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:2px 4px 8px}
+#wiki-page-list{display:flex;flex-direction:column;gap:2px}
+.wiki-page-item{display:flex;align-items:center;justify-content:space-between}
+.wiki-page-item .proj-name{cursor:pointer;flex:1;min-width:0}
+.wiki-page-item-actions{display:none;align-items:center;gap:2px;flex-shrink:0}
+.wiki-page-item:hover .wiki-page-item-actions{display:flex}
+.wiki-page-item-action-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 5px;border-radius:3px;line-height:1.4;transition:all .15s}
+.wiki-page-item-action-btn:hover{background:var(--surface3);color:var(--text)}
+.wiki-page-drag-handle{cursor:grab;color:var(--border2);font-size:12px;padding:0 2px;flex-shrink:0;opacity:0;transition:opacity .15s}
+.wiki-page-item:hover .wiki-page-drag-handle{opacity:1}
+.wiki-page-item.drag-over{background:rgba(79,142,255,.1);border-top:2px solid var(--accent)}
+.wiki-page-item.dragging{opacity:.4}
+.wiki-toolbar-toggle-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;transition:all .15s;line-height:1.3}
+.wiki-toolbar-toggle-btn.active{background:rgba(79,142,255,.15);border-color:rgba(79,142,255,.4);color:var(--accent2)}
 #wiki-editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
 #wiki-toc-pane{width:220px;flex-shrink:0;overflow-y:auto;padding:16px 12px;background:var(--surface)}
 .wiki-toolbar{padding:8px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--surface);flex-shrink:0}
@@ -1243,9 +1265,20 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
       <!-- WIKI VIEW -->
       <div id="wiki-view">
+        <div id="wiki-page-sidebar">
+          <div id="wiki-page-sidebar-inner">
+            <div class="wiki-page-sidebar-header">
+              <span>ページ</span>
+              <button class="md-btn-fmt" title="ページを追加" onclick="addWikiPage()" style="margin-left:auto">＋</button>
+            </div>
+            <div id="wiki-page-list"></div>
+          </div>
+          <div id="wiki-page-sidebar-resize-handle" title="ドラッグで幅を変更"></div>
+        </div>
         <div id="wiki-editor-pane">
           <div class="wiki-toolbar">
-            <span class="wiki-toolbar-title">📖 Wiki</span>
+            <button class="wiki-toolbar-toggle-btn" id="wiki-page-sidebar-toggle" title="ページ一覧を表示/非表示" onclick="toggleWikiPageSidebar()">📑</button>
+            <span class="wiki-toolbar-title" id="wiki-toolbar-title-text">📖 Wiki</span>
             <button class="md-btn" id="wiki-edit-btn" onclick="setWikiMode('edit')">✏️ 編集</button>
             <button class="md-btn active" id="wiki-preview-btn" onclick="setWikiMode('preview')">👁 プレビュー</button>
             <div class="md-toolbar-sep"></div>
@@ -1754,24 +1787,22 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       <input class="form-input" id="ps-te-name" placeholder="例: デプロイチェックリスト">
     </div>
     <div class="form-group">
-      <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">
-        <span>本文（詳細）</span>
-        <div class="md-toolbar" style="margin:0">
-          <button class="md-btn active" id="ps-te-desc-edit-btn" onclick="setPsTeDescMode('edit')">編集</button>
-          <button class="md-btn" id="ps-te-desc-preview-btn" onclick="setPsTeDescMode('preview')">プレビュー</button>
-          <div class="md-toolbar-sep"></div>
-          <button class="md-btn-fmt" title="太字 (Ctrl+B)" onclick="insertMd('ps-te-description','**','**','太字')"><b>B</b></button>
-          <button class="md-btn-fmt" title="斜体 (Ctrl+I)" onclick="insertMd('ps-te-description','*','*','斜体')"><i>I</i></button>
-          <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('ps-te-description','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
-          <button class="md-btn-fmt" title="コードブロック" onclick="showCodePicker(event,'ps-te-description')" style="font-family:'JetBrains Mono',monospace;font-size:11px">&lt;/&gt;</button>
-          <button class="md-btn-fmt" title="リスト" onclick="insertMd('ps-te-description','\n- ','','項目')">≡</button>
-          <button class="md-btn-fmt" title="見出し" onclick="insertMd('ps-te-description','## ','','見出し')">H</button>
-          <div class="md-toolbar-sep"></div>
-          <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('ps-te-description','~~','~~','テキスト')"><s>S</s></button>
-          <button class="md-btn-fmt" title="引用" onclick="insertMd('ps-te-description','\n> ','','引用テキスト')">❝</button>
-          <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'ps-te-description')">⊞</button>
-        </div>
-      </label>
+      <label class="form-label">本文（詳細）</label>
+      <div class="md-toolbar" style="margin-bottom:6px">
+        <button class="md-btn active" id="ps-te-desc-edit-btn" onclick="setPsTeDescMode('edit')">編集</button>
+        <button class="md-btn" id="ps-te-desc-preview-btn" onclick="setPsTeDescMode('preview')">プレビュー</button>
+        <div class="md-toolbar-sep"></div>
+        <button class="md-btn-fmt" title="太字 (Ctrl+B)" onclick="insertMd('ps-te-description','**','**','太字')"><b>B</b></button>
+        <button class="md-btn-fmt" title="斜体 (Ctrl+I)" onclick="insertMd('ps-te-description','*','*','斜体')"><i>I</i></button>
+        <button class="md-btn-fmt" title="インラインコード" onclick="insertMd('ps-te-description','`','`','コード')" style="font-family:'JetBrains Mono',monospace;font-size:11px">code</button>
+        <button class="md-btn-fmt" title="コードブロック" onclick="showCodePicker(event,'ps-te-description')" style="font-family:'JetBrains Mono',monospace;font-size:11px">&lt;/&gt;</button>
+        <button class="md-btn-fmt" title="リスト" onclick="insertMd('ps-te-description','\n- ','','項目')">≡</button>
+        <button class="md-btn-fmt" title="見出し" onclick="insertMd('ps-te-description','## ','','見出し')">H</button>
+        <div class="md-toolbar-sep"></div>
+        <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('ps-te-description','~~','~~','テキスト')"><s>S</s></button>
+        <button class="md-btn-fmt" title="引用" onclick="insertMd('ps-te-description','\n> ','','引用テキスト')">❝</button>
+        <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'ps-te-description')">⊞</button>
+      </div>
       <textarea class="form-input" id="ps-te-description" rows="5" placeholder="タスクの詳細をMarkdownで記述できます..." style="font-size:13px;resize:vertical;width:100%;box-sizing:border-box"></textarea>
       <div class="md-preview" id="ps-te-desc-preview" style="min-height:90px;display:none"></div>
     </div>
@@ -2211,24 +2242,27 @@ async function initPluginPane() {
     }
   }
 
-  // 未設定 or 権限切れ → フォルダピッカー起動
+  // 未設定 or 権限切れ → フォルダ選択ダイアログは出さず、ルートフォルダ（project_P*.json
+  // が置かれている場所＝基本はHTMLファイルと同じ場所）配下の "plugin" フォルダを自動的に
+  // 作成・使用する。ルートフォルダの読み書き権限は既に許可済みのため、追加の許可ダイアログも出ない。
+  if (!state.rootDirHandle) {
+    toast('プロジェクトフォルダが開かれていません', 'error');
+    renderPluginList();
+    return;
+  }
   try {
-    const opts = { mode: 'readwrite' };
-    if (state.fileHandle) opts.startIn = state.fileHandle;
-    const dir = await window.showDirectoryPicker(opts);
+    const dir = await state.rootDirHandle.getDirectoryHandle('plugin', { create: true });
     _pluginDirHandle = dir;
     await savePluginDirToIDB(dir);
-    // 新規に選んだ plugin フォルダの plugin-settings.json を読み込む
-    // （既存フォルダを選んだ場合は既存の設定を引き継ぎ、旧 settings.json に
+    // 新規に作成した plugin フォルダの plugin-settings.json を読み込む
+    // （既存フォルダの場合は既存の設定を引き継ぎ、旧 settings.json に
     // 残っていた設定があれば移行する）
     await loadPluginSettings();
     const filesOnDisk = await readPluginsFromDir(dir);
     _pluginList = _buildPluginListFromDiskAndSettings(filesOnDisk);
     renderPluginList();
   } catch(e) {
-    if (e.name !== 'AbortError') {
-      toast('フォルダの取得に失敗しました', 'error');
-    }
+    toast('プラグインフォルダの作成に失敗しました', 'error');
     renderPluginList();
   }
 }
@@ -2928,7 +2962,18 @@ async function _loadLegacyFormat(text) {
 function _migrateProjectFields(projects) {
   projects.forEach(p => {
     if (!p.milestones) p.milestones = [];
-    if (!p.wiki) p.wiki = '';
+    // v1.1.6〜: Wikiを複数ページ化。既存の単一ページ文字列(p.wiki)はHomeページへ移行
+    if (!p.wikiPages) {
+      p.wikiPages = [];
+      if (p.wiki) {
+        p.wikiPages.push({ id: uid(), title: 'Home', content: p.wiki, order: 0, updatedAt: new Date().toISOString() });
+      }
+    }
+    delete p.wiki;
+    if (!p.wikiPages.length) {
+      p.wikiPages.push({ id: uid(), title: 'Home', content: '', order: 0, updatedAt: new Date().toISOString() });
+    }
+    p.wikiPages.forEach((pg, i) => { if (pg.order === undefined || pg.order === null) pg.order = i; if (!pg.title) pg.title = '無題'; if (pg.content === undefined) pg.content = ''; });
     if (p.archived === undefined) p.archived = false;
     if (p.deleted === undefined) p.deleted = false;
     if (!p.number) p.number = 0;
@@ -2993,7 +3038,15 @@ async function readProjectFromDisk(pid) {
   try {
     const fh   = await state.rootDirHandle.getFileHandle(_projectFileName(pid));
     const text = await (await fh.getFile()).text();
-    return JSON.parse(text);
+    const project = JSON.parse(text);
+    // ディスクから読み込んだデータにも必ずマイグレーションを適用する。
+    // これを怠ると、旧形式のまま保存されているファイル（例: 移行前の
+    // 単一ページ文字列 wiki）が threeWayMerge の disk 側としてそのまま
+    // 比較されてしまい、「mine側は base から変更なし」と判定されるケースで
+    // 旧形式（＝未移行）のディスク内容が正として採用され、既に移行済みの
+    // データが上書き・消失してしまう不具合の原因になる。
+    if (project) _migrateProjectFields([project]);
+    return project;
   } catch(e) { return null; }
 }
 
@@ -3303,7 +3356,7 @@ function threeWayMerge(base, mine, disk) {
 
     // Both have it — merge project-level fields + tasks
     const mergedP = deepCopy(d); // start from disk
-    const projFieldConflicts = mergeEntityFields(b, m, d, ['name','description','startDate','endDate','members','color','archived','wiki','projectSettings'], pid, null);
+    const projFieldConflicts = mergeEntityFields(b, m, d, ['name','description','startDate','endDate','members','color','archived','projectSettings'], pid, null);
     projFieldConflicts.autoFields.forEach(f => { mergedP[f] = m[f]; autoMerged++; });
     if (projFieldConflicts.conflictFields.length > 0) {
       conflicts.push({
@@ -3397,6 +3450,70 @@ function threeWayMerge(base, mine, disk) {
         else if (!mb && !mm && md) { mergedMs.push(deepCopy(md)); }
       });
       mergedP.milestones = mergedMs;
+    }
+
+    // Merge wikiPages: フィールド単位マージ + 順序（マイルストーンと同じパターン）
+    {
+      const bWpIdx = indexBy(b.wikiPages||[], 'id');
+      const mWpIdx = indexBy(m.wikiPages||[], 'id');
+      const dWpIdx = indexBy(d.wikiPages||[], 'id');
+
+      const bWpOrder = (b.wikiPages||[]).map(x=>x.id).join(',');
+      const mWpOrder = (m.wikiPages||[]).map(x=>x.id).join(',');
+      const dWpOrder = (d.wikiPages||[]).map(x=>x.id).join(',');
+      const wpOrderBase = (mWpOrder !== bWpOrder && dWpOrder === bWpOrder)
+        ? (m.wikiPages||[]) : (d.wikiPages||[]);
+
+      const allWpIds = new Set([
+        ...(b.wikiPages||[]).map(x=>x.id),
+        ...(m.wikiPages||[]).map(x=>x.id),
+        ...(d.wikiPages||[]).map(x=>x.id),
+      ]);
+
+      const mergedWp = [];
+      wpOrderBase.forEach(wp => {
+        const wpId = wp.id;
+        const wb = bWpIdx[wpId], wm = mWpIdx[wpId], wd = dWpIdx[wpId];
+        if (!wm && wb) return; // mineが削除
+        if (!wd && wb) return; // diskが削除
+        if (!wb) {
+          if (wm && !wd) { mergedWp.push(deepCopy(wm)); autoMerged++; return; }
+          if (!wm && wd) { mergedWp.push(deepCopy(wd)); return; }
+          if (wm && wd)  { mergedWp.push(deepCopy(wm)); return; } // 両方追加はmine優先
+          return;
+        }
+        const mergedWpItem = deepCopy(wd || wm);
+        if (wm && wd) {
+          const wpFieldRes = mergeEntityFields(wb, wm, wd, ['title','content']);
+          wpFieldRes.autoFields.forEach(f => { mergedWpItem[f] = wm[f]; autoMerged++; });
+          if (wpFieldRes.conflictFields.length > 0) {
+            conflicts.push({
+              kind: 'wikipage',
+              id: wpId,
+              parentId: pid,
+              label: `Wikiページ「${wm?.title || wd?.title}」`,
+              fields: wpFieldRes.conflictFields,
+              mine: wm,
+              theirs: wd,
+              mergedBase: mergedWpItem,
+              choice: 'mine',
+            });
+          }
+        }
+        mergedWp.push(mergedWpItem);
+      });
+      allWpIds.forEach(wpId => {
+        if (wpOrderBase.find(x => x.id === wpId)) return;
+        const wb = bWpIdx[wpId], wm = mWpIdx[wpId], wd = dWpIdx[wpId];
+        if (!wb && wm && !wd) { mergedWp.push(deepCopy(wm)); autoMerged++; }
+        else if (!wb && !wm && wd) { mergedWp.push(deepCopy(wd)); }
+      });
+      // 全ページが消えてしまった場合はHomeページを補完（Wikiが空にならないように）
+      if (!mergedWp.length) {
+        mergedWp.push({ id: uid(), title: 'Home', content: '', order: 0, updatedAt: new Date().toISOString() });
+      }
+      mergedP.wikiPages = mergedWp;
+      delete mergedP.wiki; // v1.1.6〜: 単一ページ文字列は廃止
     }
 
     // Merge nextTaskNum
@@ -3660,7 +3777,7 @@ const FIELD_LABELS = {
   description:'詳細', milestoneId:'MS', labels:'ラベル',
   completedAt:'完了日', name:'名前', archived:'アーカイブ',
   color:'カラー', wiki:'Wiki', members:'メンバー',
-  description:'説明', endDate:'終了日',
+  description:'説明', endDate:'終了日', content:'内容',
 };
 
 function showConflictDialog(conflicts, mergedBase, onResolve) {
@@ -3734,7 +3851,7 @@ function formatConflictVal(field, val) {
   if (field === 'storyPoints') return val === 0 ? '未設定' : String(val);
   if (field === 'estimatedHours' || field === 'actualHours') return val === 0 ? '未設定' : `${val}h`;
   if (typeof val === 'boolean') return val ? 'はい' : 'いいえ';
-  if (field === 'description' || field === 'wiki') {
+  if (field === 'description' || field === 'wiki' || field === 'content') {
     const s = String(val);
     return s.length > 40 ? s.slice(0,40)+'…' : (s || '（空）');
   }
@@ -3770,6 +3887,16 @@ function resolveConflict() {
     if (item.kind === 'project') {
       const p = resolved.projects.find(x => x.id === item.id);
       if (p) item.fields.forEach(f => { p[f.name] = src[f.name]; });
+    } else if (item.kind === 'milestone') {
+      const p = resolved.projects.find(x => x.id === item.parentId);
+      if (!p) return;
+      const msItem = (p.milestones||[]).find(x => x.id === item.id);
+      if (msItem) item.fields.forEach(f => { msItem[f.name] = src[f.name]; });
+    } else if (item.kind === 'wikipage') {
+      const p = resolved.projects.find(x => x.id === item.parentId);
+      if (!p) return;
+      const wpItem = (p.wikiPages||[]).find(x => x.id === item.id);
+      if (wpItem) item.fields.forEach(f => { wpItem[f.name] = src[f.name]; });
     } else {
       // task
       const p = resolved.projects.find(x => x.id === item.parentId);
@@ -4260,6 +4387,7 @@ function renderMyTasks() {
     myTasks.sort((a,b) => {
       let va, vb;
       if (col === 'status')  { va = statusOrder[a.task.status]??9; vb = statusOrder[b.task.status]??9; }
+      else if (col === 'startDate') { va = a.task.startDate||'9999'; vb = b.task.startDate||'9999'; }
       else if (col === 'dueDate') { va = a.task.dueDate||'9999'; vb = b.task.dueDate||'9999'; }
       else if (col === 'project') { va = a.project.name; vb = b.project.name; }
       else if (col === 'title')   { va = a.task.title;   vb = b.task.title; }
@@ -4292,6 +4420,7 @@ function renderMyTasks() {
           ${sh('title','タイトル')}
           ${sh('project','プロジェクト')}
           ${sh('status','ステータス')}
+          ${sh('startDate','開始日')}
           ${sh('dueDate','期限')}
         </tr></thead>
         <tbody>${myTasks.map(({project:p, task:t}) => {
@@ -4303,6 +4432,7 @@ function renderMyTasks() {
             <td style="padding:7px 8px;font-weight:500">${esc(t.title)}</td>
             <td style="padding:7px 8px"><span style="background:${p.color||'#4f8eff'}22;color:${p.color||'#4f8eff'};border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600">${esc(p.name)}</span></td>
             <td style="padding:7px 8px"><span style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44;border-radius:10px;font-size:11px;font-weight:600;padding:2px 8px">${s.label}</span></td>
+            <td style="padding:7px 8px;font-size:12px">${t.startDate?fmtFull(t.startDate):'—'}</td>
             <td style="padding:7px 8px;font-size:12px;${dueCls}">${t.dueDate?fmtFull(t.dueDate):'—'}</td>
           </tr>`;
         }).join('')}</tbody>
@@ -4577,18 +4707,21 @@ function _renderActivityTabContent(myName) {
         ${_myActivitySelDate} &nbsp;—&nbsp; ${evts.length}件のアクティビティ
       </div>
       ${projSummaryHtml}
-      ${sorted.length ? sorted.map(ev => `
+      ${sorted.length ? sorted.map(ev => {
+        const _evProj = getProject(ev.pid);
+        const _evTask = _evProj && (_evProj.tasks||[]).find(x => x.id === ev.tid);
+        const _evTaskLabel = _evTask ? `#${_evTask.number} ${esc(_evTask.title)}` : '';
+        return `
         <div class="activity-detail-item" onclick="openProject('${ev.pid}');setTimeout(()=>openTaskPanel('${ev.tid}'),150)">
-          <span style="font-size:15px;flex-shrink:0;margin-top:1px">${ev.icon}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;line-height:1.5">${ev.text}</div>
-            <div style="margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              <span style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span>
-              <span style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">${ev.hasTime ? fmtDatetime(ev.at).split(' ')[1] : '時刻不明'}</span>
-            </div>
+          <div class="my-mention-meta">
+            <span style="font-size:14px;flex-shrink:0">${ev.icon}</span>
+            <span class="my-mention-proj" style="background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span>
+            ${_evTaskLabel ? `<span class="my-mention-task">${_evTaskLabel}</span>` : ''}
+            <span class="my-mention-date">${ev.hasTime ? fmtDatetime(ev.at).split(' ')[1] : '時刻不明'}</span>
           </div>
-          <span style="font-size:10px;color:var(--muted);flex-shrink:0;margin-top:2px">→</span>
-        </div>`).join('')
+          <div class="my-mention-text">${ev.text}</div>
+        </div>`;
+      }).join('')
       : `<div style="text-align:center;padding:20px;font-size:12px;color:var(--muted)">この日のアクティビティはありません</div>`}
     </div>`;
   } else {
@@ -4824,8 +4957,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.5';
-const APP_VERSION_DATE = '2026-08-03';
+const APP_VERSION      = '1.1.6';
+const APP_VERSION_DATE = '2026-08-09';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -5557,6 +5690,7 @@ function renderProjectsList() {
 // ═══════════════════════════════════════
 function openProject(id) {
   state.currentProjectId = id;
+  _wikiCurrentPageId = null; // プロジェクト切替時はWikiページ選択をリセット（先頭ページから）
   // プロジェクト切替は明示的なユーザー操作のため、直前のタブ切替等による
   // グローバルなフェッチ・クールダウン（_FETCH_COOLDOWN_MS）を無視して
   // 必ず最新データを取得・マージしてから表示する（他の人の追加分の取りこぼし防止）
@@ -6935,14 +7069,208 @@ function ganttScrollToToday(e) {
 let _wikiMode = 'preview';
 let _wikiDirty = false;
 let _wikiAutoSaveTimer = null; // 改善C: Wiki編集中の debounced autoSave タイマー
+let _wikiCurrentPageId = null; // v1.1.6〜: 複数ページ化。現在表示中のページID（プロジェクトごとにリセット）
+
+// プロジェクトのWikiページ一覧を並び順でソートして返す
+function _wikiPages(p) {
+  return (p.wikiPages || []).slice().sort((a,b) => (a.order??0) - (b.order??0));
+}
+
+// 現在表示すべきページを返す（未選択 or 存在しない場合は先頭ページにフォールバック）
+function _currentWikiPage(p) {
+  const pages = _wikiPages(p);
+  if (!pages.length) return null;
+  let cur = pages.find(pg => pg.id === _wikiCurrentPageId);
+  if (!cur) { cur = pages[0]; _wikiCurrentPageId = cur.id; }
+  return cur;
+}
+
+function renderWikiPageList() {
+  const listEl = document.getElementById('wiki-page-list');
+  if (!listEl) return;
+  const p = getProject(state.currentProjectId);
+  if (!p) { listEl.innerHTML = ''; return; }
+  const pages = _wikiPages(p);
+  const cur = _currentWikiPage(p);
+  listEl.innerHTML = pages.map((pg, idx) => {
+    const locked = idx === 0; // 1ページ目は並び替え対象外
+    return `
+    <div class="sidebar-item wiki-page-item${cur && pg.id===cur.id ? ' active' : ''}"
+         data-wiki-page-id="${pg.id}"
+         ${locked ? '' : `draggable="true"
+         ondragstart="wpDragStart(event,'${pg.id}')"
+         ondragover="wpDragOver(event,'${pg.id}')"
+         ondrop="wpDrop(event,'${pg.id}')"
+         ondragleave="wpDragLeave(event)"
+         ondragend="wpDragEnd(event)"`}
+         onclick="switchWikiPage('${pg.id}')" title="${esc(pg.title)}">
+      ${locked ? '' : `<span class="wiki-page-drag-handle" title="ドラッグで並び替え">⠿</span>`}
+      <span class="proj-name">📄 ${esc(pg.title)}</span>
+      <span class="wiki-page-item-actions">
+        <button class="wiki-page-item-action-btn" title="ページ名を変更" onclick="event.stopPropagation(); renameWikiPage('${pg.id}')">✏️</button>
+        <button class="wiki-page-item-action-btn" title="ページを削除" onclick="event.stopPropagation(); deleteWikiPage('${pg.id}')">🗑</button>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+// ── Wikiページ 並び替え（ドラッグ&ドロップ） ──
+// 1ページ目（先頭）は並び替え対象外のため、ドラッグ操作の起点・移動先どちらにもならない。
+let _wpDragId = null;
+
+function wpDragStart(e, pageId) {
+  _wpDragId = pageId;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function wpDragOver(e, pageId) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const listEl = document.getElementById('wiki-page-list');
+  listEl.querySelectorAll('.wiki-page-item').forEach(el => el.classList.remove('drag-over'));
+  if (pageId !== _wpDragId) e.currentTarget.classList.add('drag-over');
+}
+
+function wpDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function wpDrop(e, toPageId) {
+  e.preventDefault();
+  if (!_wpDragId || _wpDragId === toPageId) { _wpDragId = null; return; }
+  const p = getProject(state.currentProjectId); if (!p) return;
+  const pages = _wikiPages(p);
+  const fromIdx = pages.findIndex(pg => pg.id === _wpDragId);
+  const toIdx = pages.findIndex(pg => pg.id === toPageId);
+  // 先頭ページ(idx 0)は移動元にも移動先にもならない（安全のための二重チェック）
+  if (fromIdx <= 0 || toIdx <= 0) { _wpDragId = null; return; }
+  const [moved] = pages.splice(fromIdx, 1);
+  pages.splice(toIdx, 0, moved);
+  pages.forEach((pg, i) => { pg.order = i; });
+  _wpDragId = null;
+  autoSave(state.currentProjectId);
+  renderWikiPageList();
+  toast('ページの順番を変更しました', 'success');
+}
+
+function wpDragEnd(e) {
+  _wpDragId = null;
+  document.getElementById('wiki-page-list')
+    ?.querySelectorAll('.wiki-page-item')
+    .forEach(el => { el.classList.remove('dragging'); el.classList.remove('drag-over'); });
+}
+
+// Wikiページ一覧の表示/非表示を切り替え
+const WIKI_SIDEBAR_MIN_W = 120, WIKI_SIDEBAR_MAX_W = 400, WIKI_SIDEBAR_DEFAULT_W = 180;
+
+// hidden=trueなら幅0、falseなら保存済み(or既定)の幅をサイドバー本体・内側ラッパー両方に適用
+function _applyWikiPageSidebarWidth(hidden) {
+  const el = document.getElementById('wiki-page-sidebar');
+  const inner = document.getElementById('wiki-page-sidebar-inner');
+  if (!el) return;
+  if (hidden) {
+    el.style.width = '0px';
+    return;
+  }
+  let savedW = parseInt(localStorage.getItem('taskflow-wiki-sidebar-width') || '0');
+  if (!(savedW >= WIKI_SIDEBAR_MIN_W && savedW <= WIKI_SIDEBAR_MAX_W)) savedW = WIKI_SIDEBAR_DEFAULT_W;
+  el.style.width = savedW + 'px';
+  if (inner) inner.style.width = Math.max(0, savedW - 16) + 'px'; // 左右padding(8px×2)分を引く
+}
+
+function toggleWikiPageSidebar() {
+  const el = document.getElementById('wiki-page-sidebar');
+  const btn = document.getElementById('wiki-page-sidebar-toggle');
+  const hidden = el.classList.toggle('hidden');
+  _applyWikiPageSidebarWidth(hidden);
+  if (btn) { btn.classList.toggle('active', !hidden); btn.title = hidden ? 'ページ一覧を表示' : 'ページ一覧を非表示'; }
+  try { localStorage.setItem('taskflow-wiki-page-sidebar-hidden', hidden ? '1' : '0'); } catch(e) {}
+}
+function _restoreWikiPageSidebarState() {
+  try {
+    const hidden = localStorage.getItem('taskflow-wiki-page-sidebar-hidden') === '1';
+    const el = document.getElementById('wiki-page-sidebar');
+    const btn = document.getElementById('wiki-page-sidebar-toggle');
+    if (el) el.classList.toggle('hidden', hidden);
+    _applyWikiPageSidebarWidth(hidden);
+    if (btn) { btn.classList.toggle('active', !hidden); btn.title = hidden ? 'ページ一覧を表示' : 'ページ一覧を非表示'; }
+  } catch(e) {}
+}
 
 function renderWiki() {
   const p = getProject(state.currentProjectId); if(!p) return;
-  const content = p.wiki || '';
+  _restoreWikiPageSidebarState();
+  renderWikiPageList();
+  const page = _currentWikiPage(p);
+  const titleEl = document.getElementById('wiki-toolbar-title-text');
+  if (titleEl) titleEl.textContent = '📖 ' + (page ? page.title : 'Wiki');
+  const content = page ? (page.content || '') : '';
   // 編集中は textarea を上書きしない（入力中の内容を保護）
   if (_wikiMode === 'edit') return;
   document.getElementById('wiki-textarea').value = content;
   setWikiMode('preview');
+}
+
+// ページ切替（未保存の編集内容があれば確認）
+function switchWikiPage(pageId) {
+  if (pageId === _wikiCurrentPageId) return;
+  if (_wikiDirty && _wikiMode === 'edit') {
+    if (!confirm('Wikiの変更が保存されていません。ページを切り替えますか？\n（「キャンセル」で編集を続けられます）')) return;
+    _wikiDirty = false;
+    clearTimeout(_wikiAutoSaveTimer);
+  }
+  _wikiCurrentPageId = pageId;
+  renderWiki();
+}
+
+function addWikiPage() {
+  const p = getProject(state.currentProjectId); if(!p) return;
+  const title = prompt('新しいページ名を入力してください:', '新しいページ');
+  if (title === null) return;
+  const trimmed = title.trim() || '無題';
+  if (!p.wikiPages) p.wikiPages = [];
+  const maxOrder = p.wikiPages.reduce((mx,pg) => Math.max(mx, pg.order??0), -1);
+  const newPage = { id: uid(), title: trimmed, content: '', order: maxOrder + 1, updatedAt: new Date().toISOString() };
+  p.wikiPages.push(newPage);
+  autoSave(state.currentProjectId);
+  _wikiCurrentPageId = newPage.id;
+  renderWiki();
+  toast('ページを追加しました', 'success');
+}
+
+function renameWikiPage(pageId) {
+  const p = getProject(state.currentProjectId); if(!p) return;
+  const page = pageId ? (p.wikiPages||[]).find(pg => pg.id === pageId) : _currentWikiPage(p);
+  if (!page) return;
+  const title = prompt('新しいページ名を入力してください:', page.title);
+  if (title === null) return;
+  const trimmed = title.trim();
+  if (!trimmed) return;
+  page.title = trimmed;
+  page.updatedAt = new Date().toISOString();
+  autoSave(state.currentProjectId);
+  renderWiki();
+  toast('ページ名を変更しました', 'success');
+}
+
+function deleteWikiPage(pageId) {
+  const p = getProject(state.currentProjectId); if(!p) return;
+  const pages = _wikiPages(p);
+  if (pages.length <= 1) { toast('最後の1ページは削除できません', 'warn'); return; }
+  const page = pageId ? (p.wikiPages||[]).find(pg => pg.id === pageId) : _currentWikiPage(p);
+  if (!page) return;
+  if (!confirm(`ページ「${page.title}」を削除しますか？この操作は取り消せません。`)) return;
+  const wasCurrent = page.id === _wikiCurrentPageId;
+  p.wikiPages = p.wikiPages.filter(pg => pg.id !== page.id);
+  autoSave(state.currentProjectId);
+  if (wasCurrent) {
+    _wikiCurrentPageId = null; // 削除後は先頭ページへフォールバック
+    _wikiDirty = false;
+    clearTimeout(_wikiAutoSaveTimer);
+  }
+  renderWiki();
+  toast('ページを削除しました', 'success');
 }
 
 function setWikiMode(mode) {
@@ -6966,8 +7294,10 @@ function setWikiMode(mode) {
       clearTimeout(_wikiAutoSaveTimer);
       _wikiAutoSaveTimer = setTimeout(() => {
         const _p = getProject(state.currentProjectId);
-        if (_p && _wikiDirty) {
-          _p.wiki = ta.value;
+        const _page = _p && _currentWikiPage(_p);
+        if (_page && _wikiDirty) {
+          _page.content = ta.value;
+          _page.updatedAt = new Date().toISOString();
           autoSave(state.currentProjectId);
         }
       }, 3000);
@@ -6978,8 +7308,10 @@ function setWikiMode(mode) {
     _wikiAutoSaveTimer = null;
     const raw = ta.value;
     const p = getProject(state.currentProjectId);
-    if (_wikiDirty && p) {
-      p.wiki = raw;
+    const page = p && _currentWikiPage(p);
+    if (_wikiDirty && page) {
+      page.content = raw;
+      page.updatedAt = new Date().toISOString();
       autoSave(state.currentProjectId);
       _wikiDirty = false;
       toast('Wiki を保存しました', 'success');
@@ -6999,7 +7331,9 @@ function setWikiMode(mode) {
 
 function saveWiki() {
   const p = getProject(state.currentProjectId); if(!p) return;
-  p.wiki = document.getElementById('wiki-textarea').value;
+  const page = _currentWikiPage(p); if (!page) return;
+  page.content = document.getElementById('wiki-textarea').value;
+  page.updatedAt = new Date().toISOString();
   autoSave(state.currentProjectId);
   _wikiDirty = false;
   toast('Wiki を保存しました', 'success');
@@ -7336,7 +7670,7 @@ function saveProject() {
     toast('プロジェクトを更新しました','success');
   } else {
     if (!state.data.nextProjectNum) state.data.nextProjectNum = Math.max(0, ...state.data.projects.map(p=>p.number||0)) + 1;
-    const p={id:uid(),number:state.data.nextProjectNum++,name,description:document.getElementById('pm-desc').value.trim(),startDate:document.getElementById('pm-start').value,endDate:document.getElementById('pm-end').value,members,color:_selectedColor,milestones:[],wiki:'',archived:false,tasks:[],nextTaskNum:1};
+    const p={id:uid(),number:state.data.nextProjectNum++,name,description:document.getElementById('pm-desc').value.trim(),startDate:document.getElementById('pm-start').value,endDate:document.getElementById('pm-end').value,members,color:_selectedColor,milestones:[],wikiPages:[{id:uid(),title:'Home',content:'',order:0,updatedAt:new Date().toISOString()}],archived:false,tasks:[],nextTaskNum:1};
     state.data.projects.push(p);
     toast('プロジェクトを作成しました','success');
   }
@@ -9474,6 +9808,42 @@ function deleteChecklistItem(idx) {
   });
 })();
 
+(function initWikiPageSidebarResize(){
+  let dragging=false, startX=0, startW=0;
+  const handle = document.getElementById('wiki-page-sidebar-resize-handle');
+  const sidebar = document.getElementById('wiki-page-sidebar');
+  const inner = document.getElementById('wiki-page-sidebar-inner');
+  if (!handle || !sidebar || !inner) return;
+
+  // 初期表示時に保存済みの幅を復元
+  _applyWikiPageSidebarWidth(sidebar.classList.contains('hidden'));
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragging=true; startX=e.clientX;
+    startW=sidebar.offsetWidth;
+    sidebar.classList.add('resizing');
+    handle.classList.add('resizing');
+    document.body.style.cursor='ew-resize';
+    document.body.style.userSelect='none';
+  });
+  document.addEventListener('mousemove', e => {
+    if(!dragging) return;
+    const newW = Math.min(WIKI_SIDEBAR_MAX_W, Math.max(WIKI_SIDEBAR_MIN_W, startW + (e.clientX - startX)));
+    sidebar.style.width = newW+'px';
+    inner.style.width = Math.max(0, newW-16)+'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if(!dragging) return;
+    dragging=false;
+    sidebar.classList.remove('resizing');
+    handle.classList.remove('resizing');
+    document.body.style.cursor='';
+    document.body.style.userSelect='';
+    try { localStorage.setItem('taskflow-wiki-sidebar-width', sidebar.offsetWidth); } catch(e) {}
+  });
+})();
+
 // ═══════════════════════════════════════
 // URL HASH NAVIGATION
 // ═══════════════════════════════════════
@@ -9815,6 +10185,7 @@ window.TaskFlow = {
   renderSidebar:     () => renderSidebar(),
   openTaskPanel:     (tid) => openTaskPanel(tid),
   switchView:        (view) => switchView(view),
+  switchWikiPage:    (pageId) => switchWikiPage(pageId),
   openModal:         (id) => openModal(id),
   closeModal:        (id, cb) => closeModal(id, cb),
   viewFadeIn:        (el) => _viewFadeIn(el),

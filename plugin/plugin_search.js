@@ -8,7 +8,7 @@
       name:        '全体検索',
       description: '全プロジェクトのタスク・コメント・Wikiから横断的に検索します。' +
                    'ショートカット Ctrl+Shift+F で素早くアクセスできます。',
-      version:     '1.1.0',
+      version:     '1.2.0',
     });
   }
 
@@ -169,17 +169,13 @@
 
         // ① Wiki / プロジェクト概要
         if (target === 'all' || target === 'wiki') {
-          if (p.name.toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q) || (p.wiki||'').toLowerCase().includes(q)) {
+          const wikiPages = p.wikiPages || [];
+          const nameOrDescHit = p.name.toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q);
+          const matchedPages = wikiPages.filter(wp => (wp.content||'').toLowerCase().includes(q) || (wp.title||'').toLowerCase().includes(q));
+
+          if (nameOrDescHit && matchedPages.length === 0) {
             hitCount++;
-            let snippet = '';
-            if ((p.wiki||'').toLowerCase().includes(q)) {
-              const idx = p.wiki.toLowerCase().indexOf(q);
-              const start = Math.max(0, idx - 40);
-              const end = Math.min(p.wiki.length, idx + 60);
-              snippet = (start > 0 ? '...' : '') + p.wiki.substring(start, end) + (end < p.wiki.length ? '...' : '');
-            } else if ((p.description||'').toLowerCase().includes(q)) {
-              snippet = p.description;
-            }
+            const snippet = p.description || '';
             resultsHtml += `
               <div class="project-card" style="padding:14px 16px; margin-bottom:0;"
                    onclick="openProject('${p.id}'); setTimeout(() => TaskFlow.switchView('wiki'), 100);">
@@ -190,6 +186,27 @@
                 ${snippet ? `<div style="font-size:12px; color:var(--text); line-height:1.6; opacity:0.85;">${escAndMark(snippet)}</div>` : ''}
               </div>`;
           }
+
+          matchedPages.forEach(wp => {
+            hitCount++;
+            const content = wp.content || '';
+            let snippet = '';
+            const idx = content.toLowerCase().indexOf(q);
+            if (idx >= 0) {
+              const start = Math.max(0, idx - 40);
+              const end = Math.min(content.length, idx + 60);
+              snippet = (start > 0 ? '...' : '') + content.substring(start, end) + (end < content.length ? '...' : '');
+            }
+            resultsHtml += `
+              <div class="project-card" style="padding:14px 16px; margin-bottom:0;"
+                   onclick="openProject('${p.id}'); setTimeout(() => { TaskFlow.switchView('wiki'); TaskFlow.switchWikiPage('${wp.id}'); }, 100);">
+                <div style="font-size:11px; color:var(--muted); margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+                  <span>📖 Wiki: ${escAndMark(wp.title||'無題')}</span> ${pBadge}
+                </div>
+                <div style="font-size:14px; font-weight:600; margin-bottom:6px;">${escAndMark(p.name)}</div>
+                ${snippet ? `<div style="font-size:12px; color:var(--text); line-height:1.6; opacity:0.85;">${escAndMark(snippet)}</div>` : ''}
+              </div>`;
+          });
         }
 
         // ② タスク / コメント

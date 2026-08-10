@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.5-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.6-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -42,7 +42,7 @@ HTMLファイル1つ。それだけです。
 | カンバン | ステータス別カード管理 |
 | ガント | バーのドラッグで日程調整、イナズマ線対応 |
 | バーンダウン | スプリントの進捗を可視化 |
-| Wiki | Markdownで仕様書・設計書を管理、プレビュー時自動保存 |
+| Wiki | 複数ページ対応。Markdownで仕様書・設計書を管理、プレビュー時自動保存 |
 
 ---
 
