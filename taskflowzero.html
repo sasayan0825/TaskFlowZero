@@ -4485,11 +4485,11 @@ function _buildActivityEvents(myName) {
     (p.tasks || []).forEach(t => {
       // タスク完了（担当者）
       if (t.assignee === myName && t.completedAt) {
-        add(t.completedAtTime || t.completedAt, { type:'complete', icon:'✅', text:`タスク完了: <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+        add(t.completedAtTime || t.completedAt, { type:'complete', icon:'✅', text:`タスクを完了しました`, pid:p.id, tid:t.id, pname:p.name, pc });
       }
       // タスク作成（作成者）
       if (t.creator === myName) {
-        add(t.createdAtTime || t.createdAt, { type:'create', icon:'➕', text:`タスク作成: <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+        add(t.createdAtTime || t.createdAt, { type:'create', icon:'➕', text:`新しいタスクを作成しました`, pid:p.id, tid:t.id, pname:p.name, pc });
       }
       // コメント投稿・工数記録
       (t.comments || []).forEach(c => {
@@ -4498,16 +4498,15 @@ function _buildActivityEvents(myName) {
           const parts = [];
           if (c.effortLog.estimated) parts.push(`見積 ${c.effortLog.estimated}h`);
           if (c.effortLog.actual)    parts.push(`実績 ${c.effortLog.actual}h`);
-          add(c.createdAt, { type:'effort', icon:'⏱', text:`工数記録: ${parts.join(' / ')} — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc, actual: c.effortLog.actual || 0 });
+          add(c.createdAt, { type:'effort', icon:'⏱', text:`工数記録: ${parts.join(' / ')}`, pid:p.id, tid:t.id, pname:p.name, pc, actual: c.effortLog.actual || 0 });
         } else {
-          const snip = (c.text||'').slice(0,40) + ((c.text||'').length>40?'…':'');
-          add(c.createdAt, { type:'comment', icon:'💬', text:`コメント投稿: &ldquo;${esc(snip)}&rdquo; — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+          add(c.createdAt, { type:'comment', icon:'💬', text:`コメント投稿: &ldquo;${esc(c.text||'')}&rdquo;`, pid:p.id, tid:t.id, pname:p.name, pc });
         }
       });
       // チェックリスト操作（自分が行ったもの）
       (t.activity || []).forEach(a => {
         if (a.type !== 'checklist' || !a.by || a.by !== myName || !a.at) return;
-        add(a.at, { type:'checklist', icon: a.icon||'☑', text:`${a.text} — <b>${esc(t.title)}</b>`, pid:p.id, tid:t.id, pname:p.name, pc });
+        add(a.at, { type:'checklist', icon: a.icon||'☑', text:`${a.text}`, pid:p.id, tid:t.id, pname:p.name, pc });
       });
     });
   });
