@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.2.0',
+      version:     '1.3.0',
     });
   }
 
@@ -168,6 +168,11 @@
     'チェックリストをコピーしてください:': 'Please copy this checklist:',
     '見積(h)':                           'Est.(h)',
     '実績(h)':                           'Actual(h)',
+    '優先度':                             'Priority',
+    '高':                                 'High',
+    '低':                                 'Low',
+    '優先度: 高':                         'Priority: High',
+    '優先度: 低':                         'Priority: Low',
 
     // ── カンバン ────────────────────────────────────────────
     '進行中':                             'In Progress',
@@ -520,6 +525,36 @@
     'ラベル名を入力してください':         'Please enter a label name',
     'プロジェクト設定を保存しました':     'Project settings saved',
 
+    // ── プロジェクト設定モーダル（休み設定タブ）※Ganttチャート用 ──
+    '休み設定':                           'Holidays',
+    '休み設定（ガントチャートに反映）':   'Holidays (reflected in Gantt chart)',
+    '＋ 追加':                            '＋ Add',
+    '休みは登録されていません':           'No holidays registered',
+    '日付を選択してください':             'Please select a date',
+    'すでに登録されています':             'Already registered',
+
+    // ── プロジェクト設定モーダル（保存タブ：エクスポート）v1.1.7〜 ──
+    'プロジェクトのエクスポート':         'Export Project',
+    'このプロジェクトのタスク・マイルストーン・Wiki・ラベル設定などをすべて含むJSONファイルをダウンロードします。':
+      'Download a JSON file containing all of this project\'s tasks, milestones, Wiki pages, and label settings.',
+    'ダウンロードしたファイルは、別のTaskFlowZero環境の「プロジェクト一覧」画面からインポートできます。':
+      'The downloaded file can be imported from the "Project List" screen in another TaskFlowZero environment.',
+    '添付ファイル（画像・ファイル）を含める（ZIP形式でダウンロード）':
+      'Include attachments (images / files) — downloads as a ZIP',
+    '📤 エクスポート':                    '📤 Export',
+
+    // ── プロジェクト一覧（インポート）v1.1.7〜 ──────────────
+    '📥 インポート':                      '📥 Import',
+    'プロジェクトファイルの形式が正しくありません': 'Invalid project file format',
+    'JSONの読み込みに失敗しました（ファイル形式を確認してください）': 'Failed to read JSON (please check the file format)',
+    'ファイルの読み込みに失敗しました':   'Failed to read the file',
+    '⚠️ このプロジェクトの添付ファイルはJSONに含まれていません。必要な場合はエクスポート元の files フォルダから手動でコピーしてください':
+      '⚠️ This project\'s attachments are not included in the JSON. If needed, manually copy them from the "files" folder at the export source.',
+    'ZIP内にproject.jsonが見つかりません': 'project.json not found inside the ZIP file',
+    'project.jsonの読み込みに失敗しました': 'Failed to read project.json',
+    'フォルダが開かれていないため、添付ファイルは保存されませんでした': 'Attachments were not saved because no folder is open',
+    'プロジェクトをエクスポートしました': 'Project exported',
+
     // ── 全体検索プラグイン（plugin_search.js） ──────────────
     '🔍 全体検索':                        '🔍 Global Search',
     '全体検索':                           'Global Search',
@@ -636,6 +671,15 @@
     s = s.replace(/^(.+)した項目はありません$/, 'No items $1d');
     s = s.replace(/^(.+)したタスク・コメントはありません$/, 'No bookmarked tasks or comments');
 
+    // ── プロジェクトのエクスポート / インポート（v1.1.7〜） ──
+    s = s.replace(/^プロジェクトをエクスポートしました（添付ファイル (\d+)件を含む）$/, 'Project exported (including $1 attachment(s))');
+    s = s.replace(/^エクスポートに失敗しました: (.+)$/, 'Export failed: $1');
+    s = s.replace(/^ZIPファイルの読み込みに失敗しました: (.+)$/, 'Failed to read ZIP file: $1');
+    s = s.replace(/^添付ファイルの書き込みに失敗しました: (.+)$/, 'Failed to write attachment files: $1');
+    // 「"名前" をインポートしました（P番号）」（末尾に添付ファイル件数が付く場合あり）
+    s = s.replace(/^「(.+)」をインポートしました（P(\d+)）(?:（添付ファイル (\d+)件を含む）)?$/,
+      (_, name, num, count) => `"${name}" imported (P${num})` + (count ? ` (including ${count} attachment(s))` : ''));
+
     return s;
   }
 
@@ -656,6 +700,10 @@
     [/^担当者を (<b>.+?<\/b>) に変更/, 'Changed assignee to $1'],
     [/^担当者を解除（元: (<b>.+?<\/b>)）/, 'Removed assignee (was $1)'],
     [/^期限を (<b>.+?<\/b>) → (<b>.+?<\/b>) に変更/, 'Changed due date from $1 to $2'],
+    [/^優先度を (<b>.+?<\/b>) → (<b>.+?<\/b>) に変更/, (m, a, b) => {
+      const trans = s => s.replace(/高/, 'High').replace(/低/, 'Low').replace(/未設定/, 'Not set');
+      return `Changed priority from ${trans(a)} to ${trans(b)}`;
+    }],
     [/^詳細内容を更新/, 'Updated description'],
     [/^チェックリストに追加: (<b>.+?<\/b>)/, 'Added to checklist: $1'],
     [/^チェックリスト削除: (<b>.+?<\/b>)/, 'Removed from checklist: $1'],
@@ -770,6 +818,18 @@
         ta.setSelectionRange(s + table.length, s + table.length);
         ta.focus();
         ta.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+    }
+
+    // 優先度バッジ（タスク詳細パネルのタイトル先頭）v1.1.7〜
+    // title属性はJSで直接書き換えられ、MutationObserverでは検知できない（属性変更は監視対象外）ため、
+    // 更新関数自体をラップして毎回翻訳をかけ直す。
+    if (typeof window.updatePanelTitlePriorityBadge === 'function') {
+      const origUpdateBadge = window.updatePanelTitlePriorityBadge;
+      window.updatePanelTitlePriorityBadge = function() {
+        origUpdateBadge();
+        const badge = document.getElementById('panel-title-priority-badge');
+        if (badge && badge.title) badge.title = t(badge.title);
       };
     }
   }
