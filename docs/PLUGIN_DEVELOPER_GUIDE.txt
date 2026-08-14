@@ -403,7 +403,7 @@ TaskFlow.emit(eventName, data)
     データ: { view: string }
 
   'project-create'
-    発火タイミング: 新規プロジェクトが作成されたとき
+    発火タイミング: 新規プロジェクトが作成されたとき（プロジェクトのインポート時も発火。v1.1.7〜）
     データ: { project: Project }
 
   'project-update'
@@ -745,6 +745,7 @@ TaskFlow.getPluginConfig(pluginId)
     storyPoints: number,        // ストーリーポイント（0=未設定）
     milestoneId: string|null,   // マイルストーンID | null
     labels:      string[],      // ラベル名の配列
+    priority:    string|null,   // 優先度 'high' | 'low' | null（v1.1.7〜）
     createdAt:   string,        // 作成日 'YYYY-MM-DD'
     checklist:   ChecklistItem[], // チェックリスト（5-6章参照）
     comments:    Comment[],     // コメント一覧（5-4章参照）

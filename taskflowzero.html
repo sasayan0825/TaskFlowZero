@@ -325,6 +325,9 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .status-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap}
 .ms-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
 .label-chip{font-size:10px;padding:1px 7px;border-radius:10px;font-weight:500}
+.priority-flag{font-size:11px;font-weight:700;line-height:1;display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px}
+.priority-flag.priority-high{color:var(--red);background:color-mix(in srgb, var(--red) 18%, transparent);border:1px solid color-mix(in srgb, var(--red) 40%, transparent)}
+.priority-flag.priority-low{color:var(--muted);background:color-mix(in srgb, var(--muted) 20%, transparent);border:1px solid color-mix(in srgb, var(--muted) 40%, transparent)}
 .due-cell{font-size:11px;white-space:nowrap}
 .due-cell.overdue{color:var(--red)}
 .due-cell.soon{color:var(--yellow)}
@@ -349,6 +352,8 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .kanban-cards{display:flex;flex-direction:column;gap:8px;min-height:80px;padding:4px;border-radius:var(--radius);border:1px dashed transparent;transition:all .15s;flex:1;overflow-y:auto}
 .kanban-cards.drag-over{background:rgba(79,142,255,.05);border-color:rgba(79,142,255,.3)}
 .task-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;transition:all .15s;position:relative}
+.task-card.priority-high{background:linear-gradient(135deg, color-mix(in srgb, var(--red) 22%, var(--surface)), color-mix(in srgb, var(--red) 5%, var(--surface)))}
+.task-card.priority-low{background:linear-gradient(135deg, color-mix(in srgb, var(--muted) 24%, var(--surface)), color-mix(in srgb, var(--muted) 5%, var(--surface)))}
 .task-card:hover{border-color:var(--border2);background:var(--surface2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
 .task-card.dragging{opacity:.4}
 .task-card-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
@@ -436,6 +441,8 @@ html.light .gantt-col-stripe.holiday{background:rgba(239,68,68,.12)}
 #task-panel{position:fixed;top:0;right:0;width:640px;min-width:640px;max-width:90vw;height:100vh;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:500;box-shadow:-8px 0 40px rgba(0,0,0,.5)}
 .panel-scroll-btn{position:absolute;right:24px;bottom:74px;width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:14px;line-height:1;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.35);z-index:20;display:flex;align-items:center;justify-content:center;transition:background .1s,opacity .15s}
 .panel-scroll-btn:hover{background:var(--accent2)}
+.panel-scroll-btn-icon{display:block;transition:transform .15s}
+.panel-scroll-btn[data-dir="down"] .panel-scroll-btn-icon{transform:rotate(180deg)}
 #task-panel.open{transform:translateX(0)}
 #task-panel.resizing{transition:none;user-select:none}
 #panel-resize-handle{position:absolute;left:0;top:0;bottom:0;width:6px;cursor:ew-resize;z-index:20;background:transparent;transition:background .15s}
@@ -669,7 +676,7 @@ html.light .color-swatch.selected{border-color:white;box-shadow:0 0 0 2px #1a223
 
 /* PROJECTS VIEW */
 #projects-view{flex:1;overflow-y:auto;padding:28px}
-.projects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;max-width:1200px}
+.projects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
 .project-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
 .project-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.3)}
 .project-card-name{font-family:'Outfit',sans-serif;font-size:16px;font-weight:600;margin-bottom:6px;margin-top:8px}
@@ -728,10 +735,11 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 20px;font-size:13px;z-index:9999;transition:transform .25s cubic-bezier(.4,0,.2,1);white-space:nowrap}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 20px;font-size:13px;z-index:9999;transition:transform .25s cubic-bezier(.4,0,.2,1);max-width:min(560px,90vw);white-space:normal;text-align:center;line-height:1.5}
 #toast.show{transform:translateX(-50%) translateY(0)}
 #toast.success{border-color:rgba(34,197,94,.4);color:var(--green)}
 #toast.error{border-color:rgba(239,68,68,.4);color:var(--red)}
+#toast.warning{border-color:rgba(245,158,11,.4);color:var(--yellow)}
 
 /* ── WIKI VIEW ── */
 #wiki-view{flex:1;overflow:hidden;display:none;flex-direction:row}
@@ -1009,6 +1017,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
               <div style="font-size:20px;font-weight:700;color:var(--accent2)">⚡ TaskFlowZero</div>
               <div style="font-size:13px;color:var(--muted)">バージョン: <span style="color:var(--text);font-family:'JetBrains Mono',monospace" id="settings-version-num"></span></div>
               <div style="font-size:13px;color:var(--muted)">最終更新: <span style="color:var(--text)" id="settings-version-date"></span></div>
+              <div style="font-size:12px;color:var(--muted)">© 2026 Yusuke</div>
               <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px">
                 <a href="https://github.com/sasayan0825/TaskFlowZero" target="_blank" rel="noopener"
                   style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent2);text-decoration:none">
@@ -1090,7 +1099,11 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:700">プロジェクト一覧</div>
           <div style="font-size:13px;color:var(--muted);margin-top:4px" id="projects-subtitle"></div>
         </div>
-        <button class="btn btn-primary" onclick="openProjectModal()">＋ 新規プロジェクト</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="triggerProjectImport()">📥 インポート</button>
+          <button class="btn btn-primary" onclick="openProjectModal()">＋ 新規プロジェクト</button>
+          <input type="file" id="project-import-input" accept="application/json,.json,application/zip,.zip" style="display:none" onchange="importProjectFile(this.files[0])">
+        </div>
       </div>
       <div id="projects-search-bar">
         <input class="proj-search-input" id="proj-search-title" placeholder="🔍 プロジェクト名で検索..." oninput="renderProjectsList()">
@@ -1322,10 +1335,13 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
     <span class="panel-due-badge" id="panel-due-badge"></span>
     <button class="panel-close" onclick="closeTaskPanel()">✕</button>
   </div>
-  <button id="panel-scroll-btn" class="panel-scroll-btn" onclick="panelScrollJump()" title="一番下へ移動" style="display:none">∨</button>
+  <button id="panel-scroll-btn" class="panel-scroll-btn" onclick="panelScrollJump()" title="一番下へ移動" style="display:none">
+    <svg class="panel-scroll-btn-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
   <div class="panel-body" id="panel-body">
     <div class="panel-title-sticky" id="panel-title-sticky">
       <div class="panel-title-row">
+        <span class="priority-flag" id="panel-title-priority-badge" style="display:none;flex-shrink:0"></span>
         <input class="panel-title-input" id="panel-title" placeholder="タスクのタイトル" oninput="panelDirty=true">
         <div class="panel-title-assignee" id="panel-title-assignee">
           <span class="panel-title-avatar-wrap" id="panel-title-assignee-avatar"></span>
@@ -1358,6 +1374,14 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <option value="inprogress">進行中</option>
           <option value="review">レビュー</option>
           <option value="done">完了</option>
+        </select>
+      </div>
+      <div class="meta-field">
+        <div class="meta-label">優先度</div>
+        <select class="meta-select" id="panel-priority" onchange="panelDirty=true;updatePanelTitlePriorityBadge()">
+          <option value="">未設定</option>
+          <option value="high">高</option>
+          <option value="low">低</option>
         </select>
       </div>
       <div class="meta-field">
@@ -1579,7 +1603,16 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       </select>
     </div>
     <div class="form-group"><label class="form-label">タイトル *</label><input class="form-input" id="tm-title" placeholder="タスクのタイトル"></div>
-    <div class="form-group"><label class="form-label">作成者</label><input class="form-input" id="tm-creator" placeholder="作成者名" list="tm-creator-dl"><datalist id="tm-creator-dl"></datalist></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">作成者</label><input class="form-input" id="tm-creator" placeholder="作成者名" list="tm-creator-dl"><datalist id="tm-creator-dl"></datalist></div>
+      <div class="form-group"><label class="form-label">優先度</label>
+        <select class="form-select" id="tm-priority">
+          <option value="">未設定</option>
+          <option value="high">高</option>
+          <option value="low">低</option>
+        </select>
+      </div>
+    </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">ステータス</label>
         <select class="form-select" id="tm-status">
@@ -1721,6 +1754,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       <div class="ps-tab"        id="ps-tab-templates" onclick="switchPsTab('templates')">テンプレート</div>
       <div class="ps-tab"        id="ps-tab-labels"    onclick="switchPsTab('labels')">ラベル</div>
       <div class="ps-tab"        id="ps-tab-holidays"  onclick="switchPsTab('holidays')">休み設定</div>
+      <div class="ps-tab"        id="ps-tab-export"    onclick="switchPsTab('export')">保存</div>
     </div>
     <div style="flex:1;overflow-y:auto;padding:20px">
       <!-- 基本設定タブ -->
@@ -1769,6 +1803,19 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <button class="btn btn-secondary btn-sm" onclick="addPsHoliday()">＋ 追加</button>
         </div>
         <div id="ps-holiday-list" style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto"></div>
+      </div>
+      <!-- 保存タブ -->
+      <div id="ps-pane-export" style="display:none">
+        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;letter-spacing:.5px">プロジェクトのエクスポート</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+          このプロジェクトのタスク・マイルストーン・Wiki・ラベル設定などをすべて含むJSONファイルをダウンロードします。<br>
+          ダウンロードしたファイルは、別のTaskFlowZero環境の「プロジェクト一覧」画面からインポートできます。
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:16px;cursor:pointer">
+          <input type="checkbox" id="ps-export-with-attachments">
+          添付ファイル（画像・ファイル）を含める（ZIP形式でダウンロード）
+        </label>
+        <button class="btn btn-primary" onclick="exportCurrentProject()">📤 エクスポート</button>
       </div>
     </div>
     <div class="modal-footer">
@@ -2995,6 +3042,8 @@ function _migrateProjectFields(projects) {
       if (t.baseEstimatedHours === undefined) {
         t.baseEstimatedHours = (!t.comments || t.comments.length === 0) ? (t.estimatedHours || 0) : 0;
       }
+      // v1.1.7〜: 優先度フィールド（'high' | 'low' | null）
+      if (t.priority === undefined) t.priority = null;
     });
   });
   let maxNum = Math.max(0, ...projects.map(p => p.number || 0));
@@ -3557,7 +3606,7 @@ function threeWayMerge(base, mine, disk) {
         // estimatedHours/actualHoursはbaseEstimatedHours+コメントeffortLogから導出される値なので
         // フィールド単位の競合比較対象から外し、代わりに独立入力値であるbaseEstimatedHoursを対象にする。
         // 導出値は下のrecalcHours(mergedT)でコメントマージ後に再計算する。
-        ['title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','completedAt','completedAtTime'],
+        ['title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime'],
         pid, tid
       );
       taskFields.autoFields.forEach(f => { mergedT[f] = tm[f]; autoMerged++; });
@@ -3774,7 +3823,7 @@ const FIELD_LABELS = {
   title:'タイトル', status:'ステータス', assignee:'担当者',
   startDate:'開始日', dueDate:'期限', storyPoints:'SP',
   estimatedHours:'見積工数(h)', actualHours:'実績工数(h)',
-  description:'詳細', milestoneId:'MS', labels:'ラベル',
+  description:'詳細', milestoneId:'MS', labels:'ラベル', priority:'優先度',
   completedAt:'完了日', name:'名前', archived:'アーカイブ',
   color:'カラー', wiki:'Wiki', members:'メンバー',
   description:'説明', endDate:'終了日', content:'内容',
@@ -3848,6 +3897,7 @@ function formatConflictVal(field, val) {
     const s = STATUSES.find(x=>x.id===val); return s ? s.label : val;
   }
   if (field === 'labels') return Array.isArray(val) ? val.join(', ') || '（なし）' : String(val);
+  if (field === 'priority') return val === 'high' ? '高' : val === 'low' ? '低' : '未設定';
   if (field === 'storyPoints') return val === 0 ? '未設定' : String(val);
   if (field === 'estimatedHours' || field === 'actualHours') return val === 0 ? '未設定' : `${val}h`;
   if (typeof val === 'boolean') return val ? 'はい' : 'いいえ';
@@ -4006,6 +4056,134 @@ function initApp() {
 // UTILS
 // ═══════════════════════════════════════
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+// ══════════════════════════════════════════════════════════════
+// 最小ZIP実装（無圧縮/STOREのみ・外部ライブラリ非依存）
+// TaskFlowZeroのプロジェクトエクスポート/インポート（添付ファイル同梱）専用。
+// 一般のZIPファイルの読み込みは想定しない（DEFLATE非対応のため）。
+// ══════════════════════════════════════════════════════════════
+const _CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function _crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = _CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function _dosDateTime(d) {
+  const time = ((d.getHours() & 0x1F) << 11) | ((d.getMinutes() & 0x3F) << 5) | ((d.getSeconds() >> 1) & 0x1F);
+  const date = (((d.getFullYear() - 1980) & 0x7F) << 9) | (((d.getMonth() + 1) & 0xF) << 5) | (d.getDate() & 0x1F);
+  return { time, date };
+}
+// files: [{ name: 'project.json', data: Uint8Array }, ...]  → Blob(application/zip)
+function createZip(files) {
+  const enc = new TextEncoder();
+  const { time, date } = _dosDateTime(new Date());
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  files.forEach(f => {
+    const nameBytes = enc.encode(f.name);
+    const data = f.data instanceof Uint8Array ? f.data : new Uint8Array(f.data);
+    const crc = _crc32(data);
+
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true);
+    local.setUint16(4, 20, true);       // version needed
+    local.setUint16(6, 0, true);        // flags
+    local.setUint16(8, 0, true);        // method=0 (store)
+    local.setUint16(10, time, true);
+    local.setUint16(12, date, true);
+    local.setUint32(14, crc, true);
+    local.setUint32(18, data.length, true); // compressed size
+    local.setUint32(22, data.length, true); // uncompressed size
+    local.setUint16(26, nameBytes.length, true);
+    local.setUint16(28, 0, true);       // extra length
+    localParts.push(new Uint8Array(local.buffer), nameBytes, data);
+
+    const central = new DataView(new ArrayBuffer(46));
+    central.setUint32(0, 0x02014b50, true);
+    central.setUint16(4, 20, true);
+    central.setUint16(6, 20, true);
+    central.setUint16(8, 0, true);
+    central.setUint16(10, 0, true);
+    central.setUint16(12, time, true);
+    central.setUint16(14, date, true);
+    central.setUint32(16, crc, true);
+    central.setUint32(20, data.length, true);
+    central.setUint32(24, data.length, true);
+    central.setUint16(28, nameBytes.length, true);
+    central.setUint16(30, 0, true);
+    central.setUint16(32, 0, true);
+    central.setUint16(34, 0, true);
+    central.setUint16(36, 0, true);
+    central.setUint32(38, 0, true);
+    central.setUint32(42, offset, true);
+    centralParts.push(new Uint8Array(central.buffer), nameBytes);
+
+    offset += 30 + nameBytes.length + data.length;
+  });
+
+  const centralStart = offset;
+  let centralSize = 0;
+  centralParts.forEach(p => centralSize += p.length);
+
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(4, 0, true);
+  end.setUint16(6, 0, true);
+  end.setUint16(8, files.length, true);
+  end.setUint16(10, files.length, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, centralStart, true);
+  end.setUint16(20, 0, true);
+
+  const blobParts = [...localParts, ...centralParts, new Uint8Array(end.buffer)];
+  return new Blob(blobParts, { type: 'application/zip' });
+}
+// ArrayBuffer(ZIP, STORE方式のみ対応) → [{name, data:Uint8Array}]
+function readZipStore(buf) {
+  const view = new DataView(buf);
+  const bytes = new Uint8Array(buf);
+  // End of central directory を末尾から探索
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= 0 && i >= bytes.length - 22 - 65536; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd === -1) throw new Error('ZIPの終端レコードが見つかりません');
+  const entryCount = view.getUint16(eocd + 10, true);
+  let cdOffset = view.getUint32(eocd + 16, true);
+
+  const results = [];
+  for (let i = 0; i < entryCount; i++) {
+    if (view.getUint32(cdOffset, true) !== 0x02014b50) throw new Error('セントラルディレクトリの形式が不正です');
+    const method = view.getUint16(cdOffset + 10, true);
+    const compSize = view.getUint32(cdOffset + 20, true);
+    const nameLen = view.getUint16(cdOffset + 28, true);
+    const extraLen = view.getUint16(cdOffset + 30, true);
+    const commentLen = view.getUint16(cdOffset + 32, true);
+    const localOffset = view.getUint32(cdOffset + 42, true);
+    const name = new TextDecoder().decode(bytes.subarray(cdOffset + 46, cdOffset + 46 + nameLen));
+
+    if (method !== 0) throw new Error(`非対応の圧縮方式です（${name}）。TaskFlowZeroが出力したZIPファイルを指定してください。`);
+
+    const lNameLen = view.getUint16(localOffset + 26, true);
+    const lExtraLen = view.getUint16(localOffset + 28, true);
+    const dataStart = localOffset + 30 + lNameLen + lExtraLen;
+    const data = bytes.slice(dataStart, dataStart + compSize);
+    results.push({ name, data });
+
+    cdOffset += 46 + nameLen + extraLen + commentLen;
+  }
+  return results;
+}
 function today(){
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -4090,7 +4268,7 @@ function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(
 function dateToNum(d){ return d?new Date(d+'T00:00:00').getTime():null; }
 function addDays(d,n){ const x=new Date(d+'T00:00:00'); x.setDate(x.getDate()+n); return localDateStr(x); }
 
-function toast(msg,type=''){ const e=document.getElementById('toast'); e.textContent=msg; e.className='show'+(type?' '+type:''); clearTimeout(e._t); e._t=setTimeout(()=>e.className='',2800); }
+function toast(msg,type='',duration=2800){ const e=document.getElementById('toast'); e.textContent=msg; e.className='show'+(type?' '+type:''); clearTimeout(e._t); e._t=setTimeout(()=>e.className='',duration); }
 
 function getFilteredTasks() {
   const p = getProject(state.currentProjectId);
@@ -4418,6 +4596,7 @@ function renderMyTasks() {
         <thead><tr style="color:var(--muted)">
           <th style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--border)">#</th>
           ${sh('title','タイトル')}
+          <th style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--border)">優先度</th>
           ${sh('project','プロジェクト')}
           ${sh('status','ステータス')}
           ${sh('startDate','開始日')}
@@ -4430,6 +4609,7 @@ function renderMyTasks() {
           return `<tr style="cursor:pointer;border-bottom:1px solid var(--border)" onclick="openProject('${p.id}');setTimeout(()=>openTaskPanel('${t.id}'),150)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
             <td style="padding:7px 8px;font-family:'JetBrains Mono',monospace;color:var(--muted)">#${t.number||'?'}</td>
             <td style="padding:7px 8px;font-weight:500">${esc(t.title)}</td>
+            <td style="padding:7px 8px">${t.priority==='high'?'<span class="priority-flag priority-high" title="優先度: 高">↑</span>':t.priority==='low'?'<span class="priority-flag priority-low" title="優先度: 低">↓</span>':'<span style="color:var(--muted);font-size:12px">—</span>'}</td>
             <td style="padding:7px 8px"><span style="background:${p.color||'#4f8eff'}22;color:${p.color||'#4f8eff'};border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600">${esc(p.name)}</span></td>
             <td style="padding:7px 8px"><span style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44;border-radius:10px;font-size:11px;font-weight:600;padding:2px 8px">${s.label}</span></td>
             <td style="padding:7px 8px;font-size:12px">${t.startDate?fmtFull(t.startDate):'—'}</td>
@@ -4956,8 +5136,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.6';
-const APP_VERSION_DATE = '2026-08-09';
+const APP_VERSION      = '1.1.7';
+const APP_VERSION_DATE = '2026-08-12';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -6153,6 +6333,8 @@ function buildListRow(t) {
   const diff = daysDiff(t.dueDate);
   const dueCls = diff!==null?(diff<0?'overdue':diff<=3?'soon':''):'';
   const labels = (t.labels||[]).map(l=>`<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`).join('');
+  const priorityFlag = t.priority==='high' ? `<span class="priority-flag priority-high" title="優先度: 高">↑</span>`
+                      : t.priority==='low'  ? `<span class="priority-flag priority-low" title="優先度: 低">↓</span>` : '';
 
   // チェックリスト進捗（getTaskProgress と同じロジック: 完了ステータスで100%、それ以外は最大99%）
   const cl = t.checklist||[];
@@ -6184,6 +6366,7 @@ function buildListRow(t) {
     <td class="task-num-cell"><span class="list-drag-handle">⠿</span>#${t.number||'?'}</td>
     <td>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        ${priorityFlag}
         <span style="font-weight:500">${esc(t.title)}</span>
         ${labels}
         ${(t.comments||[]).length>0?`<span style="font-size:10px;color:var(--muted)">💬 ${t.comments.length}</span>`:''}
@@ -6239,7 +6422,8 @@ function renderKanban() {
 
 function createTaskCard(t, msMap) {
   const card = document.createElement('div');
-  card.className = 'task-card'; card.draggable = true; card.dataset.taskId = t.id;
+  card.className = 'task-card' + (t.priority==='high' ? ' priority-high' : t.priority==='low' ? ' priority-low' : '');
+  card.draggable = true; card.dataset.taskId = t.id;
   const diff = daysDiff(t.dueDate);
   const dueCls = diff!==null?(diff<0?'overdue':diff<=3?'soon':''):'';
   const labels = (t.labels||[]).map(l=>`<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`).join('');
@@ -7658,6 +7842,151 @@ function selectColor(c,rowId){
   document.querySelectorAll('#'+rowId+' .color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===c));
 }
 
+// ── インポート時：プロジェクト内の自己参照リンクの番号を新番号へ書き換え ──
+// 対象: #P{旧番号}-{タスク番号}(-C{コメント番号}) 形式の参照リンク、tfz://P{旧番号}/{ファイル名} 形式の添付ファイルリンク
+function _rewriteProjectRefs(project, oldNumber, newNumber) {
+  if (oldNumber == null || newNumber == null || oldNumber === newNumber) return;
+  const pat = new RegExp(`(?<![A-Za-z0-9])P${oldNumber}(?=-\\d|/)`, 'g');
+  const fix = (s) => (typeof s === 'string' && s.indexOf('P'+oldNumber) !== -1) ? s.replace(pat, 'P'+newNumber) : s;
+
+  (project.tasks || []).forEach(t => {
+    t.title = fix(t.title);
+    t.description = fix(t.description);
+    (t.comments || []).forEach(c => { c.text = fix(c.text); });
+    (t.checklist || []).forEach(cl => { cl.text = fix(cl.text); });
+  });
+  (project.wikiPages || []).forEach(w => { w.content = fix(w.content); });
+}
+
+// ── プロジェクトのインポート ──
+function triggerProjectImport() {
+  document.getElementById('project-import-input').value = '';
+  document.getElementById('project-import-input').click();
+}
+
+function importProjectFile(file) {
+  if (!file) return;
+  const isZip = /\.zip$/i.test(file.name);
+  if (isZip) {
+    _importProjectFromZip(file);
+  } else {
+    _importProjectFromJson(file);
+  }
+}
+
+function _finishProjectImport(obj, attachmentCount) {
+  // 簡易バリデーション：プロジェクトとして最低限必要な構造か確認
+  if (!obj || typeof obj !== 'object' || typeof obj.name !== 'string' || !Array.isArray(obj.tasks)) {
+    toast('プロジェクトファイルの形式が正しくありません', 'error');
+    return null;
+  }
+  const oldNumber = obj.number;
+  // ID・番号はインポート先環境で採番し直す（元の値は使わない）
+  obj.id = uid();
+  if (!state.data.nextProjectNum) state.data.nextProjectNum = Math.max(0, ...state.data.projects.map(p=>p.number||0)) + 1;
+  obj.number = state.data.nextProjectNum++;
+  // 欠けているフィールドを補完
+  if (!Array.isArray(obj.milestones)) obj.milestones = [];
+  if (!Array.isArray(obj.wikiPages) || !obj.wikiPages.length) {
+    obj.wikiPages = [{id:uid(),title:'Home',content:'',order:0,updatedAt:new Date().toISOString()}];
+  }
+  if (!Array.isArray(obj.members)) obj.members = [];
+  if (typeof obj.archived !== 'boolean') obj.archived = false;
+  if (!obj.nextTaskNum) obj.nextTaskNum = Math.max(0, ...obj.tasks.map(t=>t.number||0)) + 1;
+
+  _migrateProjectFields([obj]);
+  // タスク参照リンク（#P{旧番号}-...）・添付ファイルリンク（tfz://P{旧番号}/...）を新番号へ書き換え
+  _rewriteProjectRefs(obj, oldNumber, obj.number);
+
+  state.data.projects.push(obj);
+  autoSave(obj.id);
+  renderSidebar();
+  renderProjectsList();
+
+  const attachMsg = attachmentCount != null
+    ? `（添付ファイル ${attachmentCount}件を含む）`
+    : '';
+  toast(`「${obj.name}」をインポートしました（P${obj.number}）${attachMsg}`, 'success');
+  window.TaskFlow.emit('project-create', { project: obj });
+
+  if (attachmentCount == null && /tfz:\/\//.test(JSON.stringify(obj))) {
+    // JSONのみのインポートで添付ファイル参照が本文に含まれる場合は注意喚起
+    setTimeout(() => {
+      toast('⚠️ このプロジェクトの添付ファイルはJSONに含まれていません。必要な場合はエクスポート元の files フォルダから手動でコピーしてください', 'warning', 6000);
+    }, 600);
+  }
+  return obj;
+}
+
+function _importProjectFromJson(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let obj;
+    try {
+      obj = JSON.parse(reader.result);
+    } catch (e) {
+      toast('JSONの読み込みに失敗しました（ファイル形式を確認してください）', 'error');
+      return;
+    }
+    _finishProjectImport(obj, null);
+  };
+  reader.onerror = () => toast('ファイルの読み込みに失敗しました', 'error');
+  reader.readAsText(file);
+}
+
+async function _importProjectFromZip(file) {
+  let entries;
+  try {
+    const buf = await file.arrayBuffer();
+    entries = readZipStore(buf);
+  } catch (e) {
+    toast('ZIPファイルの読み込みに失敗しました: ' + e.message, 'error');
+    return;
+  }
+  const projEntry = entries.find(e => e.name === 'project.json');
+  if (!projEntry) {
+    toast('ZIP内にproject.jsonが見つかりません', 'error');
+    return;
+  }
+  let obj;
+  try {
+    obj = JSON.parse(new TextDecoder().decode(projEntry.data));
+  } catch (e) {
+    toast('project.jsonの読み込みに失敗しました', 'error');
+    return;
+  }
+  const attachmentEntries = entries.filter(e => e.name.startsWith('files/') && e.name !== 'files/');
+  const imported = _finishProjectImport(obj, attachmentEntries.length);
+  if (!imported) return;
+
+  // 添付ファイルをインポート先フォルダの files/P{新番号}/ へ書き込み
+  if (attachmentEntries.length && state.rootDirHandle) {
+    try {
+      const filesDir = await state.rootDirHandle.getDirectoryHandle('files', { create: true });
+      const pDir = await filesDir.getDirectoryHandle(`P${imported.number}`, { create: true });
+      for (const entry of attachmentEntries) {
+        const fname = entry.name.replace(/^files\//, '');
+        if (!fname) continue;
+        const fh = await pDir.getFileHandle(fname, { create: true });
+        const w = await fh.createWritable();
+        await w.write(entry.data);
+        await w.close();
+        // メモリ上の添付ファイルキャッシュにも追加（追加しないと次にフォルダを
+        // 開き直すまで「ファイルが見つかりません」表示になってしまう）
+        try {
+          const savedFile = await fh.getFile();
+          const url = URL.createObjectURL(savedFile);
+          _fileCache.set(`P${imported.number}/${fname}`, url);
+        } catch (e) {}
+      }
+    } catch (e) {
+      toast('添付ファイルの書き込みに失敗しました: ' + e.message, 'error');
+    }
+  } else if (attachmentEntries.length && !state.rootDirHandle) {
+    toast('フォルダが開かれていないため、添付ファイルは保存されませんでした', 'error');
+  }
+}
+
 function saveProject() {
   const name=document.getElementById('pm-name').value.trim();
   if(!name){toast('プロジェクト名を入力してください','error');return;}
@@ -7707,6 +8036,52 @@ function _psDefaultSettings() {
   };
 }
 
+// ── 保存タブ（プロジェクトエクスポート） ──
+async function exportCurrentProject() {
+  const p = getProject(_psProjectId);
+  if (!p) return;
+  const withAttachments = document.getElementById('ps-export-with-attachments')?.checked;
+  const safeName = (p.name || 'project').replace(/[\\/:*?"<>|]/g, '_').trim() || 'project';
+
+  if (!withAttachments) {
+    const json = JSON.stringify(p, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    _downloadBlob(blob, `TaskFlowZero_P${p.number}_${safeName}.json`);
+    toast('プロジェクトをエクスポートしました', 'success');
+    return;
+  }
+
+  // ZIP形式（添付ファイル同梱）
+  try {
+    const files = [{ name: 'project.json', data: new TextEncoder().encode(JSON.stringify(p, null, 2)) }];
+    if (state.rootDirHandle) {
+      try {
+        const filesDir = await state.rootDirHandle.getDirectoryHandle('files', { create: false });
+        const pDir = await filesDir.getDirectoryHandle(`P${p.number}`, { create: false });
+        for await (const [name, handle] of pDir.entries()) {
+          if (handle.kind !== 'file') continue;
+          const f = await handle.getFile();
+          files.push({ name: `files/${name}`, data: new Uint8Array(await f.arrayBuffer()) });
+        }
+      } catch (e) {
+        // 添付ファイル用フォルダが存在しない（添付ファイルなし）場合はそのままproject.jsonのみでZIP化
+      }
+    }
+    const zipBlob = createZip(files);
+    _downloadBlob(zipBlob, `TaskFlowZero_P${p.number}_${safeName}.zip`);
+    toast(`プロジェクトをエクスポートしました（添付ファイル ${files.length - 1}件を含む）`, 'success');
+  } catch (e) {
+    toast('エクスポートに失敗しました: ' + e.message, 'error');
+  }
+}
+function _downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function openProjectSettings(pid) {
   _psProjectId = pid;
   const p = getProject(pid);
@@ -7744,7 +8119,7 @@ function openProjectSettings(pid) {
 }
 
 function switchPsTab(tab) {
-  ['basic','templates','labels','holidays'].forEach(t => {
+  ['basic','templates','labels','holidays','export'].forEach(t => {
     document.getElementById('ps-pane-'  + t).style.display = t === tab ? '' : 'none';
     document.getElementById('ps-tab-'   + t).classList.toggle('active', t === tab);
   });
@@ -8024,6 +8399,7 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-title').value='';
   document.getElementById('tm-status').value=status;
   document.getElementById('tm-points').value='0';
+  document.getElementById('tm-priority').value='';
   document.getElementById('tm-assignee').value='';
   document.getElementById('tm-start').value='';
   document.getElementById('tm-due').value='';
@@ -8179,7 +8555,8 @@ function saveNewTask(){
   const _creatorVal = document.getElementById('tm-creator').value.trim();
   const _createdAtTime = new Date().toISOString();
   const estimatedHours = parseFloat(document.getElementById('tm-estimated').value)||0;
-  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours,baseEstimatedHours:estimatedHours,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,completedAtTime:status==='done'?_createdAtTime:null,comments:[],checklist:checklistItems,activity:[],likes:[],bookmarks:[]};
+  const _priorityVal = document.getElementById('tm-priority').value || null;
+  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours,baseEstimatedHours:estimatedHours,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,priority:_priorityVal,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,completedAtTime:status==='done'?_createdAtTime:null,comments:[],checklist:checklistItems,activity:[],likes:[],bookmarks:[]};
   p.tasks.push(task);
   closeTaskModal(); autoSave(state.currentProjectId); renderCurrentView(); renderSidebar(); updateFilters();
   toast(`タスク #${task.number} を追加しました`,'success');
@@ -8190,6 +8567,24 @@ function saveNewTask(){
 // ═══════════════════════════════════════
 // TASK PANEL
 // ═══════════════════════════════════════
+function updatePanelTitlePriorityBadge(){
+  const badge = document.getElementById('panel-title-priority-badge');
+  const val = document.getElementById('panel-priority').value;
+  if (val === 'high') {
+    badge.textContent = '↑';
+    badge.className = 'priority-flag priority-high';
+    badge.title = '優先度: 高';
+    badge.style.display = 'inline-flex';
+  } else if (val === 'low') {
+    badge.textContent = '↓';
+    badge.className = 'priority-flag priority-low';
+    badge.title = '優先度: 低';
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
 function openTaskPanel(taskId){
   // コメント入力途中で別タスクへ切り替える場合は確認
   if(taskId !== _panelTaskId){
@@ -8281,6 +8676,8 @@ function _openTaskPanelInner(taskId){
   document.getElementById('panel-completed').value=t.completedAt||'';
   toggleCompletedField(t.status);
   document.getElementById('panel-points').value=t.storyPoints||0;
+  document.getElementById('panel-priority').value=t.priority||'';
+  updatePanelTitlePriorityBadge();
   updateHoursDisplay(t);
   document.getElementById('panel-desc').value=t.description||'';
   document.getElementById('panel-milestone').value=t.milestoneId||'';
@@ -8477,11 +8874,14 @@ function savePanelTask(){
   const oldAssignee=t.assignee||'';
   const oldDue=t.dueDate||'';
   const oldDesc=t.description||'';
+  const oldPriority=t.priority||null;
 
   t.title=document.getElementById('panel-title').value.trim()||t.title;
   const _creatorIn = document.getElementById('panel-creator');
   if (_creatorIn) t.creator = _creatorIn.value.trim();
   t.status=newStatus;
+  const newPriority=document.getElementById('panel-priority').value||null;
+  t.priority=newPriority;
   const newAssignee=document.getElementById('panel-assignee').value.trim();
   t.assignee=newAssignee;
   const newDue=document.getElementById('panel-due').value;
@@ -8517,6 +8917,10 @@ function savePanelTask(){
   }
   if(oldDesc!==newDesc && newDesc.trim()){
     t.activity.push({type:'desc',icon:'📝',text:'詳細内容を更新',at:now});
+  }
+  if(oldPriority!==newPriority){
+    const pLabel = v => v==='high'?'高':v==='low'?'低':'未設定';
+    t.activity.push({type:'priority',icon:'🚩',text:`優先度を <b>${pLabel(oldPriority)}</b> → <b>${pLabel(newPriority)}</b> に変更`,at:now});
   }
 
   panelDirty=false;
@@ -9944,6 +10348,7 @@ function createReferenceTask() {
   const milestoneId = document.getElementById('panel-milestone').value || '';
   const description = document.getElementById('panel-desc').value || '';
   const labels       = [...(t.labels || [])];
+  const priority     = t.priority || '';
   const estimatedHours = t.estimatedHours || 0;
   const checklistTexts = (t.checklist || []).map(c => c.text).filter(Boolean);
 
@@ -9956,6 +10361,7 @@ function createReferenceTask() {
   document.getElementById('tm-milestone').value = milestoneId;
   document.getElementById('tm-description').value = description;
   document.getElementById('tm-estimated').value = estimatedHours > 0 ? estimatedHours : '';
+  document.getElementById('tm-priority').value = priority;
 
   // チェックリストを引き継ぐ
   const clContainer = document.getElementById('tm-checklist');
@@ -10094,11 +10500,9 @@ function updatePanelScrollBtn(){
   btn.style.display = 'flex';
   const atBottom = body.scrollHeight - body.clientHeight - body.scrollTop <= PANEL_SCROLL_BOTTOM_THRESHOLD;
   if (atBottom) {
-    btn.textContent = '∧';
     btn.title = '一番上へ移動';
     btn.dataset.dir = 'up';
   } else {
-    btn.textContent = '∨';
     btn.title = '一番下へ移動';
     btn.dataset.dir = 'down';
   }

@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.6-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.7-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -111,6 +111,12 @@ Log estimated and actual hours per comment via the **＋ Add Effort** button in 
 
 ### 📁 Folder History
 The launch screen shows up to 10 recently opened folders. One click to reopen — no folder picker required.
+
+### 🚩 Priority
+Mark tasks as High or Low priority. In the list view, a bold red ↑ (High) or gray ↓ (Low) badge appears before the title; in Kanban, card backgrounds are color-coded accordingly.
+
+### 📤 Project Export / Import
+From the "Save" tab in project settings, export a project as JSON (or as a ZIP with attachments included). Import it from the "Projects" screen in another environment — the project number is reassigned automatically, and reference links inside tasks and comments are rewritten to match the new number.
 
 ### 🔗 Comment Anchor Links
 URLs support the format `#[FolderName-]P1-42-C3`, letting you share a link that jumps directly to a specific comment.

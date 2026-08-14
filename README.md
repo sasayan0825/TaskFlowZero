@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.6-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.7-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -108,6 +108,12 @@ HTMLと同じフォルダに以下を置くと完全オフラインで動作し�
 
 ### 📁 フォルダ履歴
 起動画面に過去に開いたフォルダの履歴（最大10件）が表示されます。ワンクリックで素早く再アクセスでき、一括削除も可能です。
+
+### 🚩 優先度
+タスクに「高」「低」の優先度を設定できます。リストではタイトル先頭に赤い↑（高）・灰色の↓（低）のバッジ、カンバンではカード背景の色分けで一目で分かります。
+
+### 📤 プロジェクトのエクスポート / インポート
+プロジェクト設定の「保存」タブから、プロジェクト単位でJSON（またはZIP、添付ファイル同梱）としてエクスポートできます。別環境の「プロジェクト一覧」画面からインポートすれば、プロジェクト番号を自動的に振り直しつつ、タスクやコメント内の参照リンクもインポート先の番号に自動で書き換わります。
 
 ### 🔗 コメントアンカーリンク
 URLは `#[FolderName-]P1-42-C3` 形式に対応。特定のコメントへ直接ジャンプするリンクを共有できます。
