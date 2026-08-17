@@ -763,6 +763,8 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 .wiki-page-item:hover .wiki-page-drag-handle{opacity:1}
 .wiki-page-item.drag-over{background:rgba(79,142,255,.1);border-top:2px solid var(--accent)}
 .wiki-page-item.dragging{opacity:.4}
+.wiki-page-item.wiki-page-locked{opacity:.45;cursor:not-allowed;pointer-events:none}
+#wiki-page-sidebar-inner.wiki-page-add-locked .wiki-page-sidebar-header .md-btn-fmt{opacity:.35;cursor:not-allowed;pointer-events:none}
 .wiki-toolbar-toggle-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;transition:all .15s;line-height:1.3}
 .wiki-toolbar-toggle-btn.active{background:rgba(79,142,255,.15);border-color:rgba(79,142,255,.4);color:var(--accent2)}
 #wiki-editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
@@ -1377,14 +1379,6 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         </select>
       </div>
       <div class="meta-field">
-        <div class="meta-label">優先度</div>
-        <select class="meta-select" id="panel-priority" onchange="panelDirty=true;updatePanelTitlePriorityBadge()">
-          <option value="">未設定</option>
-          <option value="high">高</option>
-          <option value="low">低</option>
-        </select>
-      </div>
-      <div class="meta-field">
         <div class="meta-label">担当者</div>
         <input class="meta-input" id="panel-assignee" placeholder="担当者名" list="assignee-dl" oninput="panelDirty=true;_updatePanelTitleAssignee(this.value)">
         <datalist id="assignee-dl"></datalist>
@@ -1418,10 +1412,18 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div id="panel-actual-hours" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text);min-width:32px">—</div>
         </div>
       </div>
-      <div class="meta-field" style="grid-column:1/-1">
+      <div class="meta-field">
         <div class="meta-label">マイルストーン</div>
         <select class="meta-select" id="panel-milestone" onchange="panelDirty=true">
           <option value="">未割り当て</option>
+        </select>
+      </div>
+      <div class="meta-field">
+        <div class="meta-label">優先度</div>
+        <select class="meta-select" id="panel-priority" onchange="panelDirty=true;updatePanelTitlePriorityBadge()">
+          <option value="">未設定</option>
+          <option value="high">高</option>
+          <option value="low">低</option>
         </select>
       </div>
       <div class="meta-field" style="grid-column:1/-1">
@@ -5136,8 +5138,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.7';
-const APP_VERSION_DATE = '2026-08-12';
+const APP_VERSION      = '1.1.8';
+const APP_VERSION_DATE = '2026-08-17';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -7275,19 +7277,22 @@ function renderWikiPageList() {
   if (!p) { listEl.innerHTML = ''; return; }
   const pages = _wikiPages(p);
   const cur = _currentWikiPage(p);
+  const editing = _wikiMode === 'edit'; // 編集中はページ切替不可にする
+  const innerEl = document.getElementById('wiki-page-sidebar-inner');
+  if (innerEl) innerEl.classList.toggle('wiki-page-add-locked', editing);
   listEl.innerHTML = pages.map((pg, idx) => {
-    const locked = idx === 0; // 1ページ目は並び替え対象外
+    const orderLocked = idx === 0; // 1ページ目は並び替え対象外
     return `
-    <div class="sidebar-item wiki-page-item${cur && pg.id===cur.id ? ' active' : ''}"
+    <div class="sidebar-item wiki-page-item${cur && pg.id===cur.id ? ' active' : ''}${editing ? ' wiki-page-locked' : ''}"
          data-wiki-page-id="${pg.id}"
-         ${locked ? '' : `draggable="true"
+         ${(orderLocked || editing) ? '' : `draggable="true"
          ondragstart="wpDragStart(event,'${pg.id}')"
          ondragover="wpDragOver(event,'${pg.id}')"
          ondrop="wpDrop(event,'${pg.id}')"
          ondragleave="wpDragLeave(event)"
          ondragend="wpDragEnd(event)"`}
-         onclick="switchWikiPage('${pg.id}')" title="${esc(pg.title)}">
-      ${locked ? '' : `<span class="wiki-page-drag-handle" title="ドラッグで並び替え">⠿</span>`}
+         onclick="switchWikiPage('${pg.id}')" title="${editing ? '編集中はページを切り替えられません（プレビューに戻ってから選択してください）' : esc(pg.title)}">
+      ${orderLocked ? '' : `<span class="wiki-page-drag-handle" title="ドラッグで並び替え">⠿</span>`}
       <span class="proj-name">📄 ${esc(pg.title)}</span>
       <span class="wiki-page-item-actions">
         <button class="wiki-page-item-action-btn" title="ページ名を変更" onclick="event.stopPropagation(); renameWikiPage('${pg.id}')">✏️</button>
@@ -7395,19 +7400,22 @@ function renderWiki() {
   setWikiMode('preview');
 }
 
-// ページ切替（未保存の編集内容があれば確認）
+// ページ切替（編集中は不可。プレビューに戻ってから選択する）
 function switchWikiPage(pageId) {
   if (pageId === _wikiCurrentPageId) return;
-  if (_wikiDirty && _wikiMode === 'edit') {
-    if (!confirm('Wikiの変更が保存されていません。ページを切り替えますか？\n（「キャンセル」で編集を続けられます）')) return;
-    _wikiDirty = false;
-    clearTimeout(_wikiAutoSaveTimer);
+  if (_wikiMode === 'edit') {
+    toast('編集中はページを切り替えられません。プレビューに戻ってから選択してください', 'warn');
+    return;
   }
   _wikiCurrentPageId = pageId;
   renderWiki();
 }
 
 function addWikiPage() {
+  if (_wikiMode === 'edit') {
+    toast('編集中はページを追加できません。プレビューに戻ってから追加してください', 'warn');
+    return;
+  }
   const p = getProject(state.currentProjectId); if(!p) return;
   const title = prompt('新しいページ名を入力してください:', '新しいページ');
   if (title === null) return;
@@ -7469,6 +7477,7 @@ function setWikiMode(mode) {
     eBtn.classList.add('active');
     pBtn.classList.remove('active');
     _toggleFmtBtns('wiki-edit-btn', true);
+    renderWikiPageList(); // ページ選択をロック
     ta.focus();
     ta.oninput = () => {
       _wikiDirty = true;
@@ -7506,6 +7515,7 @@ function setWikiMode(mode) {
     eBtn.classList.remove('active');
     pBtn.classList.add('active');
     _toggleFmtBtns('wiki-edit-btn', false);
+    renderWikiPageList(); // ページ選択のロック解除
     buildToc(raw);
     // Scroll spy
     setupWikiScrollSpy();
@@ -9254,14 +9264,41 @@ function linkifyMentions(html) {
   if (!all.length) return html;
   // 長い名前を先に処理（部分一致誤検知を防ぐ）
   const sorted = [...all].sort((a,b) => b.length - a.length);
-  sorted.forEach(name => {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    html = html.replace(
-      new RegExp(`@${escaped}(?=[\\s<,。、!！?？]|$)`, 'g'),
-      `<span class="mention-badge">@${esc(name)}</span>`
-    );
+  const combined = new RegExp(
+    '@(' + sorted.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?=[\\s<,。、!！?？]|$)',
+    'g'
+  );
+  // title属性など、HTML属性値の中身まで書き換えてしまうと構造が壊れるため
+  // （例: #P17-54-C5 のようなタスク参照リンクのtitleに参照先コメントの本文が
+  //  埋め込まれ、そこに @メンバー名 が含まれるケース）、
+  // DOMのテキストノードのみを対象に置換する。
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+  const targets = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node.nodeValue.includes('@')) targets.push(node);
+  }
+  targets.forEach(tn => {
+    const text = tn.nodeValue;
+    combined.lastIndex = 0;
+    if (!combined.test(text)) return;
+    combined.lastIndex = 0;
+    const frag = document.createDocumentFragment();
+    let lastIndex = 0, m;
+    while ((m = combined.exec(text))) {
+      if (m.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+      const span = document.createElement('span');
+      span.className = 'mention-badge';
+      span.textContent = '@' + m[1];
+      frag.appendChild(span);
+      lastIndex = m.index + m[0].length;
+    }
+    frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+    tn.parentNode.replaceChild(frag, tn);
   });
-  return html;
+  return container.innerHTML;
 }
 
 function linkifyTaskRefs(html) {
