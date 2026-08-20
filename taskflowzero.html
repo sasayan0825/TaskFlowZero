@@ -561,6 +561,11 @@ html.light .meta-input[type="date"]::-webkit-calendar-picker-indicator,html.ligh
 .mention-item:hover,.mention-item.active{background:rgba(79,142,255,.15);color:var(--accent2)}
 .mention-item .mention-avatar{width:22px;height:22px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent2);flex-shrink:0}
 .mention-badge{display:inline-block;background:rgba(122,167,255,.18);color:var(--accent2);border:1px solid rgba(122,167,255,.35);border-radius:4px;padding:0 5px;font-size:.9em;font-weight:600;white-space:nowrap}
+.tfz-file-icon{display:inline-block;margin-right:3px}
+.ext-link-icon{display:inline-block;margin-right:2px;font-size:.85em;opacity:.75}
+.my-tasks-row{cursor:pointer;transition:background .1s}
+.my-tasks-row:hover td{background:var(--surface2)}
+html.light .my-tasks-row:hover td{background:#dce6f5}
 .md-toolbar-sep{width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0}
 #md-table-picker{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:9100;padding:8px;display:none;flex-direction:column;align-items:center;gap:6px}
 #md-code-picker{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:9100;padding:8px;display:none;flex-direction:column;gap:6px;min-width:220px}
@@ -4608,7 +4613,7 @@ function renderMyTasks() {
           const s = SMAP[t.status]||SMAP['todo'];
           const diff = daysDiff(t.dueDate);
           const dueCls = diff!==null?(diff<0?'color:var(--red)':diff<=3?'color:var(--yellow)':''):'';
-          return `<tr style="cursor:pointer;border-bottom:1px solid var(--border)" onclick="openProject('${p.id}');setTimeout(()=>openTaskPanel('${t.id}'),150)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+          return `<tr class="my-tasks-row" style="border-bottom:1px solid var(--border)" onclick="openProject('${p.id}');setTimeout(()=>openTaskPanel('${t.id}'),150)">
             <td style="padding:7px 8px;font-family:'JetBrains Mono',monospace;color:var(--muted)">#${t.number||'?'}</td>
             <td style="padding:7px 8px;font-weight:500">${esc(t.title)}</td>
             <td style="padding:7px 8px">${t.priority==='high'?'<span class="priority-flag priority-high" title="優先度: 高">↑</span>':t.priority==='low'?'<span class="priority-flag priority-low" title="優先度: 低">↓</span>':'<span style="color:var(--muted);font-size:12px">—</span>'}</td>
@@ -5138,8 +5143,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.8';
-const APP_VERSION_DATE = '2026-08-17';
+const APP_VERSION      = '1.1.9';
+const APP_VERSION_DATE = '2026-08-20';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -7539,7 +7544,7 @@ function buildWikiHtml(raw) {
   }
   try {
     // まず普通にパース（バージョン依存しない安全な方法）
-    let html = linkifyMentions(linkifyTfz(linkifyTaskRefs(marked.parse(raw))));
+    let html = linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(raw)))));
     // パース後のHTMLの見出しタグにアンカーIDを付与（正規表現で後処理）
     html = html.replace(/<h([1-4])>(.*?)<\/h\1>/gi, (match, level, text) => {
       // HTMLタグを除去してIDを生成
@@ -9064,7 +9069,35 @@ function linkifyTfz(html) {
       ? `href="${url}" download="${fname}" data-tfz="${decodedKey}"`
       : `href="#" data-tfz-missing="${decodedKey}" onclick="return false"`;
   });
-  return html;
+  // 添付ファイルへのリンクだと分かるよう、ファイル名の先頭にアイコンを付与
+  // （画像は <img> になるため対象外。ダウンロードリンク/見つからない添付のみ対象）
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.querySelectorAll('a[data-tfz], a[data-tfz-missing]').forEach(a => {
+    if (a.querySelector(':scope > .tfz-file-icon')) return;
+    const icon = document.createElement('span');
+    icon.className = 'tfz-file-icon';
+    icon.textContent = '📎';
+    a.insertBefore(icon, a.firstChild);
+  });
+  return container.innerHTML;
+}
+
+// Markdown レンダリング後HTML内の外部リンク（http/https）を新しいタブで開くよう設定し、
+// 別タブで開くことが分かるアイコンをリンク先頭に付与
+function linkifyExternalLinks(html) {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.querySelectorAll('a[href^="http://"], a[href^="https://"]').forEach(a => {
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener noreferrer');
+    if (a.querySelector(':scope > .ext-link-icon')) return;
+    const icon = document.createElement('span');
+    icon.className = 'ext-link-icon';
+    icon.textContent = '↗';
+    a.insertBefore(icon, a.firstChild);
+  });
+  return container.innerHTML;
 }
 
 // 現在のプロジェクトIDを取得（コメント用：パネルが開いているタスクのプロジェクト）
@@ -9342,7 +9375,7 @@ function setMdMode(mode){
   const ta=document.getElementById('panel-desc');
   const pv=document.getElementById('panel-desc-preview');
   if(mode==='preview'){
-    pv.innerHTML=linkifyMentions(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value||'*(内容なし)*'))));
+    pv.innerHTML=linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value||'*(内容なし)*')))));
     pv.style.height='auto';
     pv.style.display='block'; ta.style.display='none';
     document.getElementById('md-edit-btn').classList.remove('active');
@@ -9733,7 +9766,7 @@ function setTmDescMode(mode) {
   const pBtn = document.getElementById('tm-desc-preview-btn');
   if (!ta || !pv) return;
   if (mode === 'preview') {
-    pv.innerHTML = linkifyMentions(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*'))));
+    pv.innerHTML = linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*')))));
     pv.style.display = 'block';
     ta.style.display = 'none';
     eBtn.classList.remove('active');
@@ -9756,7 +9789,7 @@ function setPsTeDescMode(mode) {
   const pBtn = document.getElementById('ps-te-desc-preview-btn');
   if (!ta || !pv) return;
   if (mode === 'preview') {
-    pv.innerHTML = marked.parse(ta.value || '*(空)*');
+    pv.innerHTML = linkifyExternalLinks(marked.parse(ta.value || '*(空)*'));
     pv.style.display = 'block';
     ta.style.display = 'none';
     eBtn.classList.remove('active');
@@ -9777,7 +9810,7 @@ function setCmtMode(mode) {
   const editBtn = document.getElementById('cmt-edit-btn');
   const prevBtn = document.getElementById('cmt-preview-btn');
   if (mode === 'preview') {
-    pv.innerHTML = linkifyMentions(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*'))));
+    pv.innerHTML = linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*')))));
     pv.style.display = 'block';
     ta.style.display = 'none';
     editBtn.classList.remove('active');
@@ -9841,7 +9874,7 @@ function renderTimeline(t) {
         <div class="activity-icon-col">${avatarHtml(c.author||'匿名','comment-avatar')}</div>
         <div class="activity-body">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
-            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);background:var(--surface3);padding:1px 6px;border-radius:3px">C${commentNo}</span>
+            <span onclick="mentionCommentInReply(${commentNo})" title="クリックしてこのコメントへのメンションをコメント欄に追記" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);background:var(--surface3);padding:1px 6px;border-radius:3px;cursor:pointer" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">C${commentNo}</span>
             <span style="font-size:12px;font-weight:600;color:var(--text)">${esc(c.author||'匿名')}</span>
             <span class="activity-date">${fmtDatetime(c.createdAt)}</span>
             ${editedBadge}
@@ -9851,7 +9884,7 @@ function renderTimeline(t) {
             <button onclick="startEditComment(${i})" title="編集" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">✏️</button>
             <button onclick="deleteComment(${i})" title="削除" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
           </div>
-          <div class="md-preview" style="display:block;min-height:unset;border:none;padding:4px 8px;background:var(--surface2);border-radius:5px;font-size:12px">${linkifyMentions(linkifyTfz(linkifyTaskRefs(marked.parse(c.text||''))))}</div>
+          <div class="md-preview" style="display:block;min-height:unset;border:none;padding:4px 8px;background:var(--surface2);border-radius:5px;font-size:12px">${linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(c.text||'')))))}</div>
           ${effortBadge}
         </div>
       </div>`;
@@ -10299,6 +10332,23 @@ function copyCommentUrl(commentNo) {
   });
 }
 
+// コメント番号バッジクリック時：そのコメントへのメンション（#P.. -C..）をコメント欄に追記
+function mentionCommentInReply(commentNo) {
+  const p = getProject(state.currentProjectId);
+  const t = _panelTaskId ? getTask(state.currentProjectId, _panelTaskId) : null;
+  if (!p || !t) return;
+  const hash = buildTaskHash(p, t, commentNo);
+  const ta = document.getElementById('comment-text');
+  if (!ta) return;
+  if (ta.style.display === 'none') setCmtMode('edit');
+  const needsSep = ta.value && !/\s$/.test(ta.value);
+  ta.value += (needsSep ? ' ' : '') + hash + ' ';
+  ta.focus();
+  const end = ta.value.length;
+  ta.setSelectionRange(end, end);
+  autoResizeCmtTextarea(ta);
+}
+
 function scrollToComment(commentNo) {
   const el = document.getElementById(`comment-anchor-${commentNo}`);
   if (!el) return;
@@ -10342,6 +10392,20 @@ function navigateToHash(hash) {
   if (!p) { toast(`プロジェクト P${pNum} が見つかりません`, 'error'); return; }
   const t = p.tasks.find(x => x.number === tNum);
   if (!t) { toast(`タスク #${tNum} が見つかりません`, 'error'); return; }
+
+  // 既に同じタスクのパネルが開いている場合、openTaskPanel を呼び直すと
+  // panel-body のスクロール位置が先頭にリセットされてしまい、
+  // 「一度上（または下から一気に上）まで戻ってから該当コメントへスクロール」
+  // という不自然な挙動になる。既に対象タスクが開いていればパネルの再オープンは行わず、
+  // 現在位置から直接該当コメントへスクロールする。
+  const panelEl = document.getElementById('task-panel');
+  const alreadyOpenSameTask = !!panelEl && panelEl.classList.contains('open')
+    && state.currentProjectId === p.id && _panelTaskId === t.id;
+
+  if (alreadyOpenSameTask) {
+    if (commentNo != null) scrollToComment(commentNo);
+    return;
+  }
 
   if (state.currentProjectId !== p.id) openProject(p.id);
   setTimeout(() => {
