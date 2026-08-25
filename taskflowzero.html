@@ -1060,9 +1060,19 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             </div>
           </div>
           <div id="settings-pane-plugins" style="display:none">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
               <div style="font-size:16px;font-weight:600;color:var(--text)">プラグイン管理</div>
-              <div style="font-size:11px;color:var(--muted)">変更後はページをリロードして反映</div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="font-size:11px;color:var(--muted)">変更後はページをリロードして反映</div>
+                <button class="btn btn-secondary btn-sm" onclick="selectPluginDirManually()"
+                  title="データフォルダ配下の自動作成ではなく、任意のフォルダ（htmlと同じフォルダなど）を明示的に選び直します">
+                  📁 プラグインフォルダを変更
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="resetPluginDirHandle()"
+                  title="別のプロジェクトと同名フォルダのプラグイン設定が混ざって表示される場合などに使用します">
+                  🔄 フォルダ選択をやり直す
+                </button>
+              </div>
             </div>
 
             <!-- ドロップゾーン -->
@@ -2184,41 +2194,82 @@ async function loadPluginDirFromIDB() {
   } catch(e) { return null; }
 }
 
-// plugins.js から PLUGINS 配列を読み取る
+// 「フォルダ選択をやり直す」用: 記憶されたプラグインフォルダのハンドルをIDBから削除する。
+// file:// ページはオリジンがフォルダ間で共有されるため、別プロジェクトと同名の
+// ルートフォルダを開いた場合などに古い（無関係な）ハンドルを参照し続けてしまうことがある。
+// その場合の復旧手段としてこの関数を使う。
+async function deletePluginDirFromIDB() {
+  try {
+    const db = await openIDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(_pluginDirIdbKey());
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch(e) { console.warn('IDB plugin dir delete error:', e); }
+}
+
+// plugin_manifest.js（新形式: window.TFZ_PLUGIN_LIST）を優先して読み取る。
+// 見つからない場合は旧形式 plugins.js（const PLUGINS）にフォールバックする（後方互換）。
 async function readPluginsFromDir(dirHandle) {
+  try {
+    const fh = await dirHandle.getFileHandle('plugin_manifest.js', { create: false });
+    const file = await fh.getFile();
+    const text = await file.text();
+    const m = text.match(/TFZ_PLUGIN_LIST\s*=\s*\[([\s\S]*?)\]/);
+    if (m) return [...m[1].matchAll(/['"]([^'"]+\.js)['"]/g)].map(x => x[1]);
+  } catch(e) { /* plugin_manifest.js が無ければ旧形式を試す */ }
+
+  // 旧形式（互換用）: plugins.js の const PLUGINS = [...]
   try {
     const fh = await dirHandle.getFileHandle('plugins.js', { create: false });
     const file = await fh.getFile();
     const text = await file.text();
-    // const PLUGINS = [ 'a.js', 'b.js', ... ]; を解析
     const m = text.match(/const\s+PLUGINS\s*=\s*\[([\s\S]*?)\]/);
     if (!m) return [];
     return [...m[1].matchAll(/['"]([^'"]+\.js)['"]/g)].map(x => x[1]);
   } catch(e) { return []; }
 }
 
-// plugins.js を書き換えて保存
+// plugin_manifest.js（プラグイン名データのみ）と plugin_loader.js（読み込みロジックのみ）を書き出す。
+// ※ 従来の plugins.js は「動的スクリプト注入ロジック」と「プラグイン名一覧」が1ファイルに
+//    混在しており、セキュリティソフトのヒューリスティック検知（ローダー/ドロッパー型の
+//    挙動パターン）に引っかかりやすかった。データとロジックを分離することでリスクを下げる。
 async function writePluginsToDir(dirHandle, plugins) {
-  var lines = [
+  // --- plugin_manifest.js（データのみ。ロジックを含まない） ---
+  var manifestLines = [
     '// ================================================================',
-    '//  plugin/plugins.js  - TaskFlowZero プラグインマニフェスト',
+    '//  plugin/plugin_manifest.js  - TaskFlowZero プラグイン一覧',
     '//  このファイルはプラグイン管理UIから自動生成されます。',
+    '//  ロジックを含まない、有効プラグイン名のデータ定義のみのファイルです。',
+    '// ================================================================',
+    '',
+    'window.TFZ_PLUGIN_LIST = [',
+  ];
+  plugins.forEach(function(p) { manifestLines.push("  '" + p + "',"); });
+  manifestLines.push('];');
+  var manifestContent = manifestLines.join('\n') + '\n';
+  var mfh = await dirHandle.getFileHandle('plugin_manifest.js', { create: true });
+  var mw = await mfh.createWritable();
+  await mw.write(manifestContent);
+  await mw.close();
+
+  // --- plugin_loader.js（読み込みロジックのみ。プラグイン名を含まない固定コード） ---
+  // 内容は毎回同じだが、ファイルが欠落した場合の自己修復のため保存の都度書き出す。
+  var loaderLines = [
+    '// ================================================================',
+    '//  plugin/plugin_loader.js  - TaskFlowZero プラグインローダー',
+    '//  プラグイン名は含みません（一覧は plugin_manifest.js を参照）。',
+    '//  通常このファイルを直接編集する必要はありません。',
     '// ================================================================',
     '',
     '(function () {',
     "  'use strict';",
     '',
-    '  const PLUGINS = [',
-  ];
-  plugins.forEach(function(p) { lines.push("    '" + p + "',"); });
-  lines = lines.concat([
-    '  ];',
-    '',
     '  var base = (function () {',
     "    var scripts = document.querySelectorAll('script[src]');",
     '    for (var i = 0; i < scripts.length; i++) {',
     '      var src = scripts[i].src;',
-    "      if (src.indexOf('plugins.js') !== -1) {",
+    "      if (src.indexOf('plugin_loader.js') !== -1) {",
     "        return src.substring(0, src.lastIndexOf('/') + 1);",
     '      }',
     '    }',
@@ -2226,12 +2277,13 @@ async function writePluginsToDir(dirHandle, plugins) {
     '  })();',
     '',
     '  function loadNext(index) {',
-    '    if (index >= PLUGINS.length) return;',
+    '    var list = window.TFZ_PLUGIN_LIST || [];',
+    '    if (index >= list.length) return;',
     "    var s = document.createElement('script');",
-    '    s.src = base + PLUGINS[index];',
+    '    s.src = base + list[index];',
     '    s.onload  = function () { loadNext(index + 1); };',
     '    s.onerror = function () {',
-    "      console.warn('[plugins.js] not found: ' + PLUGINS[index]);",
+    "      console.warn('[plugin_loader.js] not found: ' + list[index]);",
     '      loadNext(index + 1);',
     '    };',
     '    document.head.appendChild(s);',
@@ -2239,12 +2291,17 @@ async function writePluginsToDir(dirHandle, plugins) {
     '',
     '  loadNext(0);',
     '})();',
-  ]);
-  var fileContent = lines.join('\n') + '\n';
-  var fh = await dirHandle.getFileHandle('plugins.js', { create: true });
-  var w = await fh.createWritable();
-  await w.write(fileContent);
-  await w.close();
+  ];
+  var loaderContent = loaderLines.join('\n') + '\n';
+  var lfh = await dirHandle.getFileHandle('plugin_loader.js', { create: true });
+  var lw = await lfh.createWritable();
+  await lw.write(loaderContent);
+  await lw.close();
+
+  // --- 旧形式 plugins.js は移行完了後に不要なため削除（存在する場合のみ） ---
+  try {
+    await dirHandle.removeEntry('plugins.js');
+  } catch(e) { /* 存在しない場合は無視 */ }
 }
 
 // plugins.js（ディスク上の実体）と plugin-settings.json（有効/無効を含む全記録）を
@@ -2323,6 +2380,49 @@ async function initPluginPane() {
 
 // 後方互換（他からの呼び出し残骸がある場合の保険）
 async function openPluginModal() { showSettings(); showSettingsPane('plugins'); }
+
+// 「プラグインフォルダを変更」ボタンのハンドラ。
+// データフォルダ配下への自動作成（initPluginPane のフォールバック）とは別に、
+// 任意の場所（例: taskflowzero.html と同じフォルダなど）を明示的に選び直したい
+// 場合のための手動選択フロー。データフォルダの位置を開始位置のヒントとして
+// 渡すことで、多くの場合 1〜2 階層たどるだけで目的のフォルダに到達できる。
+async function selectPluginDirManually() {
+  try {
+    const opts = { mode: 'readwrite' };
+    if (state.rootDirHandle) opts.startIn = state.rootDirHandle; // データフォルダ位置から開始
+    const dir = await window.showDirectoryPicker(opts);
+
+    _pluginDirHandle = dir;
+    _pluginDirty = false;
+    await savePluginDirToIDB(dir); // 以後はこの手動選択フォルダが優先的に使われる
+
+    await loadPluginSettings();
+    const filesOnDisk = await readPluginsFromDir(dir);
+    _pluginList = _buildPluginListFromDiskAndSettings(filesOnDisk);
+    renderPluginList();
+    toast('プラグインフォルダを変更しました', 'success');
+  } catch(e) {
+    if (e.name === 'AbortError') return; // ユーザーがダイアログをキャンセル
+    toast('フォルダの選択に失敗しました', 'error');
+  }
+}
+
+// 「フォルダ選択をやり直す」ボタンのハンドラ。
+// IDBに記憶された（別プロジェクトと同名フォルダによる衝突などで誤った可能性のある）
+// プラグインフォルダのハンドルを破棄し、現在開いているプロジェクトフォルダ配下の
+// plugin フォルダを改めて自動的に使い直す（initPluginPane のフォールバック経路と同じ処理）。
+async function resetPluginDirHandle() {
+  const msg = _pluginDirty
+    ? '保存されていない変更は失われます。プラグインフォルダの選択をやり直しますか？'
+    : 'プラグインフォルダの記憶をリセットし、データフォルダ配下の plugin フォルダを自動的に使い直します'
+      + '（手動で選択したフォルダを設定していた場合、その設定も解除されます）。よろしいですか？';
+  if (!confirm(msg)) return;
+  await deletePluginDirFromIDB();
+  _pluginDirHandle = null;
+  _pluginDirty = false;
+  await initPluginPane();
+  toast('プラグインフォルダの選択をリセットしました', 'success');
+}
 
 function renderPluginList() {
   const container = document.getElementById('plugin-list');
@@ -2656,7 +2756,7 @@ async function savePluginsJs() {
     _pluginDirty = false;
     pluginSetSaving(false);
     document.getElementById('plugin-save-btn').style.display = 'none';
-    toast('plugins.js を保存しました。ページをリロードして反映してください。', 'success');
+    toast('プラグイン設定を保存しました。ページをリロードして反映してください。', 'success');
   } catch(e) {
     pluginSetSaving(false);
     toast(`保存失敗: ${e.message}`, 'error');
@@ -5143,8 +5243,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.9';
-const APP_VERSION_DATE = '2026-08-20';
+const APP_VERSION      = '1.1.11';
+const APP_VERSION_DATE = '2026-08-25';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -10982,15 +11082,24 @@ function _renderPluginSidebarItems() {
 
 // ── プラグインファイルの自動ロード ──
 // taskflow.html と同じフォルダの plugin_*.js を読み込む
-// 既知のプラグインファイル名をリストアップして順番に試みる
-// plugin/plugins.js を唯一のエントリポイントとして読み込む
-// プラグインの追加・削除は plugin/plugins.js を編集するだけでOK
-// taskflow.html の編集は不要です
+// 新形式: plugin/plugin_manifest.js（データ）→ plugin/plugin_loader.js（ロジック）の順に読み込む
+// 旧形式のフォルダ（plugin/plugins.js のみが存在）との互換のため、
+// plugin_manifest.js が見つからない場合は plugin/plugins.js にフォールバックする
+// プラグインの追加・削除はプラグイン管理UIから行うだけでOK。taskflow.html の編集は不要です
 (function() {
-  var s = document.createElement('script');
-  s.src = 'plugin/plugins.js';
-  s.onerror = function() {};
-  document.head.appendChild(s);
+  function loadScript(src, onload, onerror) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = onload || function() {};
+    s.onerror = onerror || function() {};
+    document.head.appendChild(s);
+  }
+  loadScript('plugin/plugin_manifest.js', function() {
+    loadScript('plugin/plugin_loader.js');
+  }, function() {
+    // plugin_manifest.js が無い場合は旧形式にフォールバック（後方互換）
+    loadScript('plugin/plugins.js');
+  });
 })();
 
 if(!window.showDirectoryPicker){

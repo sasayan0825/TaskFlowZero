@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.9-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.11-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -138,7 +138,7 @@ URLs support the format `#[FolderName-]P1-42-C3`, letting you share a link that 
 
 ## Plugins
 
-Extend functionality by editing `plugin/plugins.js` — no changes to the main HTML required.
+Extend functionality with plugins. Installing one through the Plugin Manager UI auto-generates `plugin/plugin_manifest.js` (the plugin list) and `plugin/plugin_loader.js` (the loading logic) — no changes to the main HTML required.
 
 | Plugin | Description |
 |---|---|
@@ -148,13 +148,13 @@ Extend functionality by editing `plugin/plugins.js` — no changes to the main H
 
 ### Plugin Manager UI
 
-Open the "⚙️ Settings" menu in the sidebar, then go to "🔌 Plugins" to manage plugins through a GUI — no need to edit `plugin/plugins.js` manually.
+Open the "⚙️ Settings" menu in the sidebar, then go to "🔌 Plugins" to manage plugins through a GUI — no need to edit `plugin/plugin_manifest.js` or `plugin/plugin_loader.js` manually.
 
 - **Install:** Drop a JS file onto the panel, or use the file picker
 - **Reorder:** Drag and drop to change load order
 - **Remove:** Remove from the list (the JS file itself is kept)
 
-> **First time only:** Opening "🔌 Plugins" will prompt you to select the `plugin/` folder. It's remembered automatically after that.
+The plugin folder (`plugin/`) is normally created and used automatically under your data folder (the one containing `project_P*.json`), so you won't be prompted to choose one. If you'd rather use a specific location — for example, the same folder as `taskflowzero.html` — click "📁 Change Plugin Folder" to pick one explicitly. Use "🔄 Reset Folder Selection" to switch back to the automatic folder.
 
 See [PLUGIN_DEVELOPER_GUIDE.txt](plugin/PLUGIN_DEVELOPER_GUIDE.txt) to build your own plugins.
 

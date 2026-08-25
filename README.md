@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.9-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.11-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -135,7 +135,7 @@ URLは `#[FolderName-]P1-42-C3` 形式に対応。特定のコメントへ直接
 
 ## プラグイン
 
-機能はプラグインで拡張できます。`plugin/plugins.js` に追記するだけで有効になります。
+機能はプラグインで拡張できます。プラグイン管理UIからインストールすると `plugin/plugin_manifest.js`（プラグイン一覧）と `plugin/plugin_loader.js`（読み込みロジック）が自動生成され、有効になります。
 
 | プラグイン | 機能 |
 |---|---|
@@ -145,13 +145,13 @@ URLは `#[FolderName-]P1-42-C3` 形式に対応。特定のコメントへ直接
 
 ### プラグイン管理UI
 
-サイドバーの「⚙️ 設定」を開き、「🔌 プラグイン」からGUIでプラグインを管理できます。`plugin/plugins.js` を手動で編集する必要はありません。
+サイドバーの「⚙️ 設定」を開き、「🔌 プラグイン」からGUIでプラグインを管理できます。`plugin/plugin_manifest.js` や `plugin/plugin_loader.js` を手動で編集する必要はありません。
 
 - **インストール:** JSファイルをドロップ、またはファイル選択
 - **順序変更:** ドラッグ&ドロップで読み込み順を変更
 - **削除:** リストから除外（JSファイルは残ります）
 
-> **初回のみ:** 「🔌 プラグイン」を開くと `plugin/` フォルダの選択ダイアログが表示されます（2回目以降は自動認識）
+プラグインフォルダ（`plugin/`）は、通常はデータフォルダ（`project_P*.json`があるフォルダ）配下に自動的に作成・使用され、フォルダ選択を求められることはありません。`taskflowzero.html`と同じフォルダなど任意の場所を明示的に使いたい場合は、「📁 プラグインフォルダを変更」ボタンから選び直せます。「🔄 フォルダ選択をやり直す」で自動作成方式に戻せます。
 
 プラグインの作り方は [PLUGIN_DEVELOPER_GUIDE.txt](plugin/PLUGIN_DEVELOPER_GUIDE.txt) を参照してください。
 
