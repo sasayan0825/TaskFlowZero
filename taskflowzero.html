@@ -129,7 +129,7 @@ html.light .inazuma-svg polyline{opacity:.9}
 html.light #file-loader{background:var(--bg)}
 html.light .modal{box-shadow:0 8px 32px rgba(0,0,0,.18)}
 /* theme toggle btn */
-#theme-toggle{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:var(--radius);font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:5px}
+#theme-toggle{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:var(--radius);font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0}
 #theme-toggle:hover{background:var(--surface3)}
 #plugin-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:var(--radius);font-size:13px;cursor:pointer;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:5px}
 #plugin-btn:hover{background:var(--surface3)}
@@ -154,7 +154,7 @@ html.light .modal{box-shadow:0 8px 32px rgba(0,0,0,.18)}
 body{font-family:'Noto Sans JP','Outfit',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
 
 /* HEADER */
-#header{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;z-index:100}
+#header{min-height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;padding:8px 20px;gap:10px 16px;flex-shrink:0;z-index:100}
 #logo{font-family:'Outfit',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.5px;color:var(--accent2);display:flex;align-items:center;gap:8px;white-space:nowrap}
 #file-status{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
 #file-dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
@@ -265,7 +265,7 @@ th.sortable.sort-desc::after{content:' ↓'}
 #folder-history-empty{font-size:12px;color:var(--muted);text-align:center;padding:16px 0}
 
 /* BUTTONS */
-.btn{padding:9px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:inherit}
+.btn{padding:9px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:inherit;white-space:nowrap;flex-shrink:0}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-flash{background:var(--accent2)!important;transition:background .1s}
 .btn-primary:hover{background:var(--accent2)}
@@ -281,11 +281,21 @@ th.sortable.sort-desc::after{content:' ↓'}
 
 /* PROJECT HEADER */
 #project-header{padding:14px 24px 0;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)}
-.project-title-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.project-title-row{display:flex;align-items:center;gap:8px 12px;margin-bottom:8px;flex-wrap:wrap}
 .project-color-badge{width:12px;height:12px;border-radius:3px;flex-shrink:0}
-.project-title{font-family:'Outfit',sans-serif;font-size:20px;font-weight:600;flex:1}
+.project-title{font-family:'Outfit',sans-serif;font-size:20px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .project-desc{font-size:12px;color:var(--muted);margin-bottom:10px}
 .view-tabs{display:flex;gap:0}
+
+/* RESPONSIVE: narrow viewport adaptations (icon-only buttons) */
+@media (max-width:900px){
+  #header .btn .btn-label,
+  #theme-toggle .btn-label,
+  .project-title-row .btn .btn-label{display:none}
+  #header .btn,
+  #theme-toggle,
+  .project-title-row .btn{padding-left:9px;padding-right:9px}
+}
 .view-tab{padding:7px 16px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:5px}
 .view-tab:hover{color:var(--text)}
 .view-tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
@@ -951,10 +961,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
     <span id="file-name-display">未接続</span>
   </div>
   <div style="flex:1"></div>
-  <button id="theme-toggle" onclick="toggleTheme()">🌙 ダーク</button>
-  <button class="btn btn-secondary btn-sm" id="refresh-btn" onclick="manualRefresh()" title="他のメンバーの変更を取得">🔄 更新</button>
-  <button class="btn btn-secondary btn-sm" onclick="if(panelDirty)savePanelTask();if(state.currentView==='wiki'&&_wikiDirty)saveWiki();saveFile(true)">💾 保存</button>
-  <button class="btn btn-secondary btn-sm" onclick="openFile()">📂 フォルダ変更</button>
+  <button id="theme-toggle" onclick="toggleTheme()" title="テーマ切替">🌙 <span class="btn-label">ダーク</span></button>
+  <button class="btn btn-secondary btn-sm" id="refresh-btn" onclick="manualRefresh()" title="他のメンバーの変更を取得">🔄 <span class="btn-label">更新</span></button>
+  <button class="btn btn-secondary btn-sm" title="保存" onclick="if(panelDirty)savePanelTask();if(state.currentView==='wiki'&&_wikiDirty)saveWiki();saveFile(true)">💾 <span class="btn-label">保存</span></button>
+  <button class="btn btn-secondary btn-sm" onclick="openFile()" title="フォルダ変更">📂 <span class="btn-label">フォルダ変更</span></button>
   
 </div>
 
@@ -1152,11 +1162,11 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div class="project-color-badge" id="ph-color-badge"></div>
           <div class="project-title" id="ph-title"></div>
           <span id="ph-project-num" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:2px 7px;border-radius:4px;flex-shrink:0"></span>
-          <button class="btn btn-secondary btn-sm" onclick="openMilestoneModal()">🏁 マイルストーン</button>
-          <button class="btn btn-secondary btn-sm" onclick="openProjectModal(state.currentProjectId)">✏️ 編集</button>
-          <button class="btn btn-secondary btn-sm" id="btn-archive-project" onclick="toggleArchiveProject(state.currentProjectId)">📦 完了</button>
-          <button class="btn btn-secondary btn-sm" onclick="openProjectSettings(state.currentProjectId)">⚙️ 設定</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteProject(state.currentProjectId)">🗑</button>
+          <button class="btn btn-secondary btn-sm" onclick="openMilestoneModal()" title="マイルストーン">🏁 <span class="btn-label">マイルストーン</span></button>
+          <button class="btn btn-secondary btn-sm" onclick="openProjectModal(state.currentProjectId)" title="編集">✏️ <span class="btn-label">編集</span></button>
+          <button class="btn btn-secondary btn-sm" id="btn-archive-project" onclick="toggleArchiveProject(state.currentProjectId)" title="完了">📦 <span class="btn-label">完了</span></button>
+          <button class="btn btn-secondary btn-sm" onclick="openProjectSettings(state.currentProjectId)" title="設定">⚙️ <span class="btn-label">設定</span></button>
+          <button class="btn btn-danger btn-sm" onclick="deleteProject(state.currentProjectId)" title="削除">🗑</button>
         </div>
         <div class="project-desc" id="ph-desc"></div>
         <div class="view-tabs">
@@ -2002,12 +2012,13 @@ let _timelineFilter = (() => {
 // THEME
 // ═══════════════════════════════════════
 function applyTheme(theme) {
+  const btn = document.getElementById('theme-toggle');
   if (theme === 'light') {
     document.documentElement.classList.add('light');
-    document.getElementById('theme-toggle').textContent = '☀️ ライト';
+    if (btn) btn.innerHTML = '☀️ <span class="btn-label">ライト</span>';
   } else {
     document.documentElement.classList.remove('light');
-    document.getElementById('theme-toggle').textContent = '🌙 ダーク';
+    if (btn) btn.innerHTML = '🌙 <span class="btn-label">ダーク</span>';
   }
 }
 function _initNavTooltips() {
@@ -2028,7 +2039,9 @@ function _initNavTooltips() {
     el.addEventListener('mouseleave', _hideSidebarTooltip);
   });
 }
+let _sidebarAutoCollapsed = false;
 function toggleSidebar() {
+  _sidebarAutoCollapsed = false; // manual action always overrides the auto narrow-width behavior
   const sb = document.getElementById('sidebar');
   const btn = document.getElementById('sidebar-toggle-btn');
   const collapsed = sb.classList.toggle('collapsed');
@@ -2040,6 +2053,31 @@ function toggleSidebar() {
     el.style.display = collapsed ? 'none' : '';
   });
 }
+// 画面幅が狭い場合はサイドバーを自動で折りたたみ、メインエリアの幅を確保する。
+// ユーザーが手動で開閉した場合はその選択を優先し、自動処理は行わない。
+(function _initSidebarAutoCollapse() {
+  const MQ = window.matchMedia('(max-width: 900px)');
+  function handleChange(mq) {
+    const sb = document.getElementById('sidebar');
+    const btn = document.getElementById('sidebar-toggle-btn');
+    if (!sb || !btn) return;
+    if (mq.matches) {
+      if (!sb.classList.contains('collapsed')) {
+        sb.classList.add('collapsed');
+        btn.textContent = '›';
+        btn.title = 'サイドバーを展開';
+        _sidebarAutoCollapsed = true;
+      }
+    } else if (_sidebarAutoCollapsed) {
+      sb.classList.remove('collapsed');
+      btn.textContent = '‹';
+      btn.title = 'サイドバーを折りたたむ';
+      _sidebarAutoCollapsed = false;
+    }
+  }
+  MQ.addEventListener('change', () => handleChange(MQ));
+  document.addEventListener('DOMContentLoaded', () => handleChange(MQ));
+})();
 function restoreSidebarState() {
   try {
     const c = localStorage.getItem('taskflow-sidebar-collapsed');
@@ -5252,8 +5290,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.12';
-const APP_VERSION_DATE = '2026-08-27';
+const APP_VERSION      = '1.1.13';
+const APP_VERSION_DATE = '2026-08-28';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -6001,7 +6039,7 @@ function openProject(id) {
   const numEl = document.getElementById('ph-project-num');
   if (numEl) numEl.textContent = p.number ? `P${p.number}` : '';
   const btn = document.getElementById('btn-archive-project');
-  if (btn) btn.textContent = p.archived ? '♻️ 未完了に戻す' : '📦 完了';
+  if (btn) _setArchiveBtnLabel(btn, p.archived);
   renderSidebar();
   updateFilters();
   // projectSettings.tabs に従いタブ表示を更新
@@ -8497,6 +8535,12 @@ async function deleteProject(id) {
   window.TaskFlow.emit('project-delete', { project: p });
 }
 
+function _setArchiveBtnLabel(btn, archived) {
+  btn.innerHTML = archived
+    ? '♻️ <span class="btn-label">未完了に戻す</span>'
+    : '📦 <span class="btn-label">完了</span>';
+  btn.title = archived ? '未完了に戻す' : '完了';
+}
 function toggleArchiveProject(id) {
   const p = getProject(id); if(!p) return;
   p.archived = !p.archived;
@@ -8504,7 +8548,7 @@ function toggleArchiveProject(id) {
   window.TaskFlow.emit('project-archive', { project: p, archived: p.archived });
   // Update header button label if inside project detail
   const btn = document.getElementById('btn-archive-project');
-  if (btn) btn.textContent = p.archived ? '♻️ 未完了に戻す' : '📦 完了';
+  if (btn) _setArchiveBtnLabel(btn, p.archived);
   if (p.archived && state.currentProjectId === id) {
     // アーカイブしたプロジェクトの詳細画面にいる場合は一覧へ戻る
     state.currentProjectId = null;
