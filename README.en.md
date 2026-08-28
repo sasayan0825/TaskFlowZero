@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.11-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.12-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -45,7 +45,7 @@ Select a shared folder and everyone can read and edit the same data. Conflicts f
 | Kanban | Drag cards across status columns |
 | Gantt | Drag bars to adjust dates, with progress lightning line |
 | Burndown | Visualize sprint progress by story points |
-| Wiki | Multi-page support. Write specs and docs in Markdown, auto-saved on preview |
+| Wiki | Multi-page support. Write specs and docs in Markdown, auto-saved on preview, with direct links to headings |
 
 ---
 
@@ -101,7 +101,11 @@ A cross-project dashboard showing all tasks assigned to you, @mentions directed 
 Type `@` in any comment, task description, or Wiki to trigger member autocomplete. Mentioned members are notified in the My Tasks screen.
 
 ### 📝 Markdown Toolbar
-Every text area — comments, task descriptions, Wiki, and the task creation modal — has a formatting toolbar with **Bold (Ctrl+B), Italic (Ctrl+I), Code, List, and Heading** buttons.
+Every text area — comments, task descriptions, Wiki, and the task creation modal — has a formatting toolbar with **Bold (Ctrl+B), Italic (Ctrl+I), Code, List, and Heading** buttons. Code block language options include JS, Python, SQL, and more, as well as `.properties`-style config files (Properties).
+
+### 🔗 Direct Links to Wiki Headings
+Hover over a Wiki heading to reveal a 🔗 icon, or use the "🔗 Link" button in the Wiki toolbar (for a page-level link), to copy a Markdown-formatted link. Pasting that link into a task comment, task description, or another Wiki page turns it into a clickable link — clicking it jumps to the target project, page, and heading automatically.
+> Heading links are generated from the heading text, so renaming a heading breaks links pointing to it (the page-level link itself still works).
 
 ### 📎 File & Image Attachments
 Click the 📎 button to attach files or images. Attachments are saved to `files/P{n}/` inside your data folder. Images render inline; other files appear as download links.
@@ -185,6 +189,7 @@ Managing IDs and passwords inside the app would only add overhead and introduce 
 - **Storage:** File System Access API (folder selection) + IndexedDB (folder history, up to 10 entries)
 - **Data format:** One JSON file per project (`project_P1.json`, `project_P2.json` ...)
 - **Attachments:** Saved to `files/P{n}/`, managed via the `tfz://` protocol
+- **Internal links:** Task references (`#P{n}-{taskNum}`) and Wiki page/heading links (`wiki://P{n}-{pageId}#{headingId}`)
 - **Markdown:** [marked.js](https://marked.js.org/) (CDN or local file)
 - **Charts:** [Chart.js](https://www.chartjs.org/) (CDN or local file)
 - **Syntax highlighting:** [highlight.js](https://highlightjs.org/) (CDN with automatic fallback to built-in highlighter)

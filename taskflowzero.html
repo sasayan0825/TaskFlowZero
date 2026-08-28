@@ -783,6 +783,14 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 #wiki-preview h2{font-family:'Outfit',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 #wiki-preview h3{font-family:'Outfit',sans-serif;font-size:16px;font-weight:600;color:var(--text);margin:20px 0 8px}
 #wiki-preview h4{font-size:14px;font-weight:600;color:var(--text);margin:16px 0 6px}
+#wiki-preview h1,#wiki-preview h2,#wiki-preview h3,#wiki-preview h4{scroll-margin-top:20px}
+.wiki-heading-link{display:inline-block;margin-left:6px;font-size:.7em;text-decoration:none;opacity:0;transition:opacity .15s;cursor:pointer;vertical-align:middle}
+#wiki-preview h1:hover .wiki-heading-link,#wiki-preview h2:hover .wiki-heading-link,#wiki-preview h3:hover .wiki-heading-link,#wiki-preview h4:hover .wiki-heading-link{opacity:.6}
+.wiki-heading-link:hover{opacity:1 !important}
+.wiki-ref-link{font-size:.92em;color:var(--accent2);background:rgba(79,142,255,.1);border:1px solid rgba(79,142,255,.25);border-radius:3px;padding:0 5px;text-decoration:none !important;cursor:pointer;white-space:nowrap}
+.wiki-ref-link:hover{background:rgba(79,142,255,.18)}
+.wiki-ref-link.wiki-ref-missing{color:var(--muted);background:none;border-style:dashed;text-decoration:line-through !important;cursor:default}
+.wiki-ref-icon{margin-right:2px}
 #wiki-preview p{margin-bottom:12px;color:var(--text)}
 #wiki-preview a{color:var(--accent2);text-decoration:none}
 #wiki-preview a:hover{text-decoration:underline}
@@ -1309,6 +1317,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div class="wiki-toolbar">
             <button class="wiki-toolbar-toggle-btn" id="wiki-page-sidebar-toggle" title="ページ一覧を表示/非表示" onclick="toggleWikiPageSidebar()">📑</button>
             <span class="wiki-toolbar-title" id="wiki-toolbar-title-text">📖 Wiki</span>
+            <button class="md-btn" id="wiki-page-link-btn" onclick="copyWikiPageLink()" title="このページへのリンクをコピー（コメント等に貼り付け可能）">🔗 リンク</button>
             <button class="md-btn" id="wiki-edit-btn" onclick="setWikiMode('edit')">✏️ 編集</button>
             <button class="md-btn active" id="wiki-preview-btn" onclick="setWikiMode('preview')">👁 プレビュー</button>
             <div class="md-toolbar-sep"></div>
@@ -5243,8 +5252,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.11';
-const APP_VERSION_DATE = '2026-08-25';
+const APP_VERSION      = '1.1.12';
+const APP_VERSION_DATE = '2026-08-27';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -7644,13 +7653,14 @@ function buildWikiHtml(raw) {
   }
   try {
     // まず普通にパース（バージョン依存しない安全な方法）
-    let html = linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(raw)))));
-    // パース後のHTMLの見出しタグにアンカーIDを付与（正規表現で後処理）
+    let html = linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(raw))))));
+    // パース後のHTMLの見出しタグにアンカーIDを付与し、リンクコピー用アイコンを追加（正規表現で後処理）
     html = html.replace(/<h([1-4])>(.*?)<\/h\1>/gi, (match, level, text) => {
       // HTMLタグを除去してIDを生成
       const plainText = text.replace(/<[^>]+>/g, '');
       const id = 'wiki-h-' + plainText.replace(/[^\w\u3040-\u9FFF]/g, '-').toLowerCase().slice(0, 50);
-      return `<h${level} id="${id}">${text}</h${level}>`;
+      const linkIcon = `<a class="wiki-heading-link" href="javascript:void(0)" data-heading-text="${esc(plainText)}" onclick="event.stopPropagation();copyWikiHeadingLinkFromEl(this)" title="この見出しへのリンクをコピー">🔗</a>`;
+      return `<h${level} id="${id}">${text}${linkIcon}</h${level}>`;
     });
     return html;
   } catch(e) {
@@ -7958,10 +7968,11 @@ function selectColor(c,rowId){
 }
 
 // ── インポート時：プロジェクト内の自己参照リンクの番号を新番号へ書き換え ──
-// 対象: #P{旧番号}-{タスク番号}(-C{コメント番号}) 形式の参照リンク、tfz://P{旧番号}/{ファイル名} 形式の添付ファイルリンク
+// 対象: #P{旧番号}-{タスク番号}(-C{コメント番号}) 形式の参照リンク、tfz://P{旧番号}/{ファイル名} 形式の添付ファイルリンク、
+//       wiki://P{旧番号}-{ページID}(#{見出しID}) 形式のWikiリンク
 function _rewriteProjectRefs(project, oldNumber, newNumber) {
   if (oldNumber == null || newNumber == null || oldNumber === newNumber) return;
-  const pat = new RegExp(`(?<![A-Za-z0-9])P${oldNumber}(?=-\\d|/)`, 'g');
+  const pat = new RegExp(`(?<![A-Za-z0-9])P${oldNumber}(?=-[0-9A-Za-z]|/)`, 'g');
   const fix = (s) => (typeof s === 'string' && s.indexOf('P'+oldNumber) !== -1) ? s.replace(pat, 'P'+newNumber) : s;
 
   (project.tasks || []).forEach(t => {
@@ -9462,6 +9473,36 @@ function linkifyTaskRefs(html) {
   });
 }
 
+// Markdown レンダリング後HTML内の wiki://P{番号}-{ページID}[#見出しID] を
+// クリック可能なリンクに変換（コメント・タスク詳細・Wiki本文いずれからも使用）
+function linkifyWikiLinks(html) {
+  html = html.replace(/href="wiki:\/\/([^"]+)"/g, (_, raw) => {
+    const decoded = _decodeTfzKey(raw);
+    const m = decoded.match(/^P(\d+)-([^#]+?)(?:#(.+))?$/);
+    if (!m) return `href="javascript:void(0)" class="wiki-ref-link wiki-ref-missing" onclick="return false"`;
+    const pNum = parseInt(m[1]), pageId = m[2], headingId = m[3] || '';
+    const proj = (state.data?.projects || []).find(x => x.number === pNum);
+    const page = proj ? (proj.wikiPages || []).find(pg => pg.id === pageId) : null;
+    if (!page) {
+      return `href="javascript:void(0)" class="wiki-ref-link wiki-ref-missing" title="Wikiページが見つかりません" onclick="return false"`;
+    }
+    const safeRef = decoded.replace(/'/g, "\\'");
+    const titleAttr = esc(proj.name + (headingId ? ' / ' + page.title : ' / ' + page.title + ' へのリンク'));
+    return `href="javascript:void(0)" class="wiki-ref-link" title="${titleAttr}" onclick="navigateToWikiRef('${safeRef}');return false"`;
+  });
+  // アイコンを付与（先頭に📖）
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  container.querySelectorAll('a.wiki-ref-link').forEach(a => {
+    if (a.querySelector(':scope > .wiki-ref-icon')) return;
+    const icon = document.createElement('span');
+    icon.className = 'wiki-ref-icon';
+    icon.textContent = '📖';
+    a.insertBefore(icon, a.firstChild);
+  });
+  return container.innerHTML;
+}
+
 // 書式ボタン・区切りの表示切り替え（編集時のみ表示）
 function _toggleFmtBtns(editBtnId, visible) {
   const toolbar = document.getElementById(editBtnId)?.closest('.md-toolbar, .wiki-toolbar');
@@ -9475,7 +9516,7 @@ function setMdMode(mode){
   const ta=document.getElementById('panel-desc');
   const pv=document.getElementById('panel-desc-preview');
   if(mode==='preview'){
-    pv.innerHTML=linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value||'*(内容なし)*')))));
+    pv.innerHTML=linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value||'*(内容なし)*'))))));
     pv.style.height='auto';
     pv.style.display='block'; ta.style.display='none';
     document.getElementById('md-edit-btn').classList.remove('active');
@@ -9670,6 +9711,26 @@ function _selfHighlight(raw, lang) {
       .replace(/\b(\d+\.?\d*(?:[eE][+-]?\d+)?)\b/g, m => w('hljs-number', m));
   }
 
+  // Properties (.properties / application.properties 等の key=value 形式)
+  if (L === 'properties') {
+    const lines = raw.split('\n');
+    if (lines[lines.length - 1] === '') lines.pop(); // 末尾の空行を除去
+    return lines.map((line, i, arr) => {
+      const nl = i < arr.length - 1 ? '\n' : '';
+      const trimmed = line.replace(/^[ \t]*/, '');
+      // コメント行（# または !）
+      if (trimmed.startsWith('#') || trimmed.startsWith('!')) {
+        return w('hljs-comment', esc(line)) + nl;
+      }
+      // key = value / key: value（区切り文字はエスケープされた文字を除く）
+      const m = line.match(/^([ \t]*(?:\\.|[^\s=:\\])+)([ \t]*[=:][ \t]*)(.*)$/);
+      if (m) {
+        return w('hljs-attr', esc(m[1])) + esc(m[2]) + w('hljs-string', esc(m[3])) + nl;
+      }
+      return esc(line) + nl;
+    }).join('');
+  }
+
   // Generic tokenizer (JS/TS/Python/Bash/Java/C/C++/Go/Rust/Ruby/PHP/SQL)
   const kws = _SHL_KW[L] || new Set();
   const isSQL = L === 'sql';
@@ -9765,6 +9826,8 @@ const MD_CODE_LANGS = [
   {id:'xml',        label:'XML'},
   {id:'sql',        label:'SQL'},
   {id:'json',       label:'JSON'},
+  {id:'yaml',       label:'YAML'},
+  {id:'properties', label:'Properties'},
   {id:'java',       label:'Java'},
   {id:'c',          label:'C'},
   {id:'cpp',        label:'C++'},
@@ -9772,7 +9835,6 @@ const MD_CODE_LANGS = [
   {id:'rust',       label:'Rust'},
   {id:'ruby',       label:'Ruby'},
   {id:'php',        label:'PHP'},
-  {id:'yaml',       label:'YAML'},
   {id:'diff',       label:'Diff'},
 ];
 
@@ -9866,7 +9928,7 @@ function setTmDescMode(mode) {
   const pBtn = document.getElementById('tm-desc-preview-btn');
   if (!ta || !pv) return;
   if (mode === 'preview') {
-    pv.innerHTML = linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*')))));
+    pv.innerHTML = linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*'))))));
     pv.style.display = 'block';
     ta.style.display = 'none';
     eBtn.classList.remove('active');
@@ -9910,7 +9972,7 @@ function setCmtMode(mode) {
   const editBtn = document.getElementById('cmt-edit-btn');
   const prevBtn = document.getElementById('cmt-preview-btn');
   if (mode === 'preview') {
-    pv.innerHTML = linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*')))));
+    pv.innerHTML = linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*'))))));
     pv.style.display = 'block';
     ta.style.display = 'none';
     editBtn.classList.remove('active');
@@ -9984,7 +10046,7 @@ function renderTimeline(t) {
             <button onclick="startEditComment(${i})" title="編集" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">✏️</button>
             <button onclick="deleteComment(${i})" title="削除" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
           </div>
-          <div class="md-preview" style="display:block;min-height:unset;border:none;padding:4px 8px;background:var(--surface2);border-radius:5px;font-size:12px">${linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(c.text||'')))))}</div>
+          <div class="md-preview" style="display:block;min-height:unset;border:none;padding:4px 8px;background:var(--surface2);border-radius:5px;font-size:12px">${linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(c.text||''))))))}</div>
           ${effortBadge}
         </div>
       </div>`;
@@ -10515,6 +10577,68 @@ function navigateToHash(hash) {
       setTimeout(() => scrollToComment(commentNo), 300);
     }
   }, 100);
+}
+
+// wiki://P{番号}-{ページID}[#見出しID] 参照からWikiページ・見出しへ遷移
+function navigateToWikiRef(ref) {
+  const m = ref.match(/^P(\d+)-([^#]+?)(?:#(.+))?$/);
+  if (!m) return;
+  const pNum = parseInt(m[1]);
+  const pageId = m[2];
+  const headingId = m[3] || null;
+  const p = state.data.projects.find(x => x.number === pNum);
+  if (!p) { toast(`プロジェクト P${pNum} が見つかりません`, 'error'); return; }
+  const page = (p.wikiPages || []).find(pg => pg.id === pageId);
+  if (!page) { toast('Wikiページが見つかりません（削除された可能性があります）', 'error'); return; }
+
+  const goToPage = () => {
+    switchView('wiki');
+    if (_wikiMode === 'edit') setWikiMode('preview');
+    _wikiCurrentPageId = pageId;
+    renderWiki();
+    if (headingId) {
+      setTimeout(() => {
+        if (!document.getElementById(headingId)) {
+          toast('見出しが見つかりません（見出しの文言が変更された可能性があります）', 'warn');
+          return;
+        }
+        scrollToWikiHeading(headingId);
+      }, 100);
+    }
+  };
+
+  if (state.currentProjectId !== p.id) {
+    openProject(p.id);
+    setTimeout(goToPage, 100);
+  } else {
+    goToPage();
+  }
+}
+
+// Wikiページ・見出しへのリンク（Markdown形式）をクリップボードにコピー
+function _wikiRefHref(pageId, headingId) {
+  const p = getProject(state.currentProjectId);
+  return `wiki://P${p.number}-${pageId}` + (headingId ? `#${headingId}` : '');
+}
+function _copyWikiMd(mdText) {
+  navigator.clipboard.writeText(mdText).then(() => {
+    toast('Wikiへのリンクをコピーしました。コメントや詳細に貼り付けられます', 'success');
+  }).catch(() => {
+    prompt('このリンクをコピーしてください:', mdText);
+  });
+}
+function copyWikiPageLink() {
+  const p = getProject(state.currentProjectId); if (!p) return;
+  const page = _currentWikiPage(p); if (!page) return;
+  _copyWikiMd(`[${page.title}](${_wikiRefHref(page.id, null)})`);
+}
+function copyWikiHeadingLinkFromEl(el) {
+  const p = getProject(state.currentProjectId); if (!p) return;
+  const page = _currentWikiPage(p); if (!page) return;
+  const h = el.closest('h1,h2,h3,h4');
+  if (!h) return;
+  const headingText = el.getAttribute('data-heading-text') || '';
+  _copyWikiMd(`[${page.title} > ${headingText}](${_wikiRefHref(page.id, h.id)})`);
 }
 
 function copyTaskUrl() {

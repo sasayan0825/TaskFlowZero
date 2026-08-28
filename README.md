@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.11-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.12-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -42,7 +42,7 @@ HTMLファイル1つ。それだけです。
 | カンバン | ステータス別カード管理 |
 | ガント | バーのドラッグで日程調整、イナズマ線対応 |
 | バーンダウン | スプリントの進捗を可視化 |
-| Wiki | 複数ページ対応。Markdownで仕様書・設計書を管理、プレビュー時自動保存 |
+| Wiki | 複数ページ対応。Markdownで仕様書・設計書を管理、プレビュー時自動保存、見出しへの直接リンク対応 |
 
 ---
 
@@ -98,7 +98,11 @@ HTMLと同じフォルダに以下を置くと完全オフラインで動作し�
 コメント・タスク詳細・Wikiで「@」を入力するとメンバー候補がポップアップ表示されます。メンションされたメンバーはマイタスク画面で通知を受け取れます。
 
 ### 📝 Markdownツールバー
-コメント・タスク詳細・Wiki・タスク追加モーダルすべてのテキストエリアに書式ボタンを搭載。**太字（Ctrl+B）・斜体（Ctrl+I）・コード・リスト・見出し**をワンクリックで挿入できます。
+コメント・タスク詳細・Wiki・タスク追加モーダルすべてのテキストエリアに書式ボタンを搭載。**太字（Ctrl+B）・斜体（Ctrl+I）・コード・リスト・見出し**をワンクリックで挿入できます。コードブロックの言語候補には JS / Python / SQL などに加え `.properties` 形式（Properties）も選択できます。
+
+### 🔗 Wiki見出しへのリンク
+Wikiの見出しにカーソルを合わせると表示される🔗アイコン、またはWikiツールバーの「🔗 リンク」ボタン（ページ全体へのリンク）でMarkdown形式のリンクをコピーできます。コピーしたリンクはタスクのコメント・詳細欄・他のWikiページに貼り付けるとクリック可能なリンクになり、クリックすると該当プロジェクト・ページ・見出しまで自動でジャンプします。
+> 見出しへのリンクは見出しの文言から自動生成されるため、見出しの文言を変更すると該当リンクは無効になります（ページ自体へのリンクは維持されます）。
 
 ### 📎 ファイル・画像の添付
 📎 ボタンからファイルや画像を添付できます。添付したファイルは `files/P{n}/` フォルダに保存され、画像はインライン表示、その他のファイルはダウンロードリンクとして表示されます。
@@ -182,6 +186,7 @@ TaskFlowZeroにはログイン・認証機能がありません。これは意�
 - **ストレージ:** File System Access API（フォルダ選択）+ IndexedDB（フォルダ履歴、最大10件）
 - **データ形式:** プロジェクトごとの独立JSON（`project_P1.json`, `project_P2.json` ...）
 - **添付ファイル:** `files/P{n}/` フォルダに保存、`tfz://` プロトコルで管理
+- **内部リンク:** タスク参照リンク（`#P{番号}-{タスク番号}`）、Wikiページ・見出しリンク（`wiki://P{番号}-{ページID}#{見出しID}`）
 - **Markdown:** [marked.js](https://marked.js.org/)（CDN or ローカルファイル）
 - **チャート:** [Chart.js](https://www.chartjs.org/)（CDN or ローカルファイル）
 - **シンタックスハイライト:** [highlight.js](https://highlightjs.org/)（CDN取得失敗時は内蔵の自作ハイライターで自動フォールバック）
