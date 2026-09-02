@@ -233,7 +233,8 @@
               const hitIdx = sortedComments.findIndex(c => (c.text||'').toLowerCase().includes(q));
               if (hitIdx !== -1) {
                 hitType = 'comment';
-                commentNo = hitIdx + 1;
+                // 固定採番(c.no)を使用。無い場合（旧データ）はインデックスにフォールバック
+                commentNo = sortedComments[hitIdx].no || (hitIdx + 1);
                 const cText = sortedComments[hitIdx].text;
                 const idx = cText.toLowerCase().indexOf(q);
                 hitSnippet = cText.substring(Math.max(0, idx - 40), Math.min(cText.length, idx + 60));

@@ -3187,6 +3187,20 @@ function _migrateProjectFields(projects) {
         if (c.done !== undefined && c.checked === undefined) c.checked = c.done;
         if (c.checked === undefined) c.checked = false;
       });
+      // v1.1.15〜: コメント番号(no)を作成時に固定の連番として付与。
+      // 従来は表示時にcreatedAt昇順の配列インデックス(idx+1)を番号として使っていたため、
+      // 途中のコメントを削除すると後続コメントの番号がすべて1つずつ繰り上がってしまい、
+      // 「#C3」のような番号メンションが指すコメントが変わってしまう不具合があった。
+      // 対策として、コメントに不変の.no（タスクごとの連番カウンタnextCommentNoから採番）を
+      // 持たせ、削除後も残ったコメントの番号は変化しないようにする。
+      // 未移行データ（.noを持たないコメントが1件でもある）は、createdAt昇順で1から採番して初期化する。
+      if (t.comments && t.comments.some(c => c.no === undefined || c.no === null)) {
+        const _sorted = [...t.comments].sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? -1 : 1);
+        _sorted.forEach((c, i) => { c.no = i + 1; });
+      }
+      if (!t.nextCommentNo) {
+        t.nextCommentNo = Math.max(0, ...((t.comments || []).map(c => c.no || 0))) + 1;
+      }
       // baseEstimatedHours フィールド補完（旧形式からの移行）
       // 旧ロジックはコメント追加/編集/削除のたびに recalcHours が effortLog合計のみで
       // estimatedHours を上書きしていたため、コメントが1件でも存在するタスクは
@@ -3872,6 +3886,13 @@ function threeWayMerge(base, mine, disk) {
       });
 
       mergedT.comments = mergedComments.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+      // コメント番号カウンタ(nextCommentNo)も3-wayでマージする。
+      // base/mine/disk それぞれのカウンタとマージ後コメントの最大noから最大値を採用し、
+      // 両側で新規コメントが追加された場合でも番号の衝突が起きないようにする。
+      mergedT.nextCommentNo = Math.max(
+        tb?.nextCommentNo || 1, tm?.nextCommentNo || 1, td?.nextCommentNo || 1,
+        ...mergedComments.map(c => (c.no || 0) + 1)
+      );
       // 墓標（_deletedCommentIds）は B・A 双方の削除 ID を合算して引き継ぐ。
       // マージ後のコメントに含まれていない ID のみ保持し、リストが肥大化しないようにする。
       const mergedComIds = new Set(mergedComments.map(c => c.id));
@@ -4656,11 +4677,11 @@ function renderMyTasks() {
       (p.tasks || []).forEach(t => {
         if (mentionStatFilter === 'open' && t.status === 'done') return;
         if (mentionProjFilter && p.id !== mentionProjFilter) return;
-        // コメントの通し番号（createdAt昇順インデックス）を付与
+        // コメント番号は固定採番(c.no)を使用（削除後も他コメントの番号とズレないため）
         const sortedComments = [...(t.comments||[])].sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
         sortedComments.forEach((c, idx) => {
           if (c.text && c.text.includes(pattern)) {
-            mentions.push({ project: p, task: t, comment: c, commentNo: idx + 1 });
+            mentions.push({ project: p, task: t, comment: c, commentNo: c.no || (idx + 1) });
           }
         });
       });
@@ -5118,15 +5139,16 @@ function _buildLikeData(myName) {
       // コメントへのいいね・ブックマーク
       const sorted = [...(t.comments || [])].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       sorted.forEach((c, idx) => {
+        const commentNo = c.no || (idx + 1); // 固定採番(c.no)を使用（削除後も番号がズレないため）
         (c.likes || []).forEach(l => {
           if (c.author === myName && l.id !== myName)
-            received.push({ project: p, task: t, comment: c, commentNo: idx + 1, likedBy: l.id, at: l.at });
+            received.push({ project: p, task: t, comment: c, commentNo, likedBy: l.id, at: l.at });
           if (l.id === myName)
-            likedBy.push({ project: p, task: t, comment: c, commentNo: idx + 1, at: l.at });
+            likedBy.push({ project: p, task: t, comment: c, commentNo, at: l.at });
         });
         (c.bookmarks || []).forEach(b => {
           if (b.id === myName)
-            bookmarked.push({ project: p, task: t, comment: c, commentNo: idx + 1, at: b.at });
+            bookmarked.push({ project: p, task: t, comment: c, commentNo, at: b.at });
         });
       });
     });
@@ -5297,8 +5319,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.14';
-const APP_VERSION_DATE = '2026-09-01';
+const APP_VERSION      = '1.1.15';
+const APP_VERSION_DATE = '2026-09-02';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -9555,7 +9577,11 @@ function linkifyTaskRefs(html) {
 
     const p = (state.data?.projects||[]).find(x => x.number === pNum);
     const t = p?.tasks.find(x => x.number === tNum);
-    const c = (commentNo != null && t) ? (t.comments||[])[commentNo-1] : null;
+    // コメントは固定採番(.no)で検索する（配列インデックスだと削除後にズレるため）。
+    // .noを持たない旧データが万一残っていた場合のみインデックスにフォールバック。
+    const c = (commentNo != null && t)
+      ? ((t.comments||[]).find(x => x.no === commentNo) || (t.comments||[])[commentNo-1])
+      : null;
     const found = !!t && (commentNo == null || !!c);
     let title = '（見つかりません）';
     if (t) title = commentNo != null
@@ -10150,8 +10176,9 @@ function renderTimeline(t) {
   list.innerHTML = items.map(item => {
     if (item.kind === 'comment') {
       const c = item.data; const i = item.idx;
-      // コメント番号：createdAt 昇順での連番（削除後もずれない）
-      const commentNo = i + 1;
+      // コメント番号：コメント作成時に採番した固定値（c.no）を使用。
+      // 配列インデックスではないため、途中のコメントを削除しても他のコメントの番号は変わらない。
+      const commentNo = c.no || (i + 1);
       const effortBadge = c.effortLog ? (() => {
         const parts = [];
         if (c.effortLog.estimated) parts.push(`見積 ${c.effortLog.estimated}h`);
@@ -10329,7 +10356,9 @@ function addComment(){
   if(!text){toast('コメントを入力してください','error');return;}
   const t=getTask(state.currentProjectId,_panelTaskId); if(!t)return;
   if(!t.comments)t.comments=[];
-  const comment={id:uid(),author,text,createdAt:new Date().toISOString(),likes:[],bookmarks:[]};
+  // コメント番号は削除しても後続コメントとズレないよう、タスクごとの連番カウンタから固定採番する
+  if(!t.nextCommentNo) t.nextCommentNo=Math.max(0,...t.comments.map(c=>c.no||0))+1;
+  const comment={id:uid(),no:t.nextCommentNo++,author,text,createdAt:new Date().toISOString(),likes:[],bookmarks:[]};
   if(hasEffort) comment.effortLog={estimated:estVal,actual:actVal};
   t.comments.push(comment);
   recalcHours(t);
