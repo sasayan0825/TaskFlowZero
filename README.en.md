@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.13-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.14-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -189,7 +189,7 @@ Managing IDs and passwords inside the app would only add overhead and introduce 
 - **Storage:** File System Access API (folder selection) + IndexedDB (folder history, up to 10 entries)
 - **Data format:** One JSON file per project (`project_P1.json`, `project_P2.json` ...)
 - **Attachments:** Saved to `files/P{n}/`, managed via the `tfz://` protocol
-- **Internal links:** Task references (`#P{n}-{taskNum}`) and Wiki page/heading links (`wiki://P{n}-{pageId}#{headingId}`)
+- **Internal links:** Task references (`#P{n}-{taskNum}`, shortenable to `#{taskNum}` within the same project, and to `#C{commentNum}` for a comment on the currently open task) and Wiki page/heading links (`wiki://P{n}-{pageId}#{headingId}`)
 - **Markdown:** [marked.js](https://marked.js.org/) (CDN or local file)
 - **Charts:** [Chart.js](https://www.chartjs.org/) (CDN or local file)
 - **Syntax highlighting:** [highlight.js](https://highlightjs.org/) (CDN with automatic fallback to built-in highlighter)

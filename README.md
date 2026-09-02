@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.13-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.1.14-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -186,7 +186,7 @@ TaskFlowZeroにはログイン・認証機能がありません。これは意�
 - **ストレージ:** File System Access API（フォルダ選択）+ IndexedDB（フォルダ履歴、最大10件）
 - **データ形式:** プロジェクトごとの独立JSON（`project_P1.json`, `project_P2.json` ...）
 - **添付ファイル:** `files/P{n}/` フォルダに保存、`tfz://` プロトコルで管理
-- **内部リンク:** タスク参照リンク（`#P{番号}-{タスク番号}`）、Wikiページ・見出しリンク（`wiki://P{番号}-{ページID}#{見出しID}`）
+- **内部リンク:** タスク参照リンク（`#P{番号}-{タスク番号}`、同一プロジェクト内では`#{タスク番号}`、現在開いているタスクのコメントは`#C{コメント番号}`とも省略可）、Wikiページ・見出しリンク（`wiki://P{番号}-{ページID}#{見出しID}`）
 - **Markdown:** [marked.js](https://marked.js.org/)（CDN or ローカルファイル）
 - **チャート:** [Chart.js](https://www.chartjs.org/)（CDN or ローカルファイル）
 - **シンタックスハイライト:** [highlight.js](https://highlightjs.org/)（CDN取得失敗時は内蔵の自作ハイライターで自動フォールバック）

@@ -412,6 +412,8 @@
     '（なし）':                           '(None)',
     '（空）':                             '(Empty)',
     '（見つかりません）':                 '(Not found)',
+    '開いているタスクがありません':       'No task panel is open',
+    '現在のプロジェクトが特定できません': 'Current project could not be determined',
     'はい':                               'Yes',
     'いいえ':                             'No',
     'マイルストーンを編集':               'Edit Milestone',
