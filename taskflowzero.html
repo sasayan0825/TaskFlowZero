@@ -4505,11 +4505,16 @@ function _hideSidebarTooltip() {
 function renderSidebar() {
   const c = document.getElementById('sidebar-projects');
   c.innerHTML = '';
+  // マイタスク画面に留まったままタスクパネルを開いている間は、裏で
+  // state.currentProjectId がそのタスクのプロジェクトに設定されているが、
+  // サイドバー上は「マイタスク」のみをアクティブ表示し、プロジェクト側は
+  // 二重にハイライトしない（openTaskPanelFromMyTasks参照）。
+  const _isMyTasksNow = document.getElementById('my-tasks-view').style.display !== 'none';
   // アーカイブされていないプロジェクトのみ表示
   state.data.projects.filter(p => !p.archived).sort(_projectSortComparator).forEach(p => {
     const done = p.tasks.filter(t=>t.status==='done').length;
     const d = document.createElement('div');
-    d.className = 'sidebar-item'+(p.id===state.currentProjectId?' active':'');
+    d.className = 'sidebar-item'+(p.id===state.currentProjectId && !_isMyTasksNow?' active':'');
     d.innerHTML = `<div class="proj-dot" style="background:${p.color||'#4f8eff'}"></div><span class="proj-name">${esc(p.name)}</span><span class="task-count">${done}/${p.tasks.length}</span>`;
     d.addEventListener('mouseenter', e => {
       const sbEl = document.getElementById('sidebar');
@@ -4707,7 +4712,7 @@ function renderMyTasks() {
         );
         const hash = buildTaskHash(p, t, commentNo);
         const commentUrl = window.location.href.split('#')[0] + hash;
-        return `<div class="my-mention-card" onclick="openProject('${p.id}');setTimeout(()=>{openTaskPanel('${t.id}');setTimeout(()=>scrollToComment(${commentNo}),300)},150)">
+        return `<div class="my-mention-card" onclick="openTaskPanelFromMyTasks('${p.id}','${t.id}',${commentNo})">
           <div class="my-mention-meta">
             <span class="my-mention-proj" style="background:${p.color||'#4f8eff'}22;color:${p.color||'#4f8eff'}">${esc(p.name)}</span>
             <span class="my-mention-task">#${t.number} ${esc(t.title)}</span>
@@ -4787,7 +4792,7 @@ function renderMyTasks() {
           const ms = getMilestone(p, t.milestoneId);
           const diff = daysDiff(t.dueDate);
           const dueCls = diff!==null?(diff<0?'color:var(--red)':diff<=3?'color:var(--yellow)':''):'';
-          return `<tr class="my-tasks-row" style="border-bottom:1px solid var(--border)" onclick="openProject('${p.id}');setTimeout(()=>openTaskPanel('${t.id}'),150)">
+          return `<tr class="my-tasks-row" style="border-bottom:1px solid var(--border)" onclick="openTaskPanelFromMyTasks('${p.id}','${t.id}')">
             <td style="padding:7px 8px;font-family:'JetBrains Mono',monospace;color:var(--muted)">#${t.number||'?'}</td>
             <td style="padding:7px 8px;font-weight:500">${esc(t.title)}</td>
             <td style="padding:7px 8px">${t.priority==='high'?'<span class="priority-flag priority-high" title="優先度: 高">↑</span>':t.priority==='low'?'<span class="priority-flag priority-low" title="優先度: 低">↓</span>':'<span style="color:var(--muted);font-size:12px">—</span>'}</td>
@@ -5073,7 +5078,7 @@ function _renderActivityTabContent(myName) {
         const _evTask = _evProj && (_evProj.tasks||[]).find(x => x.id === ev.tid);
         const _evTaskLabel = _evTask ? `#${_evTask.number} ${esc(_evTask.title)}` : '';
         return `
-        <div class="activity-detail-item" onclick="openProject('${ev.pid}');setTimeout(()=>openTaskPanel('${ev.tid}'),150)">
+        <div class="activity-detail-item" onclick="openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}')">
           <div class="my-mention-meta">
             <span style="font-size:14px;flex-shrink:0">${ev.icon}</span>
             <span class="my-mention-proj" style="background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span>
@@ -5252,8 +5257,8 @@ function _renderLikesTabContent(myName) {
     const p = item.project, t = item.task, c = item.comment;
     const s = SMAP[t.status] || SMAP['todo'];
     const jump = c
-      ? `openProject('${p.id}');setTimeout(()=>{openTaskPanel('${t.id}');setTimeout(()=>scrollToComment(${item.commentNo}),300)},150)`
-      : `openProject('${p.id}');setTimeout(()=>openTaskPanel('${t.id}'),150)`;
+      ? `openTaskPanelFromMyTasks('${p.id}','${t.id}',${item.commentNo})`
+      : `openTaskPanelFromMyTasks('${p.id}','${t.id}')`;
     const targetBadge = c
       ? `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--surface3);color:var(--muted);padding:1px 6px;border-radius:3px">C${item.commentNo}</span>`
       : '';
@@ -5319,8 +5324,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.15';
-const APP_VERSION_DATE = '2026-09-02';
+const APP_VERSION      = '1.1.16';
+const APP_VERSION_DATE = '2026-09-04';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -5529,6 +5534,19 @@ function showMyTasks() {
   renderSidebar();
   _populateMyNameSelect();
   renderMyTasks();
+}
+
+// マイタスク画面（担当タスク／メンション／アクティビティ／いいね、各タブ）から
+// タスクパネルを開くための共通処理。
+// openProject()（プロジェクト詳細画面への遷移）は行わず、マイタスク画面に
+// 留まったまま state.currentProjectId だけを対象タスクのプロジェクトに合わせて
+// パネルを開く。パネルを閉じる際は closeTaskPanel() 側でマイタスク表示中かどうかを
+// 見て state.currentProjectId を null に戻す。
+// commentNo を渡すと、パネルを開いた後に該当コメントまでスクロールする。
+function openTaskPanelFromMyTasks(pid, tid, commentNo) {
+  state.currentProjectId = pid;
+  openTaskPanel(tid);
+  if (commentNo != null) setTimeout(() => scrollToComment(commentNo), 300);
 }
 
 // フォルダごとに「自分」の名前を分けるためのキー生成
@@ -9141,6 +9159,11 @@ function closeTaskPanel(){
   document.getElementById('task-panel').classList.remove('open');
   document.getElementById('panel-backdrop').classList.remove('show');
   _panelTaskId=null; _panelProjectId=null; panelDirty=false;
+  // マイタスク画面に留まったままパネルを開いていた場合、裏で保持していた
+  // state.currentProjectId をリセットする（openTaskPanelFromMyTasks参照）。
+  if (document.getElementById('my-tasks-view').style.display !== 'none') {
+    state.currentProjectId = null;
+  }
   // 作成者バーをリセット（次のタスクを開いたとき前の値が残らないように）
   const _cBar = document.getElementById('panel-creator-bar');
   if (_cBar) _cBar.style.display = 'none';
@@ -9538,7 +9561,9 @@ function linkifyTaskRefs(html) {
     ? currentProject.tasks.find(x => x.id === _panelTaskId)
     : null;
 
-  const re = /#((?:[A-Za-z0-9_\u3040-\u9FFF\u30A0-\u30FF\u4E00-\u9FFF]+-)?P\d+-\d+(?:-C\d+)?|C\d+|\d+)\b/g;
+  // 「文字列#10」のような地の文中の# と誤認識しないよう、行頭（テキストノード先頭）
+  // または半角/全角スペースの直後にある#のみをタスク参照として認識する。
+  const re = /(?:^|(?<=[ \u3000]))#((?:[A-Za-z0-9_\u3040-\u9FFF\u30A0-\u30FF\u4E00-\u9FFF]+-)?P\d+-\d+(?:-C\d+)?|C\d+|\d+)\b/g;
 
   function unresolvedSpan(match, title) {
     const span = document.createElement('span');
