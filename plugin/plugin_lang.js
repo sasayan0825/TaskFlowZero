@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.0',
+      version:     '1.3.1',
     });
   }
 
@@ -59,6 +59,7 @@
     '進行中のプロジェクトがありません':   'No active projects',
     'マイタスク':                         'My Tasks',
     '👤 マイタスク':                      '👤 My Tasks',
+    '名前が未設定です。クリックして設定してください': 'Name not set. Click to set it',
 
     // ── マイタスクビュー ────────────────────────────────────
     '自分への通知・担当タスクを一覧表示': 'View mentions and assigned tasks',
@@ -67,6 +68,9 @@
     '💬 メンション':                      '💬 Mentions',
     '📋 担当タスク':                      '📋 Assigned Tasks',
     '📊 アクティビティ':                  '📊 Activity',
+    '自分の名前が設定されていません':     'Your name is not set',
+    '上部の「自分」プルダウンから名前を選択してください。設定すると、担当タスクやメンションの一覧に加えて、コメント投稿時の投稿者名も自動で入力されるようになります。':
+      'Select your name from the "Me" dropdown above. Once set, it will show up in your assigned tasks and mentions, and will be filled in automatically as the author name when posting comments.',
 
     // ── いいね・ブックマークタブ ─────────────────────────────
     // タブボタン（getLikeIcon() の結果が先頭に付く動的文字列はregexで対応）
@@ -254,6 +258,9 @@
     '担当者名':                           'Assignee name',
     'コメントをMarkdownで入力...':        'Write a comment in Markdown...',
     'このURLをコピーしてください:':       'Please copy this URL:',
+    '投稿者名が設定されていません。\n「名無し」として投稿しますか？\n\nキャンセルすると投稿を中止します。投稿者欄に直接名前を入力するか、マイタスク画面上部の「自分」から名前を設定できます。':
+      'The author name is not set.\nDo you want to post as "Anonymous"?\n\nIf you cancel, the comment will not be posted. You can type a name directly in the author field, or set your name from "Me" at the top of My Tasks.',
+    '投稿者名を入力するか、マイタスクで名前を設定してください': 'Enter an author name, or set your name in My Tasks',
 
     // ── 工数入力 ────────────────────────────────────────────
     '工数 (h)':                           'Hours (h)',

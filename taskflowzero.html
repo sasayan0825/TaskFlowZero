@@ -202,6 +202,9 @@ body{font-family:'Noto Sans JP','Outfit',sans-serif;background:var(--bg);color:v
 #sidebar-tooltip{position:fixed;background:var(--surface3);color:var(--text);font-size:12px;white-space:nowrap;padding:5px 10px;border-radius:6px;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.35);pointer-events:none;opacity:0;transform:translateX(-4px);transition:opacity .18s ease,transform .18s ease;z-index:99999}
 .sb-badge-mention{font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(79,142,255,.25);color:var(--accent2);padding:1px 6px;border-radius:10px;font-weight:700}
 .sb-badge-task{font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(34,197,94,.2);color:var(--green);padding:1px 6px;border-radius:10px;font-weight:700}
+.sb-badge-warn{font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(239,68,68,.2);color:var(--red);padding:1px 6px;border-radius:10px;font-weight:700}
+@keyframes pulseAttention{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}50%{box-shadow:0 0 0 5px rgba(239,68,68,0)}}
+.pulse-attention{animation:pulseAttention 1.2s ease-in-out 3}
 .my-tasks-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
 .my-tasks-tab{padding:8px 20px;font-size:13px;font-weight:500;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;user-select:none}
 .my-tasks-tab:hover{color:var(--text)}
@@ -983,6 +986,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       <div class="sidebar-item" id="nav-my-tasks" onclick="showMyTasks()">
         <span id="my-tasks-icon">👤</span><span class="proj-name">マイタスク</span>
         <span class="sidebar-badge-wrap" id="my-tasks-badges" style="display:none">
+          <span class="sb-badge-warn"    id="my-noname-badge" style="display:none" title="名前が未設定です。クリックして設定してください">未設定</span>
           <span class="sb-badge-mention" id="my-mention-badge" style="display:none" title="メンション数">0</span>
           <span class="sb-badge-task"    id="my-task-badge"    style="display:none" title="担当タスク数">0</span>
         </span>
@@ -4536,6 +4540,7 @@ function renderSidebar() {
   const badgeWrap    = document.getElementById('my-tasks-badges');
   const mentionBadge = document.getElementById('my-mention-badge');
   const taskBadge    = document.getElementById('my-task-badge');
+  const nonameBadge  = document.getElementById('my-noname-badge');
   // マイタスクアイコン: myName設定済みなら画像 or 頭文字アバター、未設定なら👤
   const myTasksIcon = document.getElementById('my-tasks-icon');
   if (myTasksIcon) {
@@ -4557,9 +4562,14 @@ function renderSidebar() {
     taskBadge.textContent    = tCount;
     mentionBadge.style.display = mCount > 0 ? '' : 'none';
     taskBadge.style.display    = tCount > 0 ? '' : 'none';
+    if (nonameBadge) nonameBadge.style.display = 'none';
     badgeWrap.style.display    = (mCount > 0 || tCount > 0) ? '' : 'none';
   } else {
-    badgeWrap.style.display = 'none';
+    // 名前未設定であることに気づいてもらうため常時バッジ表示（マイタスク導線の弱さ対策）
+    mentionBadge.style.display = 'none';
+    taskBadge.style.display    = 'none';
+    if (nonameBadge) nonameBadge.style.display = '';
+    badgeWrap.style.display = 'flex';
   }
   // プラグインサイドバーを再描画してspan構造を保証
   if (typeof _renderPluginSidebarItems === 'function') _renderPluginSidebarItems();
@@ -4640,10 +4650,21 @@ function renderMyTasks() {
     }
   }
 
+  const _myNameSelectEl = document.getElementById('my-name-select');
   if (!myName) {
-    body.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">上の「自分」で自分の名前を選択してください。</div>`;
+    body.innerHTML = `<div style="text-align:center;padding:48px 24px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:var(--radius)">
+      <div style="font-size:32px;margin-bottom:10px">👤</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:6px">自分の名前が設定されていません</div>
+      <div style="color:var(--muted);font-size:13px;max-width:420px;margin:0 auto">上部の「自分」プルダウンから名前を選択してください。設定すると、担当タスクやメンションの一覧に加えて、コメント投稿時の投稿者名も自動で入力されるようになります。</div>
+    </div>`;
+    if (_myNameSelectEl) {
+      _myNameSelectEl.classList.remove('pulse-attention');
+      void _myNameSelectEl.offsetWidth; // reflow でアニメーションを再トリガー
+      _myNameSelectEl.classList.add('pulse-attention');
+    }
     return;
   }
+  if (_myNameSelectEl) _myNameSelectEl.classList.remove('pulse-attention');
 
   // フィルター値取得（DOM から）
   const mentionProjFilter = document.getElementById('my-mention-proj-filter')?.value || '';
@@ -5324,8 +5345,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.16';
-const APP_VERSION_DATE = '2026-09-04';
+const APP_VERSION      = '1.1.17';
+const APP_VERSION_DATE = '2026-09-06';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -10371,7 +10392,19 @@ function updateComment() {
 }
 
 function addComment(){
-  const author=document.getElementById('comment-author').value.trim()||'名無し';
+  const authorInput=document.getElementById('comment-author');
+  let author=authorInput.value.trim();
+  if(!author){
+    // 投稿者名が未設定のまま「名無し」で投稿されるのを防ぐための確認ガード
+    const proceed=confirm('投稿者名が設定されていません。\n「名無し」として投稿しますか？\n\nキャンセルすると投稿を中止します。投稿者欄に直接名前を入力するか、マイタスク画面上部の「自分」から名前を設定できます。');
+    if(!proceed){
+      toast('投稿者名を入力するか、マイタスクで名前を設定してください','error');
+      authorInput.focus();
+      return;
+    }
+    author='名無し';
+    authorInput.value=author;
+  }
   let text=document.getElementById('comment-text').value.trim();
   const estVal=parseFloat(document.getElementById('effort-estimated').value)||0;
   const actVal=parseFloat(document.getElementById('effort-actual').value)||0;
