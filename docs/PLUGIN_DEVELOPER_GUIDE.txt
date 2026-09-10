@@ -2,8 +2,36 @@
   TaskFlowZero プラグイン開発者ガイド
 ================================================================================
 
-  対象バージョン: TaskFlowZero v1.1.0（2026-07-01）
-  本ガイド最終更新: 2026-07-03
+  対象バージョン: TaskFlowZero v1.1.17
+  本ガイド最終更新: 2026-09-10
+    - 2章「プラグインの仕組み」の起動シーケンス説明を実装と突き合わせて修正
+      - settings.json / plugin-settings.json の読み込み（loadSettings()）が
+        await されておらず、initApp() 自体も非同期関数ではないため、
+        taskflow-ready イベント発火との前後関係が厳密には保証されないことが
+        コード確認で判明。手順6〜8を実態に合わせて詳細化
+      - 1章の制約リストと4-6章 getPluginConfig() にも同じ注意点を追記
+    - 1〜3章（概要・仕組み・Hello World）のその他の記述、バージョン番号
+      （v1.1.3, v1.1.6, v1.1.10 等）は CHANGELOG.md と突き合わせて確認し、
+      いずれも正確であることを確認
+    - 10章「開発チェックリスト」を実装と照合し、内容が実態と一致することを確認
+      （localStorageキー命名は現行プラグイン群では未使用の推奨慣習である旨を把握済み。記載変更なし）
+    - 11章「サンプルコード集」サンプルD（外部リンクセクション注入）のバグを修正
+      - 存在しない .panel-content セレクタを参照しており、実行しても
+        何も起こらない不具合があったため #panel-body に修正
+      - 全6サンプルコードを node --check で構文検証済み
+    - 4章「公開APIリファレンス」を実装コードと突き合わせて確認・修正
+      - switchWikiPage()（4-2）の記載漏れを追加
+      - 9章に制約5「タスク削除の公開APIが無い」を追加
+      - イベント一覧（4-4）・getData()（4-1）は実装と一致していることを確認
+    - 5章「データスキーマ」を実装コードと突き合わせて全面改訂
+      （wiki → wikiPages への変更、コメントの no / nextCommentNo、
+       task の creator / createdAtTime / likes / bookmarks /
+       _deletedCommentIds / estimatedHours 系フィールド等を追記）
+    - 5-1にプロジェクトファイルのルート形式（ラップ禁止）を明記
+    - 5-8「WikiPage」を新規追加
+
+  過去の更新履歴:
+    2026-07-03
     - 4章「公開APIリファレンス」を全面的に詳細化
     - openModal / closeModal / viewFadeIn（4-2）を追加
     - hideAllViews / switchToPluginView（4-5）を追加
@@ -29,6 +57,7 @@
      5-5. アクティビティ (Activity)
      5-6. チェックリストアイテム
      5-7. 週次コメント (WeeklyNote)
+     5-8. Wikiページ (WikiPage) ★新規
   6. CSSデザイントークン
   7. プラグインのインストール方法
   8. 多言語対応（日本語 / 英語）
@@ -66,6 +95,8 @@
   - addProjectSettingTab API はあるがモーダル側描画が未実装
     （DOM直接操作で代替可能 — 9章参照）
   - プラグイン間の依存関係管理は手動
+  - plugin-settings.json の読み込み完了と taskflow-ready イベント発火の
+    前後関係は厳密には保証されない（2章参照）
 
 ================================================================================
 2. プラグインの仕組み
@@ -74,20 +105,36 @@
 taskflowzero.html は起動時に以下の順序で動作します。
 
   1. HTML/CSS/JS を読み込む
-  2. plugin/plugin_manifest.js（プラグイン名一覧）を <script> タグで読み込む
-  3. plugin/plugin_loader.js（読み込みロジック）を <script> タグで読み込む
+  2. plugin/plugin_manifest.js（プラグイン名一覧）を <script> タグの動的挿入で
+     読み込む（taskflowzero.html 自身と同じ場所からの相対パス "plugin/..."）
+  3. plugin/plugin_loader.js（読み込みロジック）を同様に読み込む
   4. plugin_loader.js が TFZ_PLUGIN_LIST を順に読み込む
-     （ファイルが存在しない場合は静かにスキップ）
+     （ファイルが存在しない場合は console.warn を出すだけでスキップし、
+       次のプラグインの読み込みに進みます）
      ※ 設定画面で無効化されたプラグインは TFZ_PLUGIN_LIST から除外されます
      ※ plugin_manifest.js が見つからない場合、旧バージョンの plugin/plugins.js
        への読み込みにフォールバックします（後方互換）
   5. ユーザーがフォルダを選択 or 「前回のフォルダを開く」を押す
-  6. フォルダ内の project_P*.json・settings.json、および plugin フォルダ内の
-     plugin-settings.json を読み込んで initApp() が実行される
-  7. initApp() 完了後に「taskflow-ready」イベントを発火
-  8. 以降はユーザー操作に応じてイベントが発火
+  6. フォルダ内の project_P*.json を読み込み、initApp() を呼び出す
+  7. initApp() は自身の処理の中で settings.json および plugin フォルダ内の
+     plugin-settings.json の読み込み（loadSettings()）を開始する
+     【重要 ★実装確認済みの注意点】
+       loadSettings() は await されずに呼び出されており、initApp() 自体も
+       async 関数ではありません。そのため settings.json / plugin-settings.json
+       の読み込み完了と、下記8の「taskflow-ready」イベント発火の
+       前後関係は厳密には保証されていません
+       （File System Access API の実ファイルI/Oのため、setTimeout(0) による
+       ready発火より読み込み完了が遅れる可能性が理論上あります）。
+       実運用では ready 発火より先に読み込みが終わっているケースが大半ですが、
+       taskflow-ready ハンドラの先頭で TaskFlow.getPluginConfig() を同期的に
+       呼ぶ場合、極めて稀にまだ既定値（default）しか返らない可能性がある点に
+       留意してください（4-6章参照）。設定値に依存する処理は、ユーザー操作
+       （ボタンクリック等）に応じて遅延実行するようにすると安全です。
+  8. initApp() の最後で「taskflow-ready」イベントを発火
+     （setTimeout(fn, 0) 経由。7の読み込みとは非同期に並行実行されています）
+  9. 以降はユーザー操作に応じてイベントが発火
 
-プラグインはこの流れの「4」で読み込まれ、「7」のイベントを待って
+プラグインはこの流れの「4」で読み込まれ、「8」のイベントを待って
 初期化処理を実行するパターンが基本です。
 
   ┌─────────────────────────────────────────┐
@@ -205,8 +252,11 @@ TaskFlow.getState()
         state.settings で settings.json の内容（プラグイン設定含む）が分かります。
 
 TaskFlow.getData()
-  戻り値: { version, projects: Project[], nextProjectNum }
+  戻り値: { version, format, projects: Project[], nextProjectNum }
   説明: 現在メモリに読み込まれているデータを返します。
+        この戻り値の形はアプリ内部の集計ビューであり、
+        project_P{number}.json ファイル1件の中身（5-1章）とは
+        異なる形（ラップされている）点に注意してください。
 
 TaskFlow.getCurrentProject()
   戻り値: Project | null
@@ -266,6 +316,14 @@ TaskFlow.openTaskPanel(taskId)
 TaskFlow.switchView(view)
   引数: view (string) - 'list'|'kanban'|'gantt'|'burndown'|'wiki'|カスタムID
   説明: 指定したビューに切り替えます。
+
+TaskFlow.switchWikiPage(pageId) ★新規（記載漏れ）
+  引数: pageId (string) - project.wikiPages[].id
+  戻り値: なし
+  説明: Wikiビュー内で表示するページを切り替えます。
+        Wikiが編集モード中の場合は切り替えを拒否し、
+        「編集中はページを切り替えられません」というトースト警告を出します
+        （保存忘れによる編集内容消失を防ぐため）。
 
 TaskFlow.openModal(id)
   引数: id (string) - モーダル要素の DOM id
@@ -656,8 +714,13 @@ TaskFlow.getPluginConfig(pluginId)
         plugin-settings.json に値がない場合は、settings 配列の default 値を返します。
         つまり「デフォルト値 + ユーザーが変更した値」のマージ結果を返します。
 
-  呼び出し時期: taskflow-ready 以降（plugin-settings.json が読み込まれた後）。
+  呼び出し時期: taskflow-ready 以降が基本ですが、2章で説明の通り
+                plugin-settings.json の読み込みと taskflow-ready 発火の
+                前後関係は厳密には保証されません。
                 plugin-settings.json 読み込み前に呼ぶと default 値のみ返します。
+                設定値の反映精度が重要な処理は、taskflow-ready の同期処理内で
+                即座に読むのではなく、ユーザー操作（ボタンクリック等）に
+                応じて遅延読み込みする実装にすると安全です。
 
   後方互換ガードの例:
     function getCfg() {
@@ -702,29 +765,50 @@ TaskFlow.getPluginConfig(pluginId)
 すべての日付は 'YYYY-MM-DD' 形式の文字列です。
 タイムスタンプは ISO 8601 形式（例: "2026-03-14T10:23:45.000Z"）です。
 
+【重要: このデータをファイルとして直接読み書きする場合の注意】
+  project_P{number}.json ファイルの中身は、Project オブジェクトそのもの
+  （下記5-1）です。{ projects: [...] } のような配列・メタ情報でのラップは
+  不正な形式で、読み込みに失敗します。
+  一方、TaskFlow.getData()（4-1章）はアプリ内部の集計ビューを返すAPIで、
+  { version, format, projects: Project[], nextProjectNum } という
+  ラップされた形を返します。これはファイル保存形式とは別物です。
+
+  プラグインから新規プロジェクトのJSONファイルを直接生成する場合や、
+  AIにファイル生成を依頼する場合は、本章の各スキーマに加えて
+  docs/AI_PROJECT_JSON_GUIDE.md（生成時のチェックリスト・失敗例つき）
+  も参照してください。
+
 ────────────────────────────────────────
 5-1. プロジェクト (Project)
 ────────────────────────────────────────
 
   {
-    id:             string,       // UID（自動生成）例: "lf3k2abc1"
-    number:         number,       // プロジェクト番号 例: 1 → "P1"
-    name:           string,       // プロジェクト名
-    description:    string,       // 説明
-    startDate:      string,       // 開始日 'YYYY-MM-DD' | ''
-    endDate:        string,       // 終了日 'YYYY-MM-DD' | ''
-    members:        string[],     // メンバー名の配列 例: ["田中", "鈴木"]
-    color:          string,       // カラーコード 例: "#4f8eff"
-    archived:       boolean,      // アーカイブ済みか
-    nextTaskNum:    number,       // 次のタスク番号（自動インクリメント）
-    tasks:          Task[],       // タスク配列
-    milestones:     Milestone[],  // マイルストーン配列
-    wiki:           string,       // Wiki本文（Markdown）
-    weeklyNotes:    WeeklyNote[], // 週次コメント履歴（5-7章参照）
-    projectSettings: object,      // プロジェクト設定（タブ表示・ラベル等）
+    id:              string,       // UID（自動生成）例: "lf3k2abc1"
+    number:          number,       // プロジェクト番号 例: 1 → ファイル名 "project_P1.json"
+    name:            string,       // プロジェクト名
+    description:     string,       // 説明
+    startDate:       string,       // 開始日 'YYYY-MM-DD' | ''
+    endDate:         string,       // 終了日 'YYYY-MM-DD' | ''
+    members:         string[],     // メンバー名の配列 例: ["田中", "鈴木"]
+    color:           string,       // カラーコード 例: "#4f8eff"
+    archived:        boolean,      // アーカイブ済みか
+    deleted:         boolean,      // 削除済みか（ゴミ箱扱い）
+    nextTaskNum:     number,       // 次のタスク番号（自動インクリメント）
+    tasks:           Task[],       // タスク配列
+    milestones:      Milestone[],  // マイルストーン配列
+    wikiPages:       WikiPage[],   // Wikiページ配列（v1.1.6〜。5-8章参照）
+    weeklyNotes:     WeeklyNote[], // 週次コメント履歴（5-7章参照）
+    projectSettings: object,       // プロジェクト設定（タブ表示・ラベル等。連携するプラグインが独自キーを書き込むこともある）
   }
 
   ※ プロジェクトは project_P{number}.json として個別ファイルに保存されます。
+    ファイルのルート = 上記 Project オブジェクトそのもの（配列・ラップ不可）。
+    ファイル名は project_P{number}.json（number はゼロ埋めしない。
+    例: number=1 → "project_P1.json"。有効な形式は正規表現
+    ^project_P\d+\.json$ で判定されます）。
+
+  ※ v1.1.6 より Wiki は単一文字列(旧 wiki フィールド)から複数ページ化され、
+    wikiPages 配列に置き換わりました。旧 wiki フィールドは廃止済みです。
 
 ────────────────────────────────────────
 5-2. マイルストーン (Milestone)
@@ -744,23 +828,38 @@ TaskFlow.getPluginConfig(pluginId)
 ────────────────────────────────────────
 
   {
-    id:          string,        // UID
-    number:      number,        // タスク番号（プロジェクト内で一意）
-    title:       string,        // タイトル
-    description: string,        // 詳細（Markdown）
-    status:      string,        // 'todo' | 'inprogress' | 'review' | 'done'
-    assignee:    string,        // 担当者名 | ''
-    startDate:   string,        // 開始日 'YYYY-MM-DD' | ''
-    dueDate:     string,        // 期限 'YYYY-MM-DD' | ''
-    completedAt: string|null,   // 完了日 'YYYY-MM-DD' | null
-    storyPoints: number,        // ストーリーポイント（0=未設定）
-    milestoneId: string|null,   // マイルストーンID | null
-    labels:      string[],      // ラベル名の配列
-    priority:    string|null,   // 優先度 'high' | 'low' | null（v1.1.7〜）
-    createdAt:   string,        // 作成日 'YYYY-MM-DD'
-    checklist:   ChecklistItem[], // チェックリスト（5-6章参照）
-    comments:    Comment[],     // コメント一覧（5-4章参照）
-    activity:    Activity[],    // アクティビティログ（5-5章参照）
+    id:                string,          // UID
+    number:            number,          // タスク番号（プロジェクト内で一意）
+    title:             string,          // タイトル
+    description:       string,          // 詳細（Markdown）
+    status:            string,          // 'todo' | 'inprogress' | 'review' | 'done'
+    assignee:          string,          // 担当者名 | ''
+    startDate:         string,          // 開始日 'YYYY-MM-DD' | ''
+    dueDate:           string,          // 期限 'YYYY-MM-DD' | ''
+    completedAt:       string|null,     // 完了日 'YYYY-MM-DD' | null
+    completedAtTime:   string|null,     // 完了日時 ISO 8601 | null
+    storyPoints:       number,          // ストーリーポイント（0=未設定）
+    milestoneId:       string|null,     // マイルストーンID | null
+    labels:            string[],        // ラベル名の配列
+    priority:          string|null,     // 優先度 'high' | 'low' | null（v1.1.7〜）
+    createdAt:         string,          // 作成日 'YYYY-MM-DD'
+    checklist:         ChecklistItem[], // チェックリスト（5-6章参照）
+    comments:          Comment[],       // コメント一覧（5-4章参照）
+    activity:          Activity[],      // アクティビティログ（5-5章参照）
+
+    // 以下は「作成者情報」「工数」「リアクション」関連のフィールドです。
+    // TaskFlow.createTask() API のデフォルト値には含まれず省略可能ですが、
+    // アプリのタスク作成モーダル経由で作られたタスクには必ず設定されます。
+    // ファイルを直接生成する場合は、下表のデフォルト値で埋めておくことを推奨します。
+    creator:           string,          // 作成者名 | ''
+    createdAtTime:     string|null,     // 作成日時 ISO 8601 | null
+    estimatedHours:    number,          // 見積工数（時間）
+    baseEstimatedHours: number,         // 見積工数の作成時ベース値（コメントでの工数加算と区別するための基準値）
+    actualHours:       number,          // 実績工数（時間）
+    likes:             LikeEntry[],     // タスクへの「いいね」一覧
+    bookmarks:         LikeEntry[],     // タスクの「ブックマーク」一覧
+    nextCommentNo:     number,          // 次に採番されるコメント番号（5-4章参照）
+    _deletedCommentIds: string[],       // 削除済みコメントIDの記録（3-wayマージ用）
   }
 
   【status の値と表示名】
@@ -768,6 +867,17 @@ TaskFlow.getPluginConfig(pluginId)
     'inprogress' → 進行中
     'review'     → レビュー
     'done'       → 完了
+
+  【新規作成時の推奨デフォルト値（未指定フィールドの埋め方）】
+    status: 'todo', priority: null, completedAt: null, completedAtTime: null,
+    milestoneId: null, storyPoints: 0, labels: [], checklist: [], comments: [],
+    activity: [], likes: [], bookmarks: [], _deletedCommentIds: [],
+    nextCommentNo: 1, estimatedHours: 0, actualHours: 0, baseEstimatedHours: 0,
+    creator: '', createdAtTime: null
+
+  【LikeEntry（いいね/ブックマークの1件）】
+    { id: string /* ユーザー名 */ }
+    ※ task.likes / task.bookmarks / comment.likes / comment.bookmarks 共通の形式です。
 
 ────────────────────────────────────────
 5-4. コメント (Comment)
@@ -777,23 +887,47 @@ TaskFlow.getPluginConfig(pluginId)
 
   {
     id:        string,  // UID
+    no:        number,  // タスク内で不変・連番のコメント番号（v1.1.15〜。詳細は下記）
     author:    string,  // 投稿者名
     text:      string,  // 本文（Markdown対応）
     createdAt: string,  // ISO 8601形式 例: "2026-03-14T10:23:45.000Z"
+    likes:     LikeEntry[],     // このコメントへの「いいね」一覧
+    bookmarks: LikeEntry[],     // このコメントの「ブックマーク」一覧
   }
+
+  【no フィールドについて（重要）】
+    no は配列インデックスではなく、タスクごとの連番カウンタ
+    (task.nextCommentNo) から採番される不変の番号です。
+    途中のコメントを削除しても、残ったコメントの no は変化しません
+    （旧仕様は表示時のインデックスを番号としていたため、削除するたびに
+    後続コメントの番号がズレ、「#C3」等の番号メンションが指す対象が
+    変わってしまう不具合がありました）。
+    新規にコメント配列を生成する場合は createdAt 昇順で 1 から採番し、
+    task.nextCommentNo を「採番済み no の最大値 + 1」に設定してください。
 
 ────────────────────────────────────────
 5-5. アクティビティ (Activity)
 ────────────────────────────────────────
 
   task.activity に格納されます。ステータス変更・担当者変更等の自動ログです。
+  通常はアプリ側の操作履歴として自動記録されるため、AIやプラグインが
+  新規タスクを作る場合は空配列 [] のままで問題ありません。
 
   {
-    type: string,  // 'status' | 'assignee' | 'due' | 'desc' | 'checklist'
+    type: string,  // 'status' | 'assignee' | 'due' | 'desc' | 'priority' | 'checklist' | 'create'
     icon: string,  // 表示用絵文字 例: '🔄'
     text: string,  // 説明文（HTMLタグを含む場合あり）
     at:   string,  // ISO 8601形式 タイムスタンプ
   }
+
+  【type一覧】
+    'status'    ステータス変更                icon例: 🔄
+    'assignee'  担当者変更                    icon例: 👤
+    'due'       期限変更                      icon例: 📅
+    'desc'      詳細内容の更新                icon例: 📝
+    'priority'  優先度変更                    icon例: 🚩
+    'checklist' チェックリストの追加/完了/削除 icon例: ☑ / 🗑
+    'create'    タスク作成（マイタスク画面の集計等で使用）  icon例: ➕
 
   ※ コメントとアクティビティは task.comments と task.activity の別配列です。
      タスク詳細パネルでは両者を時刻順に合わせて表示しています。
@@ -805,8 +939,13 @@ TaskFlow.getPluginConfig(pluginId)
   {
     id:      string,   // UID
     text:    string,   // テキスト
-    checked: boolean,  // 完了フラグ（旧フィールド名 done も互換）
+    checked: boolean,  // 完了フラグ（正式フィールド）
+    done:    boolean,  // 旧フィールド名。checked と同じ値を入れておくと安全
   }
+
+  ※ 内部的に正とされるのは checked です。done は旧バージョンからの
+    移行互換用に残っていますが、新規生成時は両方に同じ値を入れておくと
+    バージョン差異による事故を防げます。
 
 ────────────────────────────────────────
 5-7. 週次コメント (WeeklyNote)
@@ -823,6 +962,24 @@ TaskFlow.getPluginConfig(pluginId)
   }
 
   ※ 同一週を複数人が同時編集した場合は updatedAt が新しい方を採用します。
+
+────────────────────────────────────────
+5-8. Wikiページ (WikiPage) ★新規
+────────────────────────────────────────
+
+  project.wikiPages に格納されます（v1.1.6〜。旧仕様の project.wiki
+  単一文字列は廃止済みです）。
+
+  {
+    id:        string,  // UID
+    title:     string,  // ページタイトル 例: "Home"
+    content:   string,  // 本文（Markdown）
+    order:     number,  // 表示順（0始まり）
+    updatedAt: string,  // ISO 8601形式 最終更新日時
+  }
+
+  ※ 新規プロジェクトには最低1ページ（title: "Home"）を用意しておくのが
+    自然です。空文字のcontentでも構いません。
 
 ================================================================================
 6. CSSデザイントークン
@@ -1049,6 +1206,19 @@ registerPlugin() は IIFE の先頭（ページロード時）に呼ばれます
 プラグインを新規追加した直後（まだリロードしていない場合）は
 「説明未登録」と表示されます。次回リロード後に正しく表示されます。
 
+────────────────────────────────────────
+制約5: タスク削除の公開APIが無い ★新規
+────────────────────────────────────────
+
+createTask() / updateTask() はありますが、タスクを削除する公開APIは
+現時点で window.TaskFlow に存在しません。
+プラグインからタスクを削除したい場合は、TaskFlow.getCurrentProject() で
+プロジェクトを取得し、p.tasks から直接該当タスクを splice 等で除去した上で
+autoSave(p.id) と renderCurrentView() を呼んでください。
+ただし直接配列操作は将来のバージョンで内部データ構造が変わった場合に
+追従できなくなるリスクがあるため、削除頻度が高いプラグインを作る場合は
+本体側への機能要望として起票することを推奨します。
+
 ================================================================================
 10. プラグイン開発チェックリスト
 ================================================================================
@@ -1206,9 +1376,14 @@ registerPlugin() は IIFE の先頭（ページロード時）に呼ばれます
       '<div class="section-title-line"></div></div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px">' + links + '</div>';
 
-    var panelContent = document.querySelector('#task-panel .panel-content');
-    var deleteBtn = panelContent && panelContent.lastElementChild;
-    if (deleteBtn) panelContent.insertBefore(section, deleteBtn);
+    // 「操作」セクション（タスク削除ボタンを含む折り返しdiv）の直前に挿入する。
+    // 実装上、この折り返しdivが #panel-body 直下の最後の子要素にあたるため、
+    // panel-body の lastElementChild を挿入位置の基準にする
+    // （変数名は分かりやすさのため deleteBtn としているが、実際は
+    // 削除ボタン単体ではなく「操作」セクションのラップdiv自体を指す）。
+    var panelBody = document.getElementById('panel-body');
+    var deleteBtn = panelBody && panelBody.lastElementChild;
+    if (deleteBtn) panelBody.insertBefore(section, deleteBtn);
   }
 
   document.addEventListener('taskflow-ready', function () {
