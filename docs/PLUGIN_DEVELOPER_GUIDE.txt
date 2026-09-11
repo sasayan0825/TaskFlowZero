@@ -4,6 +4,21 @@
 
   対象バージョン: TaskFlowZero v1.1.17
   本ガイド最終更新: 2026-09-10
+    - 【重要】4-5章・9章制約1「addProjectSettingTab」の説明を修正
+      - API名から連想される「プロジェクト設定」画面（歯車⚙️、
+        id="project-settings-modal"、タブ付き）には一切連携しておらず、
+        実際に onSave が発火するのは「プロジェクト新規作成・編集モーダル」
+        （id="project-modal"）の保存時であることを実装確認の上で修正
+      - renderFn 引数がどこからも呼び出されていない（未実装/デッドコード）
+        ことを確認し明記
+      - project-settings-modal 側にUIを追加したい場合の別の回避策
+       （MutationObserver + .ps-tab / #ps-pane-xxx への直接DOM操作）を追記
+    - 6章「CSSデザイントークン」: 全17変数・主要CSSクラスの実在を
+      taskflowzero.html の :root 定義と突き合わせて確認（記載漏れ・誤りなし）
+    - 7章「インストール方法」: ボタン文言・関数名・自動移行処理
+      （plugins.js削除等）を実装と突き合わせて確認（記載漏れ・誤りなし）
+    - 8章「多言語対応」: plugin_lang.js のリロード方式・localStorageキー・
+      デフォルト値を実装と突き合わせて確認（記載漏れ・誤りなし）
     - 2章「プラグインの仕組み」の起動シーケンス説明を実装と突き合わせて修正
       - settings.json / plugin-settings.json の読み込み（loadSettings()）が
         await されておらず、initApp() 自体も非同期関数ではないため、
@@ -581,15 +596,27 @@ TaskFlow.addViewTab(def)
       }
     });
 
-TaskFlow.addProjectSettingTab(def)
+TaskFlow.addProjectSettingTab(def) ★説明を修正
   引数: def オブジェクト
     id       (string, 必須)
-    label    (string, 必須)
-    renderFn (function) - renderFn(project) → HTML文字列
+    label    (string, 必須) - 現状未使用（下記参照）
+    renderFn (function, 省略可) - renderFn(project) → HTML文字列。
+              ★実装確認済み: 現バージョンではどこからも呼び出されません（未実装/デッドコード）。
+              指定しても画面には反映されないため、UIを描画する用途には使えません。
     onSave   (function, 省略可) - onSave(project) → void
-  説明: プロジェクト設定モーダルにタブを追加します。
-        onSave はプロジェクト保存時に呼ばれます。
-  ※ モーダルのタブUI描画は未実装です。タブボタンはDOM操作で追加してください。
+  説明: 「プロジェクト設定にタブを追加する」という名前のAPIですが、
+        実装を確認したところ、onSave が実際に呼ばれるのはタブ形式の
+        「プロジェクト設定」画面（歯車アイコン⚙️から開く、id="project-settings-modal"。
+        基本設定/テンプレート/ラベル/休み設定/保存のタブがある方）ではなく、
+        プロジェクトの新規作成・基本情報編集モーダル（id="project-modal"。
+        名前・説明・日付・メンバー・カラーを入力する方）を保存したときです。
+        新規作成・編集どちらの保存でも呼ばれます。
+  ※ label と renderFn は事実上機能しません。onSave のみが実際に動作する
+    フックです。UIを追加したい場合は9章 制約1 の回避策（MutationObserverで
+    #project-modal を監視してDOM操作する方法）を参照してください。
+  ※ API名と実際の挙動（どちらのモーダルに対応するか）が一致していないため、
+    今後のバージョンで名称変更や実装修正が入る可能性があります。
+    現時点の挙動を前提に実装する場合は、この点を踏まえてご利用ください。
 
 TaskFlow.hideAllViews()
   引数: なし
@@ -1152,15 +1179,21 @@ plugin_lang.js と連携して日本語/英語を切り替えるパターンで�
 ================================================================================
 
 ────────────────────────────────────────
-制約1: addProjectSettingTab のタブUIが未実装
+制約1: addProjectSettingTab は「プロジェクト設定モーダル」ではなく
+       「プロジェクト新規作成・編集モーダル」の保存時に発火する ★説明を修正
 ────────────────────────────────────────
 
-onSave コールバックは機能しますが、モーダル内のタブボタンUIは自動生成されません。
+API名から連想される、歯車アイコン⚙️で開く「プロジェクト設定」画面
+（id="project-settings-modal"。基本設定/テンプレート/ラベル/休み設定/保存の
+タブがある方）には一切連携していません。実装を確認したところ、onSave が
+実際に呼ばれるのは、プロジェクトの新規作成・基本情報編集モーダル
+（id="project-modal"）を保存したときです。また renderFn 引数はどこからも
+呼び出されておらず、指定しても画面には反映されません（onSaveのみ動作）。
 
-【回避策: MutationObserver でモーダル表示を検知してDOMを操作する】
+【回避策: MutationObserver で #project-modal の表示を検知してDOMを操作する】
 
   var modalObserver = new MutationObserver(function() {
-    var modal = document.getElementById('project-modal');
+    var modal = document.getElementById('project-modal'); // ← project-settings-modal ではない点に注意
     if (!modal || !modal.classList.contains('show')) return;
     if (document.getElementById('my-plugin-section')) return; // 重複防止
 
@@ -1175,6 +1208,15 @@ onSave コールバックは機能しますが、モーダル内のタブボタ�
     }
   });
   modalObserver.observe(document.body, { childList: true, subtree: true });
+
+  ※ 逆に、歯車アイコンの「プロジェクト設定」画面（project-settings-modal）
+    側にUIを追加したい場合も、同様に MutationObserver で
+    document.getElementById('project-settings-modal') を監視し、
+    .ps-tab（タブボタン列、クラス）や対応する #ps-pane-xxx（タブ内容、ID。
+    例: #ps-pane-basic, #ps-pane-templates）に直接DOM操作で要素を追加する
+    方法になります。この場合 addProjectSettingTab のonSaveフックは発火しない
+    ため、保存処理は自前で用意する必要があります（例: 独自の保存ボタンを
+    追加し、そこでプロジェクトデータを更新して autoSave(project.id) を呼ぶ）。
 
 ────────────────────────────────────────
 制約2: プラグインファイルの完全自動検出は未対応
