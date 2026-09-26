@@ -229,8 +229,15 @@ th.sortable.sort-desc::after{content:' ↓'}
 .my-task-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;transition:all .15s}
 .my-task-row:hover{border-color:var(--border2);background:var(--surface2)}
 .activity-heatmap-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;overflow-x:auto}
-.activity-detail-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all .15s}
-.activity-detail-item:hover{border-color:var(--border2);background:var(--surface2)}
+.activity-view-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:var(--radius);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s}
+.activity-view-btn:hover{background:var(--surface3);color:var(--text)}
+.activity-view-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.activity-timeline-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;font-size:12px;display:flex;flex-direction:column;gap:4px;transition:all .15s;flex:1;min-width:0}
+.activity-timeline-card:hover{border-color:var(--border2);background:var(--surface2)}
+.activity-timeline-meta{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden;min-width:0}
+.activity-timeline-text{white-space:normal;word-break:break-word;min-width:0;line-height:1.4}
+.activity-timeline-untimed-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;margin-bottom:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:8px;transition:all .15s}
+.activity-timeline-untimed-item:hover{border-color:var(--border2);background:var(--surface2)}
 #btn-new-project{margin:8px 12px 16px;padding:8px;background:rgba(79,142,255,.1);border:1px dashed rgba(79,142,255,.3);border-radius:var(--radius);color:var(--accent);font-size:12px;cursor:pointer;text-align:center;transition:all .15s}
 #btn-new-project:hover{background:rgba(79,142,255,.2);border-color:rgba(79,142,255,.6)}
 
@@ -4607,6 +4614,7 @@ let _myTasksSortCol      = 'dueDate';
 let _myTasksSortAsc      = true;
 let _myActivitySelDate   = null; // アクティビティタブの選択日付
 let _myActivityYear      = new Date().getFullYear(); // アクティビティヒートマップ表示年
+let _myActivityTimelineExpanded = {}; // タイムライン表示でのグループ展開状態 { groupKey: boolean }
 let _myLikesYear         = new Date().getFullYear(); // いいねタブ「受け取ったいいね」の表示年（カレンダー年）
 let _myLikesSection      = 'received'; // 'received' | 'liked' | 'bookmarks'
 let _myLikesProjFilter   = '';         // プロジェクトIDフィルタ（''=全て）
@@ -4834,6 +4842,11 @@ function renderMyTasks() {
 
   body.innerHTML = tabsHtml + `<div id="my-tasks-content">${contentHtml}</div>`;
 
+  // タイムライン表示の場合、実際のカード高さに基づいて重なりを補正する
+  if (_myTasksTab === 'activity' && _myActivitySelDate) {
+    requestAnimationFrame(_adjustActivityTimelineOverlap);
+  }
+
   // フィルター値を復元
   if (_myTasksTab === 'mention') {
     if (mentionProjFilter) { const el=document.getElementById('my-mention-proj-filter'); if(el) el.value=mentionProjFilter; }
@@ -4847,6 +4860,17 @@ function renderMyTasks() {
 // ── アクティビティタブ ─────────────────────────────────────────────
 function selectActivityDate(dateStr) {
   _myActivitySelDate = (_myActivitySelDate === dateStr) ? null : dateStr;
+  _myActivityTimelineExpanded = {};
+  renderMyTasks();
+}
+
+function toggleActivityTimelineGroup(key) {
+  _myActivityTimelineExpanded[key] = !_myActivityTimelineExpanded[key];
+  renderMyTasks();
+}
+
+function toggleAllActivityTimelineGroups(keys, expand) {
+  keys.forEach(k => { _myActivityTimelineExpanded[k] = expand; });
   renderMyTasks();
 }
 
@@ -4899,6 +4923,156 @@ function _buildActivityEvents(myName) {
     });
   });
   return byDate;
+}
+
+// 日別詳細パネルの「タイムライン」表示：0:00〜24:00基準で実時刻に応じて縦位置を決定する。
+// 表示範囲はその日のアクティビティ発生時間帯に合わせて自動で縮小し、近接イベントは最低間隔を確保する。
+// GROUP_WINDOW分以内に連続発生したイベントは1つの塊にまとめ、クリックで展開できるようにして密集時の可読性を保つ。
+function _renderActivityTimelineView(sorted) {
+  const timed   = sorted.filter(ev => ev.hasTime);
+  const untimed = sorted.filter(ev => !ev.hasTime);
+
+  const _taskLabelFor = ev => {
+    const p = getProject(ev.pid);
+    const t = p && (p.tasks||[]).find(x => x.id === ev.tid);
+    return t ? `#${t.number} ${esc(t.title)}` : '';
+  };
+  const _timeOf = ev => fmtDatetime(ev.at).split(' ')[1];
+
+  const _eventNodeHtml = (ev, y, indent) => {
+    const taskLabel = _taskLabelFor(ev);
+    return `<div class="activity-timeline-node" style="position:absolute;left:${indent}px;right:0;top:${y-8}px;display:flex;align-items:center;gap:8px;min-width:0" onclick="openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}')">
+      <span style="position:absolute;left:${-50-indent}px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap">${_timeOf(ev)}</span>
+      <span style="width:16px;height:16px;border-radius:50%;background:var(--surface);border:2px solid ${ev.pc};display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;margin-left:-8px">${ev.icon}</span>
+      <span class="activity-timeline-card">
+        <span class="activity-timeline-meta">
+          <span class="my-mention-proj" style="background:${ev.pc}22;color:${ev.pc};flex-shrink:0">${esc(ev.pname)}</span>
+          ${taskLabel ? `<span class="my-mention-task" style="flex-shrink:0;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${taskLabel}</span>` : ''}
+        </span>
+        <span class="activity-timeline-text">${ev.text}</span>
+      </span>
+    </div>`;
+  };
+
+  let timelineHtml = '';
+  if (timed.length) {
+    const mins = timed.map(ev => { const d = new Date(ev.at); return d.getHours()*60 + d.getMinutes(); });
+
+    // 表示範囲：発生時間帯の前後30分を確保しつつ0:00〜24:00でクランプ
+    let rangeStart = Math.max(0, Math.min(...mins) - 30);
+    let rangeEnd   = Math.min(1440, Math.max(...mins) + 30);
+    if (rangeEnd - rangeStart < 60) { // 範囲が狭すぎる場合（単発など）は最低1時間確保
+      const mid = (rangeStart + rangeEnd) / 2;
+      rangeStart = Math.max(0, mid - 30);
+      rangeEnd   = Math.min(1440, mid + 30);
+    }
+    const rangeMin = rangeEnd - rangeStart;
+    const stepMin  = rangeMin <= 180 ? 30 : rangeMin <= 480 ? 60 : rangeMin <= 900 ? 120 : 180;
+    const pxPerMin = rangeMin <= 180 ? 1.6 : rangeMin <= 480 ? 0.9 : rangeMin <= 900 ? 0.55 : 0.4;
+    const MIN_GAP      = 60; // イベント間の最低縦間隔(px)
+    const GROUP_WINDOW = 5;  // この分数以内に連続発生したイベントは1つの塊にまとめる
+
+    // 連続する差分がGROUP_WINDOW分以内のイベントをグループ化
+    const groups = [];
+    timed.forEach((ev, i) => {
+      const m = mins[i];
+      const last = groups[groups.length - 1];
+      if (last && (m - last.mins[last.mins.length - 1]) <= GROUP_WINDOW) {
+        last.items.push(ev); last.mins.push(m);
+      } else {
+        groups.push({ items: [ev], mins: [m] });
+      }
+    });
+
+    // 表示行を生成：2件以上のグループは既定で折りたたみ、展開状態のものだけ個別展開する
+    const rows = [];
+    const multiGroupKeys = [];
+    groups.forEach((g, gi) => {
+      if (g.items.length === 1) {
+        rows.push({ type: 'single', ev: g.items[0], min: g.mins[0] });
+        return;
+      }
+      const key = `${_myActivitySelDate}__${gi}`;
+      multiGroupKeys.push(key);
+      const expanded = !!_myActivityTimelineExpanded[key];
+      rows.push({ type: 'group', key, items: g.items, expanded, min: g.mins[0] });
+      if (expanded) g.items.forEach((ev, i) => rows.push({ type: 'grouped', ev, min: g.mins[i] }));
+    });
+
+    // 実時刻位置を計算後、近接する行は前方から順に最低間隔まで押し下げる
+    const ys = rows.map(r => Math.round((r.min - rangeStart) * pxPerMin));
+    for (let i = 1; i < ys.length; i++) {
+      if (ys[i] < ys[i-1] + MIN_GAP) ys[i] = ys[i-1] + MIN_GAP;
+    }
+    const trackH = Math.max(ys[ys.length-1] + 30, Math.round(rangeMin * pxPerMin));
+
+    // 背景の時刻目盛はライン（区切り線）のみとし、ラベルは各ノード自身の時刻表示に一本化する（重なり防止）
+    let ticks = '';
+    const firstTick = Math.ceil(rangeStart / stepMin) * stepMin;
+    for (let t = firstTick; t <= rangeEnd; t += stepMin) {
+      const y = Math.round((t - rangeStart) * pxPerMin);
+      ticks += `<div style="position:absolute;left:0;top:${y}px;width:100%;height:1px;background:var(--border);opacity:.6"></div>`;
+    }
+
+    const nodes = rows.map((r, i) => {
+      const y = ys[i];
+      if (r.type === 'group') {
+        const first = _timeOf(r.items[0]), last = _timeOf(r.items[r.items.length-1]);
+        return `<div class="activity-timeline-node" style="position:absolute;left:0;right:0;top:${y-8}px;display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0" onclick="toggleActivityTimelineGroup('${r.key}')">
+          <span style="position:absolute;left:-50px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap">${first}</span>
+          <span style="width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;margin-left:-8px">${r.items.length}</span>
+          <span class="activity-timeline-card" style="font-weight:600;color:var(--accent)">
+            ${first}〜${last}の${r.items.length}件 ${r.expanded ? '▲ 閉じる' : '▼ 展開'}
+          </span>
+        </div>`;
+      }
+      return _eventNodeHtml(r.ev, y, r.type === 'grouped' ? 18 : 0);
+    }).join('');
+
+    const allExpanded = multiGroupKeys.length > 0 && multiGroupKeys.every(k => !!_myActivityTimelineExpanded[k]);
+    const toggleAllHtml = multiGroupKeys.length ? `<div style="margin-bottom:10px">
+      <button class="activity-view-btn" onclick='toggleAllActivityTimelineGroups(${JSON.stringify(multiGroupKeys)}, ${!allExpanded})'>${allExpanded ? '▲ すべて折りたたむ' : `▼ すべて展開 (${multiGroupKeys.length}件)`}</button>
+    </div>` : '';
+
+    timelineHtml = `${toggleAllHtml}<div id="activity-timeline-track" style="position:relative;margin-left:76px;padding:6px 0;height:${trackH+20}px">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--border2)"></div>
+      ${ticks}${nodes}
+    </div>`;
+  }
+
+  const untimedHtml = untimed.length ? `<div style="margin-top:${timed.length ? '18px' : '0'}">
+    <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">時刻不明のアクティビティ</div>
+    ${untimed.map(ev => `
+      <div class="activity-timeline-untimed-item" onclick="openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}')">
+        <span style="font-size:14px;flex-shrink:0">${ev.icon}</span>
+        <span class="my-mention-proj" style="background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span>
+        ${_taskLabelFor(ev) ? `<span class="my-mention-task">${_taskLabelFor(ev)}</span>` : ''}
+        <span style="font-size:12px;color:var(--text)">${ev.text}</span>
+      </div>`).join('')}
+  </div>` : '';
+
+  return `${timelineHtml}${untimedHtml}`;
+}
+
+// タイムライン表示の描画後補正：カードの実際の高さ（折り返しで想定より高くなる場合がある）を計測し、
+// 後続のノードと重なっていれば下にずらす。リスト表示同様、本文は省略せず全文表示するための仕組み。
+function _adjustActivityTimelineOverlap() {
+  const track = document.getElementById('activity-timeline-track');
+  if (!track) return;
+  const nodes = track.querySelectorAll('.activity-timeline-node');
+  const GAP = 10; // ノード同士の最低余白(px)
+  let prevBottom = null;
+  nodes.forEach(el => {
+    let top = el.offsetTop;
+    if (prevBottom !== null && top < prevBottom + GAP) {
+      top = prevBottom + GAP;
+      el.style.top = `${top}px`;
+    }
+    prevBottom = top + el.offsetHeight;
+  });
+  if (prevBottom !== null) {
+    track.style.height = `${prevBottom + 20}px`;
+  }
 }
 
 function _renderActivityTabContent(myName) {
@@ -5094,21 +5268,7 @@ function _renderActivityTabContent(myName) {
         ${_myActivitySelDate} &nbsp;—&nbsp; ${evts.length}件のアクティビティ
       </div>
       ${projSummaryHtml}
-      ${sorted.length ? sorted.map(ev => {
-        const _evProj = getProject(ev.pid);
-        const _evTask = _evProj && (_evProj.tasks||[]).find(x => x.id === ev.tid);
-        const _evTaskLabel = _evTask ? `#${_evTask.number} ${esc(_evTask.title)}` : '';
-        return `
-        <div class="activity-detail-item" onclick="openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}')">
-          <div class="my-mention-meta">
-            <span style="font-size:14px;flex-shrink:0">${ev.icon}</span>
-            <span class="my-mention-proj" style="background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span>
-            ${_evTaskLabel ? `<span class="my-mention-task">${_evTaskLabel}</span>` : ''}
-            <span class="my-mention-date">${ev.hasTime ? fmtDatetime(ev.at).split(' ')[1] : '時刻不明'}</span>
-          </div>
-          <div class="my-mention-text">${ev.text}</div>
-        </div>`;
-      }).join('')
+      ${sorted.length ? _renderActivityTimelineView(sorted)
       : `<div style="text-align:center;padding:20px;font-size:12px;color:var(--muted)">この日のアクティビティはありません</div>`}
     </div>`;
   } else {
@@ -5345,8 +5505,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.17';
-const APP_VERSION_DATE = '2026-09-06';
+const APP_VERSION      = '1.1.18';
+const APP_VERSION_DATE = '2026-09-26';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
