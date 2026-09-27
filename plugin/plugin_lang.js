@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.1',
+      version:     '1.3.2',
     });
   }
 
@@ -98,6 +98,8 @@
     '現在の連続日数':                     'Current Streak',
     '最長連続日数':                       'Longest Streak',
     'この日のアクティビティはありません': 'No activity for this day',
+    '時刻不明のアクティビティ':           'Activities with unknown time',
+    '▲ すべて折りたたむ':                 '▲ Collapse All',
     'セルをクリックして日付ごとの詳細を表示': 'Click a cell to view daily details',
     'クリックで詳細表示':                 'Click for details',
     '少ない':                             'Less',
@@ -662,7 +664,13 @@
     s = s.replace(/^リンク先のタスクを表示するには、<br><strong style="color:var\(--accent2\)">(.+)<\/strong> フォルダを選択する必要があります。$/, 'To view the linked task, you need to select the <br><strong style="color:var(--accent2)">$1</strong> folder.');
     s = s.replace(/見積 ([\d.]+)h/g, 'Est $1h').replace(/実績 ([\d.]+)h/g, 'Act $1h');
     s = s.replace(/^(\d+) × (\d+) の表$/, '$1 × $2 Table');
-    
+
+    // マイタスク・アクティビティタイムライン（v1.1.18〜）
+    s = s.replace(/^▼ すべて展開 \((\d+)件\)$/, '▼ Expand All ($1)');
+    s = s.replace(/^(\d{1,2}:\d{2})〜(\d{1,2}:\d{2})の(\d+)件 (▲ 閉じる|▼ 展開)$/, (m, t1, t2, n, btn) => {
+      return `${t1}\u2013${t2} (${n}) ${btn === '▲ 閉じる' ? '▲ Collapse' : '▼ Expand'}`;
+    });
+
     // 汎用カウンター
     s = s.replace(/^(\d+)日$/, '$1 days');
     s = s.replace(/(\d+)件/g, '$1');
@@ -719,6 +727,7 @@
     [/^(<b>.+?<\/b>) にチェックを付けた/, 'Checked $1'],
     [/^(<b>.+?<\/b>) のチェックを外した/, 'Unchecked $1'],
     // 以下はマイタスク固有
+    [/^新しいタスクを作成しました$/, 'Created a new task'],
     [/^タスク完了: (<b>.+?<\/b>)/, 'Task completed: $1'],
     [/^タスク作成: (<b>.+?<\/b>)/, 'Task created: $1'],
     [/^コメント投稿: &ldquo;(.*?)&rdquo;/, 'Posted comment: &ldquo;$1&rdquo;'],
@@ -746,8 +755,8 @@
       el.innerHTML = translateActivityText(el.innerHTML);
     });
 
-    // マイタスクのアクティビティ詳細用 (activity-detail-item 内の該当箇所)
-    document.querySelectorAll('.activity-detail-item > div:nth-child(2) > div:first-child').forEach(el => {
+    // マイタスクのアクティビティ詳細用（タイムライン表示: .activity-timeline-text 内のテキスト）
+    document.querySelectorAll('.activity-timeline-text').forEach(el => {
       el.innerHTML = translateActivityText(el.innerHTML);
     });
 
@@ -947,9 +956,9 @@
           translateNode(n);
           // DOMに新しく追加された要素がアクティビティ関連ならフラグを立てる
           if (n.nodeType === Node.ELEMENT_NODE) {
-            if (n.classList && (n.classList.contains('activity-detail-item') || n.classList.contains('activity-item'))) {
+            if (n.classList && (n.classList.contains('activity-detail-item') || n.classList.contains('activity-item') || n.classList.contains('activity-timeline-node'))) {
               needsActivityTrans = true;
-            } else if (n.querySelector && (n.querySelector('.activity-detail-item') || n.querySelector('.activity-item') || n.querySelector('[data-activity-header]') || n.querySelector('[data-proj-perf-header]'))) {
+            } else if (n.querySelector && (n.querySelector('.activity-detail-item') || n.querySelector('.activity-item') || n.querySelector('.activity-timeline-node') || n.querySelector('[data-activity-header]') || n.querySelector('[data-proj-perf-header]'))) {
               needsActivityTrans = true;
             } else if (n.hasAttribute && (n.hasAttribute('data-activity-header') || n.hasAttribute('data-proj-perf-header'))) {
               needsActivityTrans = true;
