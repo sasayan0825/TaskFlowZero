@@ -235,7 +235,7 @@ th.sortable.sort-desc::after{content:' ↓'}
 .activity-timeline-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;font-size:12px;display:flex;flex-direction:column;gap:4px;transition:all .15s;flex:1;min-width:0}
 .activity-timeline-card:hover{border-color:var(--border2);background:var(--surface2)}
 .activity-timeline-meta{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden;min-width:0}
-.activity-timeline-text{white-space:normal;word-break:break-word;min-width:0;line-height:1.4}
+.activity-timeline-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;line-height:1.4}
 .activity-timeline-untimed-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;margin-bottom:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:8px;transition:all .15s}
 .activity-timeline-untimed-item:hover{border-color:var(--border2);background:var(--surface2)}
 #btn-new-project{margin:8px 12px 16px;padding:8px;background:rgba(79,142,255,.1);border:1px dashed rgba(79,142,255,.3);border-radius:var(--radius);color:var(--accent);font-size:12px;cursor:pointer;text-align:center;transition:all .15s}
@@ -297,14 +297,15 @@ th.sortable.sort-desc::after{content:' ↓'}
 .project-desc{font-size:12px;color:var(--muted);margin-bottom:10px}
 .view-tabs{display:flex;gap:0}
 
-/* RESPONSIVE: narrow viewport adaptations (icon-only buttons) */
+/* RESPONSIVE: narrow viewport adaptations (icon-only buttons)
+   #header直下のbutton（プラグインが動的追加したものも含む）は、
+   ラベルを<span class="btn-label">で囲む規約に従ってさえいれば自動でアイコン化対象になる。
+   アイコン化させたくないボタンには data-no-collapse 属性を付与してオプトアウトする。 */
 @media (max-width:900px){
-  #header .btn .btn-label,
-  #theme-toggle .btn-label,
-  .project-title-row .btn .btn-label{display:none}
-  #header .btn,
-  #theme-toggle,
-  .project-title-row .btn{padding-left:9px;padding-right:9px}
+  #header button:not([data-no-collapse]) .btn-label,
+  .project-title-row .btn:not([data-no-collapse]) .btn-label{display:none}
+  #header button:not([data-no-collapse]),
+  .project-title-row .btn:not([data-no-collapse]){padding-left:9px !important;padding-right:9px !important}
 }
 .view-tab{padding:7px 16px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:5px}
 .view-tab:hover{color:var(--text)}
@@ -4947,7 +4948,7 @@ function _renderActivityTimelineView(sorted) {
       <span class="activity-timeline-card">
         <span class="activity-timeline-meta">
           <span class="my-mention-proj" style="background:${ev.pc}22;color:${ev.pc};flex-shrink:0">${esc(ev.pname)}</span>
-          ${taskLabel ? `<span class="my-mention-task" style="flex-shrink:0;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${taskLabel}</span>` : ''}
+          ${taskLabel ? `<span class="my-mention-task" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${taskLabel}</span>` : ''}
         </span>
         <span class="activity-timeline-text">${ev.text}</span>
       </span>
@@ -5505,8 +5506,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.18';
-const APP_VERSION_DATE = '2026-09-26';
+const APP_VERSION      = '1.1.19';
+const APP_VERSION_DATE = '2026-09-27';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {

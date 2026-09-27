@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.2',
+      version:     '1.3.3',
     });
   }
 
@@ -989,7 +989,9 @@
       'font-size:13px;cursor:pointer;font-family:inherit;',
       'display:flex;align-items:center;gap:5px;',
     ].join('');
-    btn.innerHTML = _lang === 'ja' ? '🌐 English' : '🌐 日本語';
+    btn.innerHTML = _lang === 'ja'
+      ? '🌐 <span class="btn-label">English</span>'
+      : '🌐 <span class="btn-label">日本語</span>';
     btn.title = _lang === 'ja' ? 'Switch to English' : '日本語に切り替え';
     btn.onclick = () => setLang(_lang === 'ja' ? 'en' : 'ja');
 
