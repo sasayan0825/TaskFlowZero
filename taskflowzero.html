@@ -1212,6 +1212,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <option value="overdue">期限切れ</option>
           <option value="no_due">期限なし</option>
         </select>
+        <button class="btn btn-secondary btn-sm" onclick="resetFilters()" title="フィルターを初期化">×</button>
         <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openTaskModal()">＋ タスク追加</button>
       </div>
 
@@ -4487,6 +4488,15 @@ function getFilteredTasks() {
   return tasks;
 }
 
+// フィルターバーの全項目（タイトル検索・マイルストーン・担当者・ラベル・期限）を初期状態に戻す
+function resetFilters() {
+  ['filter-search','filter-milestone','filter-assignee','filter-label','filter-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  renderCurrentView();
+}
+
 // ═══════════════════════════════════════
 // SIDEBAR
 // ═══════════════════════════════════════
@@ -5506,8 +5516,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.19';
-const APP_VERSION_DATE = '2026-09-27';
+const APP_VERSION      = '1.1.20';
+const APP_VERSION_DATE = '2026-10-02';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -6395,8 +6405,11 @@ function updateFilters() {
   const assignees = [...new Set(p.tasks.map(t=>t.assignee).filter(Boolean))];
 
   const msSel = document.getElementById('filter-milestone');
+  const msVal = msSel.value;
   msSel.innerHTML = '<option value="">マイルストーン: 全て</option><option value="__none__">未割り当て</option>'+
     ms.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+  // 保存・再描画のたびにフィルターが外れないよう、選択値を復元する（存在しない値は「全て」に戻る）
+  msSel.value = msVal;
 
   const asnSel = document.getElementById('filter-assignee');
   const asnVal = asnSel.value;
@@ -9132,6 +9145,11 @@ function renderBacklinks(t, p) {
   // 境界チェック: #P2-5 が #P2-50 にマッチしないよう \b を使用
   const refPatternWithFolder    = hashWithFolder    ? new RegExp('#' + escapeRegExp(hashWithFolder.slice(1))    + '\\b', 'i') : null;
   const refPatternWithoutFolder = new RegExp('#' + escapeRegExp(hashWithoutFolder.slice(1)) + '\\b', 'i');
+  // 短縮表記 #{タスク番号}（同一プロジェクト内の参照）にも対応する。
+  // linkifyTaskRefs と同様、行頭または空白（改行含む）直後の # のみを参照として扱う。
+  const refPatternShort = (t.number != null)
+    ? new RegExp('(?:^|(?<=[\\s\\u3000]))#' + t.number + '\\b')
+    : null;
 
   // { task, sources: ['desc'|'comment'] } の形で収集
   const backlinkers = [];
@@ -9141,7 +9159,8 @@ function renderBacklinks(t, p) {
     const desc = task.description || '';
     const matchesFn = str =>
       (refPatternWithFolder && refPatternWithFolder.test(str)) ||
-      refPatternWithoutFolder.test(str);
+      refPatternWithoutFolder.test(str) ||
+      (refPatternShort && refPatternShort.test(str));
 
     if (matchesFn(desc)) sources.push('desc');
 
@@ -9163,6 +9182,10 @@ function renderBacklinks(t, p) {
     const statusDot = statusInfo
       ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${statusInfo.color};margin-right:5px;flex-shrink:0"></span>`
       : '';
+    // 右端にステータスを表示（TODO/進行中/レビュー/完了）
+    const statusBadge = statusInfo
+      ? `<span style="flex-shrink:0;margin-left:4px;background:${statusInfo.color}22;color:${statusInfo.color};border:1px solid ${statusInfo.color}44;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap">${esc(statusInfo.label)}</span>`
+      : '';
     const sourceLabel = sources.includes('comment') && !sources.includes('desc')
       ? `<span style="font-size:10px;color:var(--muted);flex-shrink:0">💬 コメントより</span>`
       : sources.includes('comment')
@@ -9174,8 +9197,9 @@ function renderBacklinks(t, p) {
          onclick="navigateToHash('${hash.replace(/'/g, "\\'")}')"
          style="font-family:'JetBrains Mono',monospace;font-size:.85em;color:var(--accent);background:rgba(79,142,255,.1);border:1px solid rgba(79,142,255,.25);border-radius:3px;padding:0 4px;text-decoration:none;flex-shrink:0"
       >${hash}</a>
-      <span style="font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(bt.title)}</span>
+      <span style="flex:1;min-width:0;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(bt.title)}</span>
       ${sourceLabel}
+      ${statusBadge}
     </div>`;
   }).join('');
 }

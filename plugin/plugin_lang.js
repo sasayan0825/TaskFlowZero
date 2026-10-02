@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.3',
+      version:     '1.3.4',
     });
   }
 
@@ -136,6 +136,7 @@
     '＋ タスク追加':                      '＋ Add Task',
     '🏁 マイルストーン':                  '🏁 Milestones',
     'フィルター:':                        'Filter:',
+    'フィルターを初期化':                'Reset filters',
     'マイルストーン: 全て':               'Milestone: All',
     '担当者: 全員':                       'Assignee: All',
     'ラベル: 全て':                       'Label: All',
