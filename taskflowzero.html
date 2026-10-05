@@ -427,6 +427,9 @@ html.light .gantt-day-cell.holiday{background:rgba(239,68,68,.16);color:#b91c1c}
 .gantt-left-cell{width:260px;flex-shrink:0;border-right:1px solid var(--border);padding:0 12px;display:flex;align-items:center;gap:8px;font-size:12px;overflow:hidden;white-space:nowrap;height:40px}
 .gantt-left-cell.ms{font-weight:600;font-size:13px}
 .gantt-left-cell.task{font-size:12px;color:var(--muted)}
+/* タスク行は左に16pxのpaddingがあるため、固定幅260pxだと右端が16pxはみ出して切れる。残り幅いっぱいに収める */
+.gantt-row.task-row>.gantt-left-cell{width:auto;flex:1;min-width:0}
+.gantt-assignee-empty{width:22px;height:22px;border-radius:50%;border:1px dashed var(--border);box-sizing:border-box;flex-shrink:0;opacity:.7}
 .gantt-expand-btn{cursor:pointer;font-size:10px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--muted)}
 .gantt-right-cell{flex:1;position:relative;height:40px}
 .gantt-bar{position:absolute;top:50%;transform:translateY(-50%);border-radius:4px;cursor:default;transition:none;display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:600;overflow:visible;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3);user-select:none}
@@ -1295,6 +1298,10 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <option value="all" selected>タスク表示：すべて</option>
             <option value="open">タスク表示：未完了のみ</option>
             <option value="none">タスク表示：なし</option>
+          </select>
+          <select class="filter-select" id="gantt-task-badge" onchange="_ganttBadgeChanged()">
+            <option value="assignee" selected>タスク横：担当者</option>
+            <option value="sp">タスク横：SP</option>
           </select>
           <select class="filter-select" id="gantt-inazuma" onchange="renderGantt()">
             <option value="none">イナズマ線：なし</option>
@@ -5518,7 +5525,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.21';
+const APP_VERSION      = '1.1.22';
 const APP_VERSION_DATE = '2026-10-05';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
@@ -6966,6 +6973,41 @@ function renderBurndown() {
 const GANTT_ROW_H = 40;
 const GANTT_LEFT_W = 260;
 const _ganttCollapsed = new Set(); // 閉じているマイルストーンIDを保持
+const _GANTT_BADGE_KEY = 'taskflow-gantt-badge';
+let _ganttBadgeRestored = false;
+
+// タスク横に表示する内容（'assignee' | 'sp'）
+function _ganttBadgeMode() {
+  const el = document.getElementById('gantt-task-badge');
+  return el && el.value === 'sp' ? 'sp' : 'assignee';
+}
+function _ganttBadgeChanged() {
+  try { localStorage.setItem(_GANTT_BADGE_KEY, _ganttBadgeMode()); } catch(e) {}
+  renderGantt();
+}
+// ガント左ペインのタスク行に出すバッジ（担当アイコン or SP）
+function _ganttTaskBadgeHtml(t, mode) {
+  if (mode === 'sp') {
+    return t.storyPoints > 0
+      ? `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(79,142,255,.15);color:var(--accent);padding:0 5px;border-radius:3px;flex-shrink:0">${t.storyPoints}</span>`
+      : '';
+  }
+  return t.assignee
+    ? avatarHtml(t.assignee, 'assignee-avatar', 'flex-shrink:0')
+    : '<span class="gantt-assignee-empty" title="未アサイン"></span>';
+}
+// ツールチップ用の「担当・SP」行
+function _ganttTaskMetaLines(t) {
+  return `担当：${t.assignee || '未アサイン'}\nSP：${t.storyPoints > 0 ? t.storyPoints : '未設定'}`;
+}
+// 左ペインのタスク名ホバー用ツールチップ（タスク名全文＋担当・SP・期間）
+function _ganttTaskTooltip(t) {
+  let tip = `#${t.number||'?'} ${t.title}\n${_ganttTaskMetaLines(t)}`;
+  if (t.startDate || t.dueDate) {
+    tip += `\n期間：${t.startDate ? fmtFull(t.startDate) : '未設定'} 〜 ${t.dueDate ? fmtFull(t.dueDate) : '未設定'}`;
+  }
+  return tip;
+}
 
 
 // プロジェクト内のタスク・マイルストーンから最小開始日・最大終了日を算出
@@ -6988,6 +7030,15 @@ function renderGantt() {
   const p = getProject(state.currentProjectId); if(!p) return;
   const ms = p.milestones||[];
   const filteredTasks = getFilteredTasks();
+  if (!_ganttBadgeRestored) {
+    _ganttBadgeRestored = true;
+    try {
+      const v = localStorage.getItem(_GANTT_BADGE_KEY);
+      const el = document.getElementById('gantt-task-badge');
+      if (el && (v === 'sp' || v === 'assignee')) el.value = v;
+    } catch(e) {}
+  }
+  const _badgeMode = _ganttBadgeMode();
   const startMode = document.getElementById('gantt-start-mode').value;
   const _ganttRangeVal = document.getElementById('gantt-range').value;
   let rangeDays;
@@ -7136,8 +7187,8 @@ function renderGantt() {
         tLeft.style.height=GANTT_ROW_H+'px';
         tLeft.innerHTML=`<div class="gantt-left-cell task" style="padding-left:32px">
           <span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0"></span>
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${esc(t.title)}">#${t.number||'?'} ${esc(t.title)}</span>
-          ${t.storyPoints>0?`<span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(79,142,255,.15);color:var(--accent);padding:0 5px;border-radius:3px;flex-shrink:0">${t.storyPoints}</span>`:''}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${esc(_ganttTaskTooltip(t))}">#${t.number||'?'} ${esc(t.title)}</span>
+          ${_ganttTaskBadgeHtml(t, _badgeMode)}
         </div>`;
         tLeft.onclick = () => openTaskPanel(t.id);
         taskLeftContainer.appendChild(tLeft);
@@ -7168,7 +7219,7 @@ function renderGantt() {
             });
             const clTotal=(t.checklist||[]).length, clDone=(t.checklist||[]).filter(i=>i.checked).length;
             const clInfo = clTotal>0 ? ` ✓${clDone}/${clTotal}` : '';
-            tBar.title=`#${t.number} ${t.title} [${s.label}]${clInfo}${t.dueDate?' 期限:'+fmtFull(t.dueDate):''}`;
+            tBar.title=`#${t.number} ${t.title} [${s.label}]${clInfo}${t.dueDate?' 期限:'+fmtFull(t.dueDate):''}\n${_ganttTaskMetaLines(t)}`;
             tRight.appendChild(tBar);
 
             // タスクイナズマ線ポイント収集
@@ -7226,7 +7277,7 @@ function renderGantt() {
         const tLeft=document.createElement('div');
         tLeft.className='gantt-row task-row';
         tLeft.style.height=GANTT_ROW_H+'px';
-        tLeft.innerHTML=`<div class="gantt-left-cell task" style="padding-left:32px"><span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis;flex:1">#${t.number||'?'} ${esc(t.title)}</span></div>`;
+        tLeft.innerHTML=`<div class="gantt-left-cell task" style="padding-left:32px"><span style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${esc(_ganttTaskTooltip(t))}">#${t.number||'?'} ${esc(t.title)}</span>${_ganttTaskBadgeHtml(t, _badgeMode)}</div>`;
         tLeft.onclick=()=>openTaskPanel(t.id);
         leftRows.appendChild(tLeft);
         const tRight=document.createElement('div');
@@ -7244,6 +7295,7 @@ function renderGantt() {
             const uPct = getTaskProgress(t);
             const b=createGanttBar({x1:tx1,w:tw,color:s.color,opacity:t.status==='done'?0.9:0.5,label:t.title,pct:uPct,
               entityType:'task',entityId:t.id,startDate:t.startDate||addDays(t.dueDate,-3),endDate:t.dueDate,isTask:true});
+            b.title=`#${t.number||'?'} ${t.title} [${s.label}] 期限:${fmtFull(t.dueDate)}\n${_ganttTaskMetaLines(t)}`;
             tRight.appendChild(b);
 
             // タスクイナズマ線ポイント収集（未割り当て）
