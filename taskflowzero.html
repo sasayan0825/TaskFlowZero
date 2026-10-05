@@ -1291,9 +1291,11 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <option value="project">プロジェクト開始から</option>
             <option value="today">今日から</option>
           </select>
-          <label style="font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer">
-            <input type="checkbox" id="gantt-show-tasks" onchange="renderGantt()" checked> タスク表示
-          </label>
+          <select class="filter-select" id="gantt-show-tasks" onchange="renderGantt()">
+            <option value="all" selected>タスク表示：すべて</option>
+            <option value="open">タスク表示：未完了のみ</option>
+            <option value="none">タスク表示：なし</option>
+          </select>
           <select class="filter-select" id="gantt-inazuma" onchange="renderGantt()">
             <option value="none">イナズマ線：なし</option>
             <option value="milestone" selected>イナズマ線：マイルストーン</option>
@@ -5516,8 +5518,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.20';
-const APP_VERSION_DATE = '2026-10-02';
+const APP_VERSION      = '1.1.21';
+const APP_VERSION_DATE = '2026-10-05';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -7005,7 +7007,10 @@ function renderGantt() {
   } else {
     rangeDays = parseInt(_ganttRangeVal) || 90;
   }
-  const showTasks = document.getElementById('gantt-show-tasks').checked;
+  const _taskDispMode = document.getElementById('gantt-show-tasks').value;
+  const showTasks = _taskDispMode !== 'none';
+  // 表示行のみを絞り込む（マイルストーンの件数・進捗率は全タスクで算出するため mTasks 自体は変更しない）
+  const _ganttTaskRowFilter = t => _taskDispMode !== 'open' || t.status !== 'done';
   const showInazuma = document.getElementById('gantt-inazuma').value;
 
   // Determine gantt start date
@@ -7123,7 +7128,7 @@ function renderGantt() {
 
       const isCollapsed = _ganttCollapsed.has(m.id);
       if (!isCollapsed) {
-        mTasks.forEach(t => {
+        mTasks.filter(_ganttTaskRowFilter).forEach(t => {
         // Left
         const s = STATUSES.find(x=>x.id===t.status)||STATUSES[0];
         const tLeft = document.createElement('div');
@@ -7216,7 +7221,7 @@ function renderGantt() {
     rowIndex++;
 
     if (showTasks) {
-      unassigned.forEach(t => {
+      unassigned.filter(_ganttTaskRowFilter).forEach(t => {
         const s=STATUSES.find(x=>x.id===t.status)||STATUSES[0];
         const tLeft=document.createElement('div');
         tLeft.className='gantt-row task-row';

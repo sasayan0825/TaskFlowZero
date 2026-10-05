@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.4',
+      version:     '1.3.5',
     });
   }
 
@@ -204,6 +204,9 @@
     'プロジェクト全期間':                 'Full Project',
     'プロジェクト開始から':               'From Start',
     'タスク表示':                         'Show Tasks',
+    'タスク表示：すべて':                 'Tasks: All',
+    'タスク表示：未完了のみ':             'Tasks: Incomplete only',
+    'タスク表示：なし':                   'Tasks: None',
     'イナズマ線':                         'Progress Line',
     'イナズマ線：なし':                   'Progress Line: Off',
     'イナズマ線：マイルストーン':         'Progress Line: Milestone',
