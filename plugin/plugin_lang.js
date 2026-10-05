@@ -853,10 +853,33 @@
     }
   }
 
+  // ── ユーザー入力領域は翻訳対象外にする ─────────────────────
+  // コメント本文・タスク説明・Wiki本文・タスクタイトルなど、ユーザーが書いた内容は
+  // UI文言と同じ文字列でも翻訳しない。対象を増やしたい場合は
+  // USER_CONTENT_SELECTOR にセレクタを足すか、要素に data-no-translate を付ける。
+  const USER_CONTENT_SELECTOR = [
+    '.md-preview',        // コメント / タスク説明 / マイタスク説明 / コメントプレビュー
+    '#wiki-preview',      // Wiki本文
+    '.task-title-text',   // カード・リストのタスクタイトル
+    'textarea', 'input', '[contenteditable="true"]',
+    '[data-no-translate]'
+  ].join(',');
+  // ユーザー入力領域の内側にあるが、実際はUI文言のもの（翻訳を継続する）
+  const UI_IN_USER_CONTENT_SELECTOR = '.wiki-empty';
+
+  function isUserContent(el) {
+    if (!el || typeof el.closest !== 'function') return false;
+    const hit = el.closest(USER_CONTENT_SELECTOR);
+    if (!hit) return false;
+    const ui = el.closest(UI_IN_USER_CONTENT_SELECTOR);
+    return !(ui && hit.contains(ui));
+  }
+
   // ── テキストノードを再帰的に翻訳 ─────────────────────────
   function translateNode(node) {
     if (_lang === 'ja') return;
     if (node.nodeType === Node.TEXT_NODE) {
+      if (isUserContent(node.parentElement)) return;
       const original = node.textContent;
       const trimmed  = original.trim();
       if (!trimmed) return;
@@ -866,6 +889,11 @@
         node.textContent = original.replace(trimmed, translated);
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
+      if (isUserContent(node)) {
+        // ユーザー入力領域は丸ごとスキップ。ただし内側のUI文言（空のWiki表示など）だけは翻訳する
+        node.querySelectorAll(UI_IN_USER_CONTENT_SELECTOR).forEach(translateNode);
+        return;
+      }
       if (node.placeholder) node.placeholder = t(node.placeholder);
       if (node.title) node.title = t(node.title.trim());
       node.childNodes.forEach(translateNode);
