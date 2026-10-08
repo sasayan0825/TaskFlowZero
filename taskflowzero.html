@@ -4924,15 +4924,17 @@ function _buildActivityEvents(myName) {
         add(t.createdAtTime || t.createdAt, { type:'create', icon:'➕', text:`新しいタスクを作成しました`, pid:p.id, tid:t.id, pname:p.name, pc });
       }
       // コメント投稿・工数記録
-      (t.comments || []).forEach(c => {
+      (t.comments || []).forEach((c, ci) => {
         if (!c.author || c.author !== myName || !c.createdAt) return;
+        // タスク詳細のコメントアンカー(comment-anchor-N)と同じ採番ルール（renderTimeline参照）
+        const commentNo = c.no || (ci + 1);
         if (c.effortLog) {
           const parts = [];
           if (c.effortLog.estimated) parts.push(`見積 ${c.effortLog.estimated}h`);
           if (c.effortLog.actual)    parts.push(`実績 ${c.effortLog.actual}h`);
-          add(c.createdAt, { type:'effort', icon:'⏱', text:`工数記録: ${parts.join(' / ')}`, pid:p.id, tid:t.id, pname:p.name, pc, actual: c.effortLog.actual || 0 });
+          add(c.createdAt, { type:'effort', icon:'⏱', text:`工数記録: ${parts.join(' / ')}`, pid:p.id, tid:t.id, pname:p.name, pc, actual: c.effortLog.actual || 0, commentNo });
         } else {
-          add(c.createdAt, { type:'comment', icon:'💬', text:`コメント投稿: &ldquo;${esc(c.text||'')}&rdquo;`, pid:p.id, tid:t.id, pname:p.name, pc });
+          add(c.createdAt, { type:'comment', icon:'💬', text:`コメント投稿: &ldquo;${esc(c.text||'')}&rdquo;`, pid:p.id, tid:t.id, pname:p.name, pc, commentNo });
         }
       });
       // チェックリスト操作（自分が行ったもの）
@@ -4948,6 +4950,14 @@ function _buildActivityEvents(myName) {
 // 日別詳細パネルの「タイムライン」表示：0:00〜24:00基準で実時刻に応じて縦位置を決定する。
 // 表示範囲はその日のアクティビティ発生時間帯に合わせて自動で縮小し、近接イベントは最低間隔を確保する。
 // GROUP_WINDOW分以内に連続発生したイベントは1つの塊にまとめ、クリックで展開できるようにして密集時の可読性を保つ。
+// アクティビティイベントのクリック時にタスク詳細を開く呼び出し。
+// コメント投稿・工数記録は、投稿したコメントまでスクロールするためコメント番号を渡す。
+function _activityOpenCall(ev) {
+  return ev.commentNo != null
+    ? `openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}',${ev.commentNo})`
+    : `openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}')`;
+}
+
 function _renderActivityTimelineView(sorted) {
   const timed   = sorted.filter(ev => ev.hasTime);
   const untimed = sorted.filter(ev => !ev.hasTime);
@@ -4961,7 +4971,7 @@ function _renderActivityTimelineView(sorted) {
 
   const _eventNodeHtml = (ev, y, indent) => {
     const taskLabel = _taskLabelFor(ev);
-    return `<div class="activity-timeline-node" style="position:absolute;left:${indent}px;right:0;top:${y-8}px;display:flex;align-items:center;gap:8px;min-width:0" onclick="openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}')">
+    return `<div class="activity-timeline-node" style="position:absolute;left:${indent}px;right:0;top:${y-8}px;display:flex;align-items:center;gap:8px;min-width:0" onclick="${_activityOpenCall(ev)}">
       <span style="position:absolute;left:${-50-indent}px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap">${_timeOf(ev)}</span>
       <span style="width:16px;height:16px;border-radius:50%;background:var(--surface);border:2px solid ${ev.pc};display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;margin-left:-8px">${ev.icon}</span>
       <span class="activity-timeline-card">
@@ -5063,7 +5073,7 @@ function _renderActivityTimelineView(sorted) {
   const untimedHtml = untimed.length ? `<div style="margin-top:${timed.length ? '18px' : '0'}">
     <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">時刻不明のアクティビティ</div>
     ${untimed.map(ev => `
-      <div class="activity-timeline-untimed-item" onclick="openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}')">
+      <div class="activity-timeline-untimed-item" onclick="${_activityOpenCall(ev)}">
         <span style="font-size:14px;flex-shrink:0">${ev.icon}</span>
         <span class="my-mention-proj" style="background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span>
         ${_taskLabelFor(ev) ? `<span class="my-mention-task">${_taskLabelFor(ev)}</span>` : ''}
@@ -5525,8 +5535,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.22';
-const APP_VERSION_DATE = '2026-10-05';
+const APP_VERSION      = '1.1.23';
+const APP_VERSION_DATE = '2026-10-07';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -5747,7 +5757,11 @@ function showMyTasks() {
 function openTaskPanelFromMyTasks(pid, tid, commentNo) {
   state.currentProjectId = pid;
   openTaskPanel(tid);
-  if (commentNo != null) setTimeout(() => scrollToComment(commentNo), 300);
+  if (commentNo != null) {
+    // タイムライン表示が「アクティビティのみ」だとコメントが描画されずスクロール先が無いため全表示に戻す
+    if (_timelineFilter === 'activity') setTimelineFilter('all');
+    setTimeout(() => scrollToComment(commentNo), 300);
+  }
 }
 
 // フォルダごとに「自分」の名前を分けるためのキー生成
@@ -11063,7 +11077,21 @@ function navigateToWikiRef(ref) {
     }
   };
 
-  if (state.currentProjectId !== p.id) {
+  // タスクパネルが開いたままだとWikiビューが隠れてしまうため、先に閉じる。
+  // マイタスク画面から開いたパネルの場合、closeTaskPanel() が裏で保持していた
+  // state.currentProjectId を null に戻す（openTaskPanelFromMyTasks参照）。
+  // 未保存確認で「キャンセル」された（パネルが開いたまま）場合は遷移も中止する。
+  const _panelEl = document.getElementById('task-panel');
+  if (_panelEl && _panelEl.classList.contains('open')) {
+    closeTaskPanel();
+    if (_panelEl.classList.contains('open')) return;
+  }
+
+  // マイタスク画面などで currentProjectId だけ対象プロジェクトに合っていても
+  // プロジェクト詳細が非表示のままだとWikiビューが画面に出ないため、
+  // currentProjectId の一致に加えて project-detail の表示状態も見て判定する。
+  const _detailHidden = document.getElementById('project-detail').style.display === 'none';
+  if (state.currentProjectId !== p.id || _detailHidden) {
     openProject(p.id);
     setTimeout(goToPage, 100);
   } else {
