@@ -601,6 +601,11 @@ html.light .my-tasks-row:hover td{background:#dce6f5}
 .md-tp-cell{width:18px;height:18px;border-radius:3px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;transition:background .08s,border-color .08s}
 .md-tp-cell.active{background:rgba(79,142,255,.35);border-color:rgba(79,142,255,.7)}
 #md-table-picker-label{font-size:11px;color:var(--muted);height:14px}
+textarea.tab-released{outline:2px dashed var(--yellow) !important;outline-offset:-2px}
+#md-table-conv-picker{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:9100;padding:8px;display:none;flex-direction:column;gap:5px;min-width:180px}
+#md-table-conv-title{font-size:11px;color:var(--muted);padding-bottom:3px;border-bottom:1px solid var(--border)}
+.md-tc-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:12px;padding:5px 10px;border-radius:4px;cursor:pointer;text-align:left;white-space:nowrap;transition:all .12s}
+.md-tc-btn:hover{background:rgba(79,142,255,.15);border-color:rgba(79,142,255,.4);color:var(--accent2)}
 .desc-textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;padding:12px;resize:vertical;min-height:200px;outline:none;transition:border-color .15s}
 .desc-textarea:focus{border-color:var(--accent)}
 .desc-textarea.md-dragover,.comment-text-input.md-dragover,.form-textarea.md-dragover{border-color:var(--accent);background:rgba(79,142,255,.06);outline:2px dashed var(--accent);outline-offset:-2px}
@@ -1362,7 +1367,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
             <div class="md-toolbar-sep"></div>
             <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('wiki-textarea','~~','~~','テキスト')"><s>S</s></button>
             <button class="md-btn-fmt" title="引用" onclick="insertMd('wiki-textarea','\n> ','','引用テキスト')">❝</button>
-            <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'wiki-textarea')">⊞</button>
+            <button class="md-btn-fmt" title="表を挿入（タブ区切りテキストを選択して押すと表に変換）" onclick="showTablePicker(event,'wiki-textarea')">⊞</button>
             <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('wiki-textarea')" style="margin-left:4px">📎</button>
           </div>
           <div id="wiki-content-area">
@@ -1509,7 +1514,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <div class="md-toolbar-sep"></div>
         <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('panel-desc','~~','~~','テキスト')"><s>S</s></button>
         <button class="md-btn-fmt" title="引用" onclick="insertMd('panel-desc','\n> ','','引用テキスト')">❝</button>
-        <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'panel-desc')">⊞</button>
+        <button class="md-btn-fmt" title="表を挿入（タブ区切りテキストを選択して押すと表に変換）" onclick="showTablePicker(event,'panel-desc')">⊞</button>
         <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('panel-desc')" style="margin-left:4px">📎</button>
         <div style="flex:1"></div>
       </div>
@@ -1561,7 +1566,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div class="md-toolbar-sep"></div>
           <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('comment-text','~~','~~','テキスト')"><s>S</s></button>
           <button class="md-btn-fmt" title="引用" onclick="insertMd('comment-text','\n> ','','引用テキスト')">❝</button>
-          <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'comment-text')">⊞</button>
+          <button class="md-btn-fmt" title="表を挿入（タブ区切りテキストを選択して押すと表に変換）" onclick="showTablePicker(event,'comment-text')">⊞</button>
           <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('comment-text')" style="margin-left:4px">📎</button>
         </div>
         <textarea class="comment-text-input" id="comment-text" placeholder="コメントをMarkdownで入力..." oninput="autoResizeCmtTextarea(this);onMentionInput(event)" onkeydown="onMentionKeydown(event)" onblur="hideMentionPopup()" onpaste="handleMdPaste(event,'comment-text')" ondragover="event.preventDefault();this.classList.add('md-dragover')" ondragleave="this.classList.remove('md-dragover')" ondrop="handleMdDrop(event,'comment-text')"></textarea>
@@ -1717,7 +1722,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div class="md-toolbar-sep"></div>
           <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('tm-description','~~','~~','テキスト')"><s>S</s></button>
           <button class="md-btn-fmt" title="引用" onclick="insertMd('tm-description','\n> ','','引用テキスト')">❝</button>
-          <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'tm-description')">⊞</button>
+          <button class="md-btn-fmt" title="表を挿入（タブ区切りテキストを選択して押すと表に変換）" onclick="showTablePicker(event,'tm-description')">⊞</button>
           <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('tm-description')" style="margin-left:4px">📎</button>
         </div>
       </label>
@@ -1906,7 +1911,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <div class="md-toolbar-sep"></div>
         <button class="md-btn-fmt" title="取り消し線" onclick="insertMd('ps-te-description','~~','~~','テキスト')"><s>S</s></button>
         <button class="md-btn-fmt" title="引用" onclick="insertMd('ps-te-description','\n> ','','引用テキスト')">❝</button>
-        <button class="md-btn-fmt" title="表を挿入" onclick="showTablePicker(event,'ps-te-description')">⊞</button>
+        <button class="md-btn-fmt" title="表を挿入（タブ区切りテキストを選択して押すと表に変換）" onclick="showTablePicker(event,'ps-te-description')">⊞</button>
       </div>
       <textarea class="form-input" id="ps-te-description" rows="5" placeholder="タスクの詳細をMarkdownで記述できます..." style="font-size:13px;resize:vertical;width:100%;box-sizing:border-box"></textarea>
       <div class="md-preview" id="ps-te-desc-preview" style="min-height:90px;display:none"></div>
@@ -5535,8 +5540,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.23';
-const APP_VERSION_DATE = '2026-10-07';
+const APP_VERSION      = '1.1.24';
+const APP_VERSION_DATE = '2026-10-10';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -10002,6 +10007,86 @@ function insertMd(taId, before, after, placeholder) {
   if (taId === 'wiki-textarea') { const ev = new Event('input'); ta.dispatchEvent(ev); }
 }
 
+// ── タブ区切りテキスト → Markdown表 変換 ──────────────────
+// Excel等からコピーしたTSV（引用符で囲まれたセル内改行・"" エスケープ対応）を行列に分解
+function parseTsv(text) {
+  text = String(text).replace(/\r\n?/g, '\n');
+  const rows = [];
+  let row = [], cell = '', i = 0;
+  const n = text.length;
+  while (i < n) {
+    const ch = text[i];
+    if (ch === '"' && cell === '') {
+      // 引用符付きセル：閉じ引用符（直後が タブ／改行／終端）まで読む
+      let j = i + 1, buf = '', closed = false;
+      while (j < n) {
+        if (text[j] === '"') {
+          if (text[j + 1] === '"') { buf += '"'; j += 2; continue; }
+          if (j + 1 >= n || text[j + 1] === '\t' || text[j + 1] === '\n') { closed = true; j++; break; }
+        }
+        buf += text[j++];
+      }
+      if (closed) { cell = buf; i = j; continue; }
+      // 閉じていなければ引用符を通常文字として扱う
+    }
+    if (ch === '\t') { row.push(cell); cell = ''; i++; }
+    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; i++; }
+    else { cell += ch; i++; }
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  // 末尾の空行（Excelのコピーは末尾に改行が付く）を除去
+  while (rows.length && rows[rows.length - 1].every(c => c === '')) rows.pop();
+  return rows;
+}
+
+// opts.header === true なら1行目をヘッダー行にする（既定は空ヘッダー）
+function tsvToMarkdownTable(text, opts) {
+  const useHeader = !!(opts && opts.header);
+  const rows = parseTsv(text).map(r => r.map(c =>
+    c.replace(/\n/g, '<br>').replace(/\|/g, '\\|').trim()
+  ));
+  if (!rows.length) return '';
+  const cols = Math.max(...rows.map(r => r.length));
+  const line = r => '| ' + Array.from({length: cols}, (_, i) => r[i] ?? '').join(' | ') + ' |';
+  const head = useHeader ? rows[0] : [];             // 空ヘッダー or 1行目
+  const body = useHeader ? rows.slice(1) : rows;
+  return [
+    line(head),
+    '| ' + Array(cols).fill('---').join(' | ') + ' |',
+    ...body.map(line),
+  ].join('\n');
+}
+
+// 選択範囲（タブを含む）を表に置換。Ctrl+Z で元に戻せるよう execCommand を使い、変換後は表全体を選択状態にする
+// range = {s, e, text}：ピッカー表示時点の選択範囲（ボタン押下でフォーカスが外れても対象を保持する）
+function convertSelectionToTable(taId, opts, range) {
+  const ta = document.getElementById(taId);
+  if (!ta) return false;
+  const s = range ? range.s : ta.selectionStart, e = range ? range.e : ta.selectionEnd;
+  // ピッカー表示中に本文が変わっていたら対象がずれるので中止
+  if (range && ta.value.slice(s, e) !== range.text) return false;
+  const table = tsvToMarkdownTable(ta.value.slice(s, e), opts);
+  if (!table) return false;
+  const before = ta.value.slice(0, s), after = ta.value.slice(e);
+  // 前後は空行で区切る（前の段落に巻き込まれる／後続行が表の行になるのを防ぐ）
+  const pre  = !before || before.endsWith('\n\n') ? '' : (before.endsWith('\n') ? '\n' : '\n\n');
+  const post = !after || after.startsWith('\n\n') ? '' : (after.startsWith('\n') ? '\n' : '\n\n');
+  const ins = pre + table + post;
+  ta.focus();
+  ta.setSelectionRange(s, e);
+  let ok = false;
+  try { ok = document.execCommand('insertText', false, ins); } catch (_) {}
+  if (!ok || ta.value.slice(s, s + ins.length) !== ins) {
+    // execCommand が使えない環境のフォールバック（Undo不可）
+    ta.value = before + ins + after;
+    if (taId === 'panel-desc') panelDirty = true;
+    if (taId === 'comment-text') autoResizeCmtTextarea(ta);
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+  ta.setSelectionRange(s + pre.length, s + pre.length + table.length);
+  return true;
+}
+
 // ── Markdown テーブル挿入────────────────────────────────
 function insertTable(taId, cols, rows) {
   const ta = document.getElementById(taId);
@@ -10021,6 +10106,19 @@ function insertTable(taId, cols, rows) {
 
 function showTablePicker(e, taId) {
   e.stopPropagation();
+  // タブ区切りテキストを選択中なら、ヘッダー有無を選ぶ変換ピッカーを表示
+  const _ta = document.getElementById(taId);
+  const _cp = document.getElementById('md-table-conv-picker');
+  if (_ta && _ta.style.display !== 'none') {
+    const _s = _ta.selectionStart, _e = _ta.selectionEnd, _txt = _ta.value.slice(_s, _e);
+    if (_txt.includes('\t')) {
+      const _p = document.getElementById('md-table-picker');
+      if (_p) _p.style.display = 'none';
+      if (_cp && _cp.style.display === 'flex' && _cp.dataset.taId === taId) { _cp.style.display = 'none'; return; }
+      if (showTableConvertPicker(e, taId, {s: _s, e: _e, text: _txt})) return;
+    }
+  }
+  if (_cp) _cp.style.display = 'none';
   const ROWS = 5, COLS = 5;
   let picker = document.getElementById('md-table-picker');
   // 既存ピッカーが同じtaId向けなら閉じる（トグル）
@@ -10070,6 +10168,59 @@ function showTablePicker(e, taId) {
   if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
   picker.style.left = left + 'px';
   picker.style.top  = (rect.bottom + 4) + 'px';
+}
+
+// タブ区切りテキスト選択時の「1行目をヘッダーにするか」選択ピッカー
+function showTableConvertPicker(e, taId, range) {
+  const rows = parseTsv(range.text);
+  if (!rows.length) return false;
+  const cols = Math.max(...rows.map(r => r.length));
+  let picker = document.getElementById('md-table-conv-picker');
+  if (!picker) {
+    picker = document.createElement('div');
+    picker.id = 'md-table-conv-picker';
+    const title = document.createElement('div');
+    title.id = 'md-table-conv-title';
+    const mk = (label, header) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'md-tc-btn';
+      b.textContent = label;
+      b.addEventListener('click', () => {
+        const r = picker._range, id = picker.dataset.taId;
+        picker.style.display = 'none';
+        convertSelectionToTable(id, {header}, r);
+      });
+      return b;
+    };
+    picker.appendChild(title);
+    picker.appendChild(mk('1行目をヘッダーにする', true));
+    picker.appendChild(mk('ヘッダーは空欄にする', false));
+    document.body.appendChild(picker);
+    // 外クリックで閉じる
+    document.addEventListener('click', (ev) => {
+      if (picker.style.display === 'flex' && !picker.contains(ev.target)) picker.style.display = 'none';
+    });
+    // Esc で閉じて、選択範囲を戻す
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape' || picker.style.display !== 'flex') return;
+      picker.style.display = 'none';
+      const ta = document.getElementById(picker.dataset.taId), r = picker._range;
+      if (ta && r) { ta.focus(); ta.setSelectionRange(r.s, r.e); }
+      ev.stopPropagation();
+    }, true);
+  }
+  picker._range = range;
+  picker.dataset.taId = taId;
+  picker.querySelector('#md-table-conv-title').textContent = `${cols}列 × ${rows.length}行を表に変換`;
+  const rect = e.currentTarget.getBoundingClientRect();
+  picker.style.display = 'flex';
+  const pw = picker.offsetWidth || 180;
+  let left = rect.left;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  picker.style.left = left + 'px';
+  picker.style.top  = (rect.bottom + 4) + 'px';
+  return true;
 }
 
 function _tpHighlight(selR, selC) {
@@ -10375,6 +10526,79 @@ document.addEventListener('keydown', function(e) {
     insertMd(ta.id, '*', '*', '斜体');
   }
 });
+
+// ── Markdown入力欄の Tab キー処理 ─────────────────────────
+// Tab：タブ文字を挿入（複数行選択時は各行を字下げ）／ Shift+Tab：字下げを戻す
+// Esc：Tab移動モードに切り替え（Tab/Shift+Tab が通常のフォーカス移動に戻る。入力欄の枠が点線になる）
+//      もう一度 Esc で従来どおりパネル／モーダルを閉じる。文字入力を再開するか、フォーカスが外れると元に戻る。
+const MD_TAB_IDS = ['wiki-textarea', 'panel-desc', 'comment-text', 'tm-description', 'ps-te-description'];
+
+// 選択範囲を text に置換（Ctrl+Z で戻せるよう execCommand を使用。不可なら setRangeText にフォールバック）
+function _mdTabReplace(ta, text) {
+  const before = ta.value;
+  ta.focus();
+  let ok = false;
+  try { ok = document.execCommand('insertText', false, text); } catch (_) {}
+  if (!ok || ta.value === before) {
+    ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, 'end');
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+}
+
+// 選択行（またはカーソル行）を字下げ／字下げ解除する。変更がなければ false
+function _mdTabShiftLines(ta, outdent) {
+  const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+  const ls = v.lastIndexOf('\n', s - 1) + 1;                 // 先頭行の行頭
+  const le = (e > s && v[e - 1] === '\n') ? e - 1 : e;        // 選択末尾が行頭ちょうどなら次の行は含めない
+  let blockEnd = v.indexOf('\n', le);
+  if (blockEnd === -1) blockEnd = v.length;
+  const lines = v.slice(ls, blockEnd).split('\n');
+  const out = lines.map(l => outdent ? l.replace(/^(\t| {1,4})/, '') : (l === '' ? l : '\t' + l));
+  const block = lines.join('\n'), nb = out.join('\n');
+  if (nb === block) return false;
+  const firstDelta = out[0].length - lines[0].length;
+  const totalDelta = nb.length - block.length;
+  ta.setSelectionRange(ls, blockEnd);
+  _mdTabReplace(ta, nb);
+  const ns = (!outdent && s === ls) ? ls : Math.max(ls, s + firstDelta);   // 行頭から選択していた場合は字下げ分も選択に含める
+  ta.setSelectionRange(ns, Math.max(ns, e + totalDelta));
+  return true;
+}
+
+document.addEventListener('keydown', function(e) {
+  const ta = e.target;
+  if (!ta || ta.tagName !== 'TEXTAREA' || !MD_TAB_IDS.includes(ta.id)) return;
+  if (e.isComposing || e.keyCode === 229) return;             // IME変換中は触らない（EscやTabは変換操作に使われる）
+  if (e.key === 'Escape') {
+    const mp = document.getElementById('mention-popup');
+    if (_mentionState.active && mp && mp.querySelector('.mention-item')) {
+      hideMentionPopup(); e.stopPropagation(); return;        // メンション候補表示中の Esc は候補を閉じるだけ
+    }
+    const cp = document.getElementById('md-table-conv-picker');
+    if (cp && cp.style.display === 'flex') return;             // 表変換ピッカー側の Esc 処理に任せる
+    if (!ta.classList.contains('tab-released')) {
+      ta.classList.add('tab-released');                        // 1回目：Tab移動モードへ（パネルは閉じない）
+      e.stopPropagation();
+    }
+    return;                                                    // 2回目以降：従来の Esc 処理（パネル／モーダルを閉じる）へ
+  }
+  if (e.key !== 'Tab' || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (ta.classList.contains('tab-released')) return;           // Tab移動モード中は通常のフォーカス移動
+  const mp = document.getElementById('mention-popup');
+  if (_mentionState.active && mp && mp.querySelector('.mention-item')) return;  // メンション候補の確定を優先
+  e.preventDefault();
+  const multiLine = ta.value.slice(ta.selectionStart, ta.selectionEnd).includes('\n');
+  if (e.shiftKey) _mdTabShiftLines(ta, true);
+  else if (multiLine) _mdTabShiftLines(ta, false);
+  else _mdTabReplace(ta, '\t');
+}, true);
+// 文字入力を再開したらTab挿入モードに戻す／フォーカスが外れたら戻す
+document.addEventListener('input', function(e) {
+  if (e.target && e.target.classList) e.target.classList.remove('tab-released');
+}, true);
+document.addEventListener('focusout', function(e) {
+  if (e.target && e.target.classList) e.target.classList.remove('tab-released');
+}, true);
 
 function setTmDescMode(mode) {
   const ta  = document.getElementById('tm-description');

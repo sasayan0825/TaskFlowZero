@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.6',
+      version:     '1.3.7',
     });
   }
 
@@ -374,6 +374,9 @@
     '取り消し線':                         'Strikethrough',
     '引用':                               'Quote',
     '表を挿入':                           'Insert table',
+    '表を挿入（タブ区切りテキストを選択して押すと表に変換）': 'Insert table (select tab-separated text and click to convert)',
+    '1行目をヘッダーにする':              'Use first row as header',
+    'ヘッダーは空欄にする':               'Leave header empty',
     'コードブロック':                     'Code Block',
     '言語を選択':                         'Select Language',
     '太字':                               'Bold',
@@ -597,6 +600,8 @@
     let s = text;
 
     // トースト / ダイアログ関連
+    // 表ボタン：タブ区切りテキストの変換ピッカーのタイトル
+    s = s.replace(/^(\d+)列 × (\d+)行を表に変換$/, 'Convert $1 cols × $2 rows to table');
     s = s.replace(/^フォルダを読み込みました: (.+)$/, 'Folder loaded: $1');
     s = s.replace(/^フォルダを開きました: (.+)$/, 'Folder opened: $1');
     s = s.replace(/^競合コピー (\d+) 件を自動マージしました$/, '$1 conflict copies auto-merged');
