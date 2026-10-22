@@ -205,6 +205,22 @@ body{font-family:'Noto Sans JP','Outfit',sans-serif;background:var(--bg);color:v
 .sb-badge-warn{font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(239,68,68,.2);color:var(--red);padding:1px 6px;border-radius:10px;font-weight:700}
 @keyframes pulseAttention{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}50%{box-shadow:0 0 0 5px rgba(239,68,68,0)}}
 .pulse-attention{animation:pulseAttention 1.2s ease-in-out 3}
+/* ヘッダー右上のアカウントメニュー（order:999でプラグインが後から追加したボタンより右に固定） */
+#account-menu-wrap{position:relative;order:999;flex-shrink:0}
+#account-btn{display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 10px 3px 4px;border-radius:999px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s}
+#account-btn:hover{background:var(--surface3)}
+#account-btn .account-name{max-width:140px;overflow:hidden;text-overflow:ellipsis}
+#account-btn .account-caret{font-size:9px;color:var(--muted)}
+#account-dropdown{display:none;position:absolute;right:0;top:calc(100% + 8px);min-width:220px;max-width:300px;max-height:60vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,.35);padding:6px;z-index:300}
+.account-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;padding:4px 8px}
+.account-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer}
+.account-item:hover{background:var(--surface2)}
+.account-item.active{color:var(--accent2);font-weight:600}
+.account-item .account-check{margin-left:auto;font-size:12px}
+.account-sep{height:1px;background:var(--border);margin:6px 0}
+.account-empty{padding:8px;font-size:12px;color:var(--muted)}
+@media (max-width:900px){#account-btn .account-name{display:none}}
+.activity-perf-row:hover td{background:var(--surface3)}
 .my-tasks-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
 .my-tasks-tab{padding:8px 20px;font-size:13px;font-weight:500;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;user-select:none}
 .my-tasks-tab:hover{color:var(--text)}
@@ -984,7 +1000,14 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   <button class="btn btn-secondary btn-sm" id="refresh-btn" onclick="manualRefresh()" title="他のメンバーの変更を取得">🔄 <span class="btn-label">更新</span></button>
   <button class="btn btn-secondary btn-sm" title="保存" onclick="if(panelDirty)savePanelTask();if(state.currentView==='wiki'&&_wikiDirty)saveWiki();saveFile(true)">💾 <span class="btn-label">保存</span></button>
   <button class="btn btn-secondary btn-sm" onclick="openFile()" title="フォルダ変更">📂 <span class="btn-label">フォルダ変更</span></button>
-  
+  <div id="account-menu-wrap">
+    <button id="account-btn" data-no-collapse onclick="toggleAccountMenu(event)" title="アカウント（自分の名前）を切り替え">
+      <span id="account-btn-avatar" style="display:flex;align-items:center"><span style="font-size:16px;padding-left:6px">👤</span></span>
+      <span class="account-name" id="account-btn-name">名前を選択</span>
+      <span class="account-caret">▼</span>
+    </button>
+    <div id="account-dropdown"></div>
+  </div>
 </div>
 
 <!-- APP -->
@@ -1027,14 +1050,6 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         <div>
           <div style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:700;display:flex;align-items:center;gap:10px"><span id="my-tasks-header-icon">👤</span> マイタスク</div>
           <div style="font-size:13px;color:var(--muted);margin-top:4px">自分への通知・担当タスクを一覧表示</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:13px;color:var(--muted)">自分:</span>
-          <select id="my-name-select" onchange="onMyNameChange()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:13px;padding:5px 10px;border-radius:var(--radius);outline:none;cursor:pointer">
-            <option value="">-- 選択してください --</option>
-          </select>
-          <button class="btn btn-secondary btn-sm" id="avatar-edit-btn" onclick="openAvatarModal()" title="アバター画像を設定" style="display:none">🖼️</button>
-          <button class="btn btn-secondary btn-sm" id="rename-name-btn" onclick="renameMyName()" title="担当者名を変更" style="display:none">✏️ 名前変更</button>
         </div>
       </div>
       <div id="my-tasks-body"></div>
@@ -4603,6 +4618,7 @@ function renderSidebar() {
     if (nonameBadge) nonameBadge.style.display = '';
     badgeWrap.style.display = 'flex';
   }
+  renderAccountMenu();
   // プラグインサイドバーを再描画してspan構造を保証
   if (typeof _renderPluginSidebarItems === 'function') _renderPluginSidebarItems();
 }
@@ -4640,6 +4656,8 @@ let _myTasksSortAsc      = true;
 let _myActivitySelDate   = null; // アクティビティタブの選択日付
 let _myActivityYear      = new Date().getFullYear(); // アクティビティヒートマップ表示年
 let _myActivityTimelineExpanded = {}; // タイムライン表示でのグループ展開状態 { groupKey: boolean }
+let _myActivityPerfExpanded = {};     // プロジェクト別実績ツリーの展開状態 { 'p:<pid>' | 'm:<pid>:<msId>': boolean }（未設定の既定: プロジェクト=展開 / マイルストーン=閉）
+let _myActivityPerfKeys = [];         // 描画時に収集した展開対象キー（すべて展開／折りたたみ用）
 let _myLikesYear         = new Date().getFullYear(); // いいねタブ「受け取ったいいね」の表示年（カレンダー年）
 let _myLikesSection      = 'received'; // 'received' | 'liked' | 'bookmarks'
 let _myLikesProjFilter   = '';         // プロジェクトIDフィルタ（''=全て）
@@ -4664,8 +4682,7 @@ function sortMyTasks(col) {
 }
 
 function renderMyTasks() {
-  const myName = (document.getElementById('my-name-select')?.value) ||
-                 localStorage.getItem(_myNameKey()) || '';
+  const myName = localStorage.getItem(_myNameKey()) || '';
   const body = document.getElementById('my-tasks-body');
 
   // ヘッダーアイコン: myName設定済みなら画像 or 頭文字アバター、未設定なら👤
@@ -4683,21 +4700,21 @@ function renderMyTasks() {
     }
   }
 
-  const _myNameSelectEl = document.getElementById('my-name-select');
+  const _accountBtnEl = document.getElementById('account-btn');
   if (!myName) {
     body.innerHTML = `<div style="text-align:center;padding:48px 24px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:var(--radius)">
       <div style="font-size:32px;margin-bottom:10px">👤</div>
       <div style="font-weight:700;font-size:15px;margin-bottom:6px">自分の名前が設定されていません</div>
-      <div style="color:var(--muted);font-size:13px;max-width:420px;margin:0 auto">上部の「自分」プルダウンから名前を選択してください。設定すると、担当タスクやメンションの一覧に加えて、コメント投稿時の投稿者名も自動で入力されるようになります。</div>
+      <div style="color:var(--muted);font-size:13px;max-width:420px;margin:0 auto">画面右上のアカウントボタンから名前を選択してください。設定すると、担当タスクやメンションの一覧に加えて、コメント投稿時の投稿者名も自動で入力されるようになります。</div>
     </div>`;
-    if (_myNameSelectEl) {
-      _myNameSelectEl.classList.remove('pulse-attention');
-      void _myNameSelectEl.offsetWidth; // reflow でアニメーションを再トリガー
-      _myNameSelectEl.classList.add('pulse-attention');
+    if (_accountBtnEl) {
+      _accountBtnEl.classList.remove('pulse-attention');
+      void _accountBtnEl.offsetWidth; // reflow でアニメーションを再トリガー
+      _accountBtnEl.classList.add('pulse-attention');
     }
     return;
   }
-  if (_myNameSelectEl) _myNameSelectEl.classList.remove('pulse-attention');
+  if (_accountBtnEl) _accountBtnEl.classList.remove('pulse-attention');
 
   // フィルター値取得（DOM から）
   const mentionProjFilter = document.getElementById('my-mention-proj-filter')?.value || '';
@@ -4886,6 +4903,21 @@ function renderMyTasks() {
 function selectActivityDate(dateStr) {
   _myActivitySelDate = (_myActivitySelDate === dateStr) ? null : dateStr;
   _myActivityTimelineExpanded = {};
+  _myActivityPerfExpanded = {};
+  renderMyTasks();
+}
+
+function _activityPerfOpen(key) {
+  return key in _myActivityPerfExpanded ? _myActivityPerfExpanded[key] : key.startsWith('p:');
+}
+
+function toggleActivityPerf(key) {
+  _myActivityPerfExpanded[key] = !_activityPerfOpen(key);
+  renderMyTasks();
+}
+
+function toggleAllActivityPerf(expand) {
+  _myActivityPerfKeys.forEach(k => { _myActivityPerfExpanded[k] = expand; });
   renderMyTasks();
 }
 
@@ -4909,8 +4941,13 @@ function changeActivityYear(delta) {
 function _buildActivityEvents(myName) {
   const projects = state.data.projects || [];
   const byDate = {};
+  const _ctx = { p: null, t: null }; // 現在処理中のプロジェクト・タスク（イベントへマイルストーン・タスク名を付与する）
   function add(dateStr, ev) {
     if (!dateStr || dateStr.length < 10) return;
+    const _ms = (_ctx.t && _ctx.t.milestoneId) ? getMilestone(_ctx.p, _ctx.t.milestoneId) : null;
+    ev.msId   = _ms ? _ms.id : '';
+    ev.msName = _ms ? (_ms.name || '') : '';
+    ev.tname  = _ctx.t ? (_ctx.t.title || '') : '';
     const d = dateStr.length === 10 ? dateStr : localDateStr(new Date(dateStr));
     ev.at = dateStr;
     ev.hasTime = dateStr.length > 10;
@@ -4920,6 +4957,7 @@ function _buildActivityEvents(myName) {
   projects.forEach(p => {
     const pc = p.color || '#4f8eff';
     (p.tasks || []).forEach(t => {
+      _ctx.p = p; _ctx.t = t;
       // タスク完了（担当者）
       if (t.assignee === myName && t.completedAt) {
         add(t.completedAtTime || t.completedAt, { type:'complete', icon:'✅', text:`タスクを完了しました`, pid:p.id, tid:t.id, pname:p.name, pc });
@@ -5260,22 +5298,84 @@ function _renderActivityTabContent(myName) {
     const sortKey = ev => ev.hasTime ? new Date(ev.at).getTime() : new Date(ev.at + 'T00:00:00').getTime() - 1;
     const sorted = [...evts].sort((a,b) => sortKey(a) - sortKey(b));
 
-    // ── プロジェクト別実績集計 ──────────────────────────────────────
-    const projMap = new Map(); // pid -> { pname, pc, actual, complete, create, comment, checklist }
-    evts.forEach(ev => {
-      if (!projMap.has(ev.pid)) projMap.set(ev.pid, { pname: ev.pname, pc: ev.pc, actual: 0, complete: 0, create: 0, comment: 0, checklist: 0 });
-      const r = projMap.get(ev.pid);
-      if (ev.type === 'effort'    && ev.actual) r.actual   += ev.actual;
-      if (ev.type === 'complete')               r.complete += 1;
-      if (ev.type === 'create')                 r.create   += 1;
-      if (ev.type === 'comment')                r.comment  += 1;
-      if (ev.type === 'checklist')              r.checklist+= 1;
+    // ── プロジェクト別実績集計（プロジェクト → マイルストーン → タスク の階層）──────────
+    const _newSum = () => ({ actual: 0, complete: 0, create: 0, comment: 0, checklist: 0 });
+    const _addSum = (r, ev) => {
+      if (ev.type === 'effort' && ev.actual) r.actual += ev.actual;
+      if (ev.type === 'complete')  r.complete  += 1;
+      if (ev.type === 'create')    r.create    += 1;
+      if (ev.type === 'comment')   r.comment   += 1;
+      if (ev.type === 'checklist') r.checklist += 1;
+    };
+    const projTree = new Map(); // pid -> { pname, pc, sum, ms: Map(msKey -> { name, sum, tasks: Map(tid -> { title, sum }) }) }
+    sorted.forEach(ev => {
+      if (!projTree.has(ev.pid)) projTree.set(ev.pid, { pname: ev.pname, pc: ev.pc, sum: _newSum(), ms: new Map() });
+      const pn = projTree.get(ev.pid);
+      const msKey = ev.msId || '';
+      if (!pn.ms.has(msKey)) pn.ms.set(msKey, { name: ev.msName || '', sum: _newSum(), tasks: new Map() });
+      const mn = pn.ms.get(msKey);
+      if (!mn.tasks.has(ev.tid)) mn.tasks.set(ev.tid, { title: ev.tname || '', sum: _newSum() });
+      _addSum(pn.sum, ev); _addSum(mn.sum, ev); _addSum(mn.tasks.get(ev.tid).sum, ev);
     });
+    // 表示順: プロジェクトは登録順、マイルストーンはプロジェクト内の並び順（未設定は最後）、タスクはその日の最初の活動順
+    const _projOrder = (state.data.projects || []).filter(p => projTree.has(p.id));
+    const _msEntries = p => {
+      const idx = id => { const i = (p.milestones || []).findIndex(m => m.id === id); return i < 0 ? 1e9 : i; };
+      return [...projTree.get(p.id).ms.entries()].sort((x, y) => idx(x[0]) - idx(y[0]));
+    };
+    // 展開対象キーを可視状態に関係なく収集（「すべて展開／折りたたむ」で折りたたまれた子も対象にするため）
+    _myActivityPerfKeys = [];
+    _projOrder.forEach(p => {
+      _myActivityPerfKeys.push('p:' + p.id);
+      _msEntries(p).forEach(([msKey]) => _myActivityPerfKeys.push(`m:${p.id}:${msKey}`));
+    });
+    const _perfAllOpen = _myActivityPerfKeys.length > 0 && _myActivityPerfKeys.every(_activityPerfOpen);
+
     const _th = `padding:4px 10px;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);white-space:nowrap`;
     const _td = `padding:5px 10px;border-bottom:1px solid var(--border);vertical-align:middle`;
-    const projSummaryHtml = projMap.size ? `
+    const _num = n => n > 0 ? n : '<span style="opacity:.3">—</span>';
+    const _cells = r => `
+              <td style="${_td};text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:${r.actual>0?'var(--accent2)':'var(--muted)'}">${r.actual>0?(Math.round(r.actual*100)/100)+'H':'ー'}</td>
+              <td style="${_td};text-align:center;color:var(--muted)">${_num(r.complete)}</td>
+              <td style="${_td};text-align:center;color:var(--muted)">${_num(r.create)}</td>
+              <td style="${_td};text-align:center;color:var(--muted)">${_num(r.comment)}</td>
+              <td style="${_td};text-align:center;color:var(--muted)">${_num(r.checklist)}</td>`;
+    const _tgl = open => `<span style="width:12px;flex-shrink:0;font-size:9px;color:var(--muted)">${open?'▼':'▶'}</span>`;
+
+    let perfRows = '';
+    _projOrder.forEach(p => {
+      const pn = projTree.get(p.id);
+      const pKey = 'p:' + p.id;
+      const pOpen = _activityPerfOpen(pKey);
+      perfRows += `
+            <tr class="activity-perf-row" style="cursor:pointer" data-k="${esc(pKey)}" onclick="toggleActivityPerf(this.dataset.k)">
+              <td style="${_td}"><div style="display:flex;align-items:center;gap:6px;min-width:0">${_tgl(pOpen)}<span style="font-size:11px;padding:1px 7px;border-radius:3px;font-weight:600;background:${pn.pc}22;color:${pn.pc};white-space:nowrap">${esc(pn.pname)}</span></div></td>${_cells(pn.sum)}
+            </tr>`;
+      if (!pOpen) return;
+      _msEntries(p).forEach(([msKey, mn]) => {
+        const mKey = `m:${p.id}:${msKey}`;
+        const mOpen = _activityPerfOpen(mKey);
+        const mLabel = msKey ? `🏁 ${esc(mn.name)}` : '<span style="opacity:.65">🏁 （マイルストーン未設定）</span>';
+        perfRows += `
+            <tr class="activity-perf-row" style="cursor:pointer" data-k="${esc(mKey)}" onclick="toggleActivityPerf(this.dataset.k)">
+              <td style="${_td}"><div style="display:flex;align-items:center;gap:6px;padding-left:22px;min-width:0">${_tgl(mOpen)}<span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(mn.name)}">${mLabel}</span></div></td>${_cells(mn.sum)}
+            </tr>`;
+        if (!mOpen) return;
+        mn.tasks.forEach((tn, tid) => {
+          perfRows += `
+            <tr class="activity-perf-row" style="cursor:pointer" onclick="openTaskPanelFromMyTasks('${p.id}','${tid}')">
+              <td style="${_td}"><div style="padding-left:56px;min-width:0"><span style="display:block;max-width:420px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(tn.title)}">${esc(tn.title || tid)}</span></div></td>${_cells(tn.sum)}
+            </tr>`;
+        });
+      });
+    });
+
+    const projSummaryHtml = projTree.size ? `
       <div style="margin-bottom:14px;padding:10px 14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
-        <div data-proj-perf-header style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">&#x23F1; プロジェクト別実績</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+          <div data-proj-perf-header style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">&#x23F1; プロジェクト別実績</div>
+          <button class="activity-view-btn" onclick="toggleAllActivityPerf(${!_perfAllOpen})">${_perfAllOpen ? '▲ すべて折りたたむ' : '▼ すべて展開'}</button>
+        </div>
         <table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead><tr>
             <th style="${_th};text-align:left">プロジェクト</th>
@@ -5285,15 +5385,7 @@ function _renderActivityTabContent(myName) {
             <th style="${_th};text-align:center">&#x1F4AC;</th>
             <th style="${_th};text-align:center">&#x2611;</th>
           </tr></thead>
-          <tbody>${[...projMap.entries()].map(([,{pname,pc,actual,complete,create,comment,checklist}]) => `
-            <tr>
-              <td style="${_td}"><span style="font-size:11px;padding:1px 7px;border-radius:3px;font-weight:600;background:${pc}22;color:${pc};white-space:nowrap">${esc(pname)}</span></td>
-              <td style="${_td};text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700;color:${actual>0?'var(--accent2)':'var(--muted)'}">${actual>0?actual+'H':'ー'}</td>
-              <td style="${_td};text-align:center;color:var(--muted)">${complete  >0?complete  :'<span style="opacity:.3">—</span>'}</td>
-              <td style="${_td};text-align:center;color:var(--muted)">${create    >0?create    :'<span style="opacity:.3">—</span>'}</td>
-              <td style="${_td};text-align:center;color:var(--muted)">${comment   >0?comment   :'<span style="opacity:.3">—</span>'}</td>
-              <td style="${_td};text-align:center;color:var(--muted)">${checklist >0?checklist :'<span style="opacity:.3">—</span>'}</td>
-            </tr>`).join('')}
+          <tbody>${perfRows}
           </tbody>
         </table>
       </div>` : '';
@@ -5540,8 +5632,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.24';
-const APP_VERSION_DATE = '2026-10-10';
+const APP_VERSION      = '1.1.25';
+const APP_VERSION_DATE = '2026-10-22';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -5748,7 +5840,6 @@ function showMyTasks() {
   mtv.style.display = 'block';
   _viewFadeIn(mtv);
   renderSidebar();
-  _populateMyNameSelect();
   renderMyTasks();
 }
 
@@ -5931,16 +6022,94 @@ function restoreProjectListSortPref() {
   } catch(e) {}
 }
 
-function onMyNameChange() {
-  const name = document.getElementById('my-name-select').value;
-  try { localStorage.setItem(_myNameKey(), name); } catch(e) {}
-  const avatarBtn = document.getElementById('avatar-edit-btn');
-  if (avatarBtn) avatarBtn.style.display = name ? '' : 'none';
-  const renameBtn = document.getElementById('rename-name-btn');
-  if (renameBtn) renameBtn.style.display = name ? '' : 'none';
-  renderSidebar();
-  renderMyTasks();
+// ── ヘッダー右上のアカウントメニュー ─────────────────────────────
+// 「アカウント」＝マイタスク等で使う自分の名前（認証は無し）。フォルダごとにlocalStorageへ保存する。
+function _getAccountNames() {
+  const members   = (state.data.projects || []).flatMap(p => p.members || []);
+  const assignees = (state.data.projects || []).flatMap(p => (p.tasks||[]).map(t=>t.assignee).filter(Boolean));
+  const saved = localStorage.getItem(_myNameKey()) || '';
+  const set = new Set([...members, ...assignees]);
+  if (saved) set.add(saved);
+  return [...set].sort();
 }
+
+// ボタン（アイコン＋名前）の表示更新。renderSidebar から呼ばれる
+function renderAccountMenu() {
+  const btnAvatar = document.getElementById('account-btn-avatar');
+  const btnName   = document.getElementById('account-btn-name');
+  if (!btnAvatar || !btnName) return;
+  const myName = localStorage.getItem(_myNameKey()) || '';
+  if (myName) {
+    btnAvatar.innerHTML = avatarHtml(myName, 'member-avatar', 'width:26px;height:26px;font-size:11px;margin:0;border:none;flex-shrink:0');
+    btnName.textContent = myName;
+    btnName.title = myName;
+  } else {
+    btnAvatar.innerHTML = '<span style="font-size:16px;padding-left:6px">👤</span>';
+    btnName.textContent = '名前を選択';
+    btnName.title = '';
+  }
+  // メニューが開いている間にアバター等が変わった場合は一覧も更新
+  const dd = document.getElementById('account-dropdown');
+  if (dd && dd.style.display === 'block') _renderAccountDropdown();
+}
+
+function _renderAccountDropdown() {
+  const dd = document.getElementById('account-dropdown');
+  if (!dd) return;
+  const myName = localStorage.getItem(_myNameKey()) || '';
+  const names = _getAccountNames();
+  let html = '<div class="account-label">アカウントを切り替え</div>';
+  if (!names.length) {
+    html += '<div class="account-empty">選択できるメンバーがいません</div>';
+  } else {
+    html += names.map(n => `<div class="account-item${n===myName?' active':''}" data-name="${esc(n)}" onclick="selectAccount(this.dataset.name)">
+      ${avatarHtml(n, 'member-avatar', 'width:22px;height:22px;font-size:10px;margin:0;border:none;flex-shrink:0')}
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n)}</span>
+      ${n===myName?'<span class="account-check">✓</span>':''}
+    </div>`).join('');
+  }
+  if (myName) {
+    html += `<div class="account-sep"></div>
+      <div class="account-item" onclick="closeAccountMenu();openAvatarModal()">🖼️ <span>アバター画像を設定</span></div>
+      <div class="account-item" onclick="closeAccountMenu();renameMyName()">✏️ <span>名前を変更</span></div>
+      <div class="account-item" onclick="selectAccount('')">✕ <span>未設定にする</span></div>`;
+  }
+  dd.innerHTML = html;
+}
+
+function toggleAccountMenu(e) {
+  if (e) e.stopPropagation();
+  const dd = document.getElementById('account-dropdown');
+  if (!dd) return;
+  if (dd.style.display === 'block') { closeAccountMenu(); return; }
+  _renderAccountDropdown();
+  dd.style.display = 'block';
+}
+
+function closeAccountMenu() {
+  const dd = document.getElementById('account-dropdown');
+  if (dd) dd.style.display = 'none';
+}
+
+function selectAccount(name) {
+  closeAccountMenu();
+  const prev = localStorage.getItem(_myNameKey()) || '';
+  if (name === prev) return;
+  try { localStorage.setItem(_myNameKey(), name); } catch(e) {}
+  renderSidebar();   // 内部でアカウントボタンも更新される
+  renderMyTasks();
+  toast(name ? `「${name}」に切り替えました` : 'アカウントを未設定にしました', 'success');
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('account-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) closeAccountMenu();
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const dd = document.getElementById('account-dropdown');
+  if (dd && dd.style.display === 'block') closeAccountMenu();
+});
 
 // 担当者名の一括変更
 function renameMyName() {
@@ -6033,24 +6202,9 @@ function renameMyName() {
   }
 
   // UI 更新
-  _populateMyNameSelect();
   renderSidebar();
   renderMyTasks();
   toast(`「${oldName}」→「${trimmed}」に変更しました（${dirtyPids.size}件のプロジェクトを更新）`, 'success');
-}
-
-function _populateMyNameSelect() {
-  const sel = document.getElementById('my-name-select');
-  const saved = localStorage.getItem(_myNameKey()) || '';
-  const members  = (state.data.projects || []).flatMap(p => p.members || []);
-  const assignees = (state.data.projects || []).flatMap(p => (p.tasks||[]).map(t=>t.assignee).filter(Boolean));
-  const all = [...new Set([...members, ...assignees])].sort();
-  sel.innerHTML = '<option value="">-- 選択してください --</option>' +
-    all.map(n => `<option value="${esc(n)}"${n===saved?' selected':''}>${esc(n)}</option>`).join('');
-  const avatarBtn = document.getElementById('avatar-edit-btn');
-  if (avatarBtn) avatarBtn.style.display = saved ? '' : 'none';
-  const renameBtn = document.getElementById('rename-name-btn');
-  if (renameBtn) renameBtn.style.display = saved ? '' : 'none';
 }
 
 // ── アバターモーダル ───────────────────────────────────
@@ -7948,9 +8102,13 @@ function setWikiMode(mode) {
     pBtn.classList.remove('active');
     _toggleFmtBtns('wiki-edit-btn', true);
     renderWikiPageList(); // ページ選択をロック
+    buildToc(ta.value); // 編集モードでも目次が現在の本文を反映するようにする
     ta.focus();
     ta.oninput = () => {
       _wikiDirty = true;
+      // 目次を本文に追従させる（入力が止まってから再生成）
+      clearTimeout(_wikiTocTimer);
+      _wikiTocTimer = setTimeout(() => buildToc(ta.value), 300);
       // 改善C: 3秒操作が止まったら自動保存（ブラウザクラッシュ時のダメージ最小化）
       // プレビュー切替時の保存トースト表示のため _wikiDirty は true のまま維持する
       clearTimeout(_wikiAutoSaveTimer);
@@ -8026,20 +8184,72 @@ function buildWikiHtml(raw) {
   }
 }
 
+// Markdown本文から見出し(#〜####)を抽出する。コードブロック(``` / ~~~)内の行は見出しではないため除外。
+// pos は本文中でその見出し行が始まる文字位置（編集モードでtextareaへスクロールするために使う）
+function _parseWikiHeadings(raw) {
+  const items = [];
+  let pos = 0, fence = null;
+  (raw || '').split('\n').forEach(line => {
+    const f = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+    if (f) {
+      if (!fence) fence = f[1][0];
+      else if (f[1][0] === fence) fence = null;
+    } else if (!fence) {
+      const m = line.match(/^(#{1,4})\s+(.+)$/);
+      if (m) items.push({ level: m[1].length, text: m[2].trim(), pos });
+    }
+    pos += line.length + 1;
+  });
+  return items;
+}
+
 function buildToc(raw) {
   const toc = document.getElementById('wiki-toc');
   if (!raw || !raw.trim()) { toc.innerHTML = '<div style="font-size:12px;color:var(--muted)">見出しがありません</div>'; return; }
-  const lines = raw.split('\n');
-  const items = [];
-  lines.forEach(line => {
-    const m = line.match(/^(#{1,4})\s+(.+)$/);
-    if (m) items.push({ level: m[1].length, text: m[2].trim() });
-  });
+  const items = _parseWikiHeadings(raw);
   if (!items.length) { toc.innerHTML = '<div style="font-size:12px;color:var(--muted)">見出しがありません</div>'; return; }
-  toc.innerHTML = items.map(item => {
+  toc.innerHTML = items.map((item, idx) => {
     const id = 'wiki-h-' + item.text.replace(/[^\w\u3040-\u9FFF]/g, '-').toLowerCase().slice(0, 50);
-    return `<a class="toc-item h${item.level}" data-target="${id}" onclick="scrollToWikiHeading('${id}')">${esc(item.text)}</a>`;
+    return `<a class="toc-item h${item.level}" data-target="${id}" data-idx="${idx}" onclick="onWikiTocClick(this)">${esc(item.text)}</a>`;
   }).join('');
+}
+
+// 目次クリック：プレビューでは見出し要素へ、編集モードではtextarea内の見出し位置へスクロールする
+function onWikiTocClick(el) {
+  if (_wikiMode === 'edit') {
+    const ta = document.getElementById('wiki-textarea');
+    // 目次生成後に本文が変わっている可能性があるため、クリック時点の本文から見出し位置を取り直す
+    const items = _parseWikiHeadings(ta ? ta.value : '');
+    const it = items[parseInt(el.dataset.idx, 10)];
+    if (it) scrollWikiTextareaToPos(it.pos);
+  } else {
+    scrollToWikiHeading(el.dataset.target);
+  }
+}
+
+// textareaの指定文字位置が先頭に来るようスクロールし、カーソルもその位置へ移す。
+// textareaには「文字位置→縦位置」のAPIがないため、同じ書式・幅の非表示ミラー要素に位置直前までの本文を流し込み、折り返しを含む高さを測る。
+function scrollWikiTextareaToPos(pos) {
+  const ta = document.getElementById('wiki-textarea');
+  if (!ta) return;
+  const cs = getComputedStyle(ta);
+  const mirror = document.createElement('div');
+  ['fontFamily','fontSize','fontWeight','fontStyle','fontVariant','letterSpacing','wordSpacing','lineHeight','tabSize',
+   'textTransform','textIndent','paddingTop','paddingRight','paddingBottom','paddingLeft'].forEach(k => { mirror.style[k] = cs[k]; });
+  mirror.style.cssText += ';position:absolute;visibility:hidden;top:0;left:-9999px;box-sizing:border-box;border:0;overflow:hidden;white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;';
+  mirror.style.width = ta.clientWidth + 'px'; // スクロールバーを除いた幅（paddingを含む）
+  mirror.textContent = ta.value.slice(0, pos);
+  const mk = document.createElement('span');
+  mk.textContent = '\u200b';
+  mirror.appendChild(mk);
+  document.body.appendChild(mirror);
+  const y = mk.offsetTop;
+  document.body.removeChild(mirror);
+  const top = Math.max(0, y - (parseFloat(cs.paddingTop) || 0));
+  // カーソルを見出しの行頭へ（preventScrollでフォーカス時の自動スクロールを抑え、スムーズスクロールに任せる）
+  ta.focus({ preventScroll: true });
+  ta.setSelectionRange(pos, pos);
+  ta.scrollTo({ top, behavior: 'smooth' });
 }
 
 function scrollToWikiHeading(id) {
@@ -8052,6 +8262,7 @@ function scrollToWikiHeading(id) {
 }
 
 let _wikiScrollTimer;
+let _wikiTocTimer = null;
 function setupWikiScrollSpy() {
   const pv = document.getElementById('wiki-preview');
   pv.onscroll = () => {
@@ -10876,7 +11087,7 @@ function addComment(){
   let author=authorInput.value.trim();
   if(!author){
     // 投稿者名が未設定のまま「名無し」で投稿されるのを防ぐための確認ガード
-    const proceed=confirm('投稿者名が設定されていません。\n「名無し」として投稿しますか？\n\nキャンセルすると投稿を中止します。投稿者欄に直接名前を入力するか、マイタスク画面上部の「自分」から名前を設定できます。');
+    const proceed=confirm('投稿者名が設定されていません。\n「名無し」として投稿しますか？\n\nキャンセルすると投稿を中止します。投稿者欄に直接名前を入力するか、画面右上のアカウントから名前を設定できます。');
     if(!proceed){
       toast('投稿者名を入力するか、マイタスクで名前を設定してください','error');
       authorInput.focus();

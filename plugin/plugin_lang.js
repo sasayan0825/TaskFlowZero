@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.7',
+      version:     '1.3.8',
     });
   }
 
@@ -64,13 +64,25 @@
     // ── マイタスクビュー ────────────────────────────────────
     '自分への通知・担当タスクを一覧表示': 'View mentions and assigned tasks',
     '自分:':                              'Me:',
+    // ── ヘッダー右上のアカウントメニュー（v1.1.25）──
+    '名前を選択':                         'Select name',
+    'アカウント（自分の名前）を切り替え': 'Switch account (your name)',
+    'アカウントを切り替え':               'Switch account',
+    '選択できるメンバーがいません':       'No members to select',
+    '名前を変更':                         'Rename',
+    '未設定にする':                       'Clear selection',
+    'アカウントを未設定にしました':       'Account cleared',
+    // ── プロジェクト別実績ツリー（v1.1.25）──
+    '▼ すべて展開':                       '▼ Expand All',
+    '🏁 （マイルストーン未設定）':        '🏁 (No milestone)',
+    '（マイルストーン未設定）':           '(No milestone)',
     '-- 選択してください --':             '-- Select --',
     '💬 メンション':                      '💬 Mentions',
     '📋 担当タスク':                      '📋 Assigned Tasks',
     '📊 アクティビティ':                  '📊 Activity',
     '自分の名前が設定されていません':     'Your name is not set',
-    '上部の「自分」プルダウンから名前を選択してください。設定すると、担当タスクやメンションの一覧に加えて、コメント投稿時の投稿者名も自動で入力されるようになります。':
-      'Select your name from the "Me" dropdown above. Once set, it will show up in your assigned tasks and mentions, and will be filled in automatically as the author name when posting comments.',
+    '画面右上のアカウントボタンから名前を選択してください。設定すると、担当タスクやメンションの一覧に加えて、コメント投稿時の投稿者名も自動で入力されるようになります。':
+      'Select your name from the account button at the top right. Once set, it will show up in your assigned tasks and mentions, and will be filled in automatically as the author name when posting comments.',
 
     // ── いいね・ブックマークタブ ─────────────────────────────
     // タブボタン（getLikeIcon() の結果が先頭に付く動的文字列はregexで対応）
@@ -267,8 +279,8 @@
     '担当者名':                           'Assignee name',
     'コメントをMarkdownで入力...':        'Write a comment in Markdown...',
     'このURLをコピーしてください:':       'Please copy this URL:',
-    '投稿者名が設定されていません。\n「名無し」として投稿しますか？\n\nキャンセルすると投稿を中止します。投稿者欄に直接名前を入力するか、マイタスク画面上部の「自分」から名前を設定できます。':
-      'The author name is not set.\nDo you want to post as "Anonymous"?\n\nIf you cancel, the comment will not be posted. You can type a name directly in the author field, or set your name from "Me" at the top of My Tasks.',
+    '投稿者名が設定されていません。\n「名無し」として投稿しますか？\n\nキャンセルすると投稿を中止します。投稿者欄に直接名前を入力するか、画面右上のアカウントから名前を設定できます。':
+      'The author name is not set.\nDo you want to post as "Anonymous"?\n\nIf you cancel, the comment will not be posted. You can type a name directly in the author field, or set your name from the account menu at the top right.',
     '投稿者名を入力するか、マイタスクで名前を設定してください': 'Enter an author name, or set your name in My Tasks',
 
     // ── 工数入力 ────────────────────────────────────────────
@@ -676,6 +688,9 @@
     s = s.replace(/^リンク先のタスクを表示するには、<br><strong style="color:var\(--accent2\)">(.+)<\/strong> フォルダを選択する必要があります。$/, 'To view the linked task, you need to select the <br><strong style="color:var(--accent2)">$1</strong> folder.');
     s = s.replace(/見積 ([\d.]+)h/g, 'Est $1h').replace(/実績 ([\d.]+)h/g, 'Act $1h');
     s = s.replace(/^(\d+) × (\d+) の表$/, '$1 × $2 Table');
+
+    // アカウント切替トースト（v1.1.25）
+    s = s.replace(/^「(.+)」に切り替えました$/, 'Switched to "$1"');
 
     // マイタスク・アクティビティタイムライン（v1.1.18〜）
     s = s.replace(/^▼ すべて展開 \((\d+)件\)$/, '▼ Expand All ($1)');
