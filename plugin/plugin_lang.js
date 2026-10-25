@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.8',
+      version:     '1.3.9',
     });
   }
 
@@ -426,7 +426,17 @@
     'Wiki を保存しました':               'Wiki saved',
     '旧形式を検出しました。次回保存時に分割形式へ移行します。': 'Legacy format detected. Will migrate on next save.',
     '分割形式への移行が完了しました':     'Migration to split format complete',
-    '競合の解決をキャンセルしました。再度保存するまで変更は反映されません。': 'Conflict resolution cancelled. Changes won\'t apply until you save again.',
+    '競合の解決をキャンセルしました。': 'Conflict resolution cancelled.',
+    // ── 保留した競合・同時編集の保護（v1.1.26）──
+    '解決する':                           'Resolve',
+    '競合は保留のままです。画面下のバナーからいつでも解決できます': 'Conflicts remain pending. You can resolve them anytime from the banner at the bottom.',
+    '競合を解決しました':                 'Conflicts resolved',
+    '⚠️ 保存を保留しました（ファイルを読み込めません）。自動で再試行します': '⚠️ Save postponed (the file could not be read). Retrying automatically',
+    '⚠️ 保存できていません。フォルダの状態を確認し、Ctrl+S で再保存してください': '⚠️ Changes are not saved. Check the folder and press Ctrl+S to save again',
+    '他の人のWiki変更を自動マージしました': 'Merged changes made by others in the Wiki',
+    '⚠️ Wikiが他の人の変更と重なりました。画面下のバナーから解決してください': '⚠️ Your Wiki edit overlaps with another person\'s change. Resolve it from the banner at the bottom',
+    '他の人の詳細の変更を自動マージしました': 'Merged changes made by others in the description',
+    '⚠️ 詳細が他の人の変更と重なりました。画面下のバナーから解決してください': '⚠️ Your description edit overlaps with another person\'s change. Resolve it from the banner at the bottom',
     'プロジェクトを選択してください':     'Please select a project',
     '.js ファイルをドロップしてください': 'Please drop a .js file',
     'フォルダが設定されていません。一度モーダルを閉じて再度開いてください': 'No folder set. Close and reopen the modal.',
@@ -617,6 +627,10 @@
     s = s.replace(/^フォルダを読み込みました: (.+)$/, 'Folder loaded: $1');
     s = s.replace(/^フォルダを開きました: (.+)$/, 'Folder opened: $1');
     s = s.replace(/^競合コピー (\d+) 件を自動マージしました$/, '$1 conflict copies auto-merged');
+    // 保留した競合・同時編集の保護（v1.1.26）
+    s = s.replace(/^⚠️ (\d+)件の競合を保留しました（画面下のバナー、または Ctrl\+S で解決できます）$/, '⚠️ $1 conflict(s) set aside (resolve from the banner at the bottom, or press Ctrl+S)');
+    s = s.replace(/^競合 (\d+) 件は保留にしました。画面下のバナーからいつでも解決できます$/, '$1 conflict(s) set aside. You can resolve them anytime from the banner at the bottom');
+    s = s.replace(/^⚠️ 他の人の変更と重なった項目が (\d+) 件あります$/, '⚠️ $1 item(s) overlap with changes made by others');
     s = s.replace(/^競合コピー (\d+) 件に手動解決が必要です$/, '$1 conflicts need manual resolution');
     s = s.replace(/^更新しました（(\d+)件のプロジェクトに変更あり）$/, 'Updated ($1 projects changed)');
     s = s.replace(/^タスク #(\d+) を追加しました$/, 'Task #$1 added');

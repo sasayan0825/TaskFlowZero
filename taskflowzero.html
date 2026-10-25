@@ -669,6 +669,12 @@ html.light .hljs-tag{color:var(--text)}
 .md-preview th{background:var(--surface3);font-weight:600}
 .md-preview hr{border:none;border-top:1px solid var(--border);margin:12px 0}
 .md-preview img{max-width:100%;height:auto;border-radius:var(--radius);cursor:zoom-in;display:block;margin:4px 0}
+/* 極端に長いURL・連続した英数字が枠をはみ出さないよう折り返す（タスク詳細・コメント・プロジェクト概要など .md-preview 共通。コードブロックは従来どおり横スクロール） */
+.md-preview{overflow-wrap:anywhere;word-break:break-word;min-width:0;max-width:100%}
+.md-preview pre,.md-preview pre code{overflow-wrap:normal;word-break:normal}
+.md-preview a,.md-preview th,.md-preview td{overflow-wrap:anywhere;word-break:break-word}
+#wiki-preview{overflow-wrap:anywhere;word-break:break-word}
+#wiki-preview pre,#wiki-preview pre code{overflow-wrap:normal;word-break:normal}
 #md-img-lightbox{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);cursor:zoom-out;align-items:center;justify-content:center;overflow:hidden}
 #md-img-lightbox.open{display:flex}
 #md-img-lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:var(--radius);box-shadow:0 8px 40px rgba(0,0,0,.6);cursor:zoom-out;transform-origin:center center;transition:transform .04s linear;will-change:transform;-webkit-user-drag:none;user-select:none}
@@ -3078,6 +3084,26 @@ async function _loadFromRootDir(rootDir) {
 
 // OneDrive競合コピーのマージ処理
 // base=正規ファイル, mine=正規ファイル, disk=競合コピー → 競合コピーの差分を自動適用
+// target に無く source にだけ存在する項目（マイルストーン・Wiki・タスク・コメント・チェックリスト）を target に足した複製を返す。
+// 競合コピーとの突き合わせで「相手側に無い＝削除された」と誤判定されて項目が消えるのを防ぐために使う。
+function _augmentWithOnly(target, source) {
+  const t = deepCopy(target);
+  const addMissing = (ta, sa) => {
+    const ids = new Set(ta.map(x => String(x.id)));
+    (sa || []).forEach(x => { if (!ids.has(String(x.id))) ta.push(deepCopy(x)); });
+  };
+  ['milestones', 'wikiPages', 'tasks'].forEach(k => { if (!t[k]) t[k] = []; addMissing(t[k], source[k]); });
+  t.tasks.forEach(tt => {
+    const st = (source.tasks || []).find(x => x.id === tt.id);
+    if (!st) return;
+    if (!tt.comments) tt.comments = [];
+    if (!tt.checklist) tt.checklist = [];
+    addMissing(tt.comments, st.comments);
+    addMissing(tt.checklist, st.checklist);
+  });
+  return t;
+}
+
 async function _handleConflictFiles(conflictEntries) {
   let autoCount = 0, conflictCount = 0;
 
@@ -3107,11 +3133,21 @@ async function _handleConflictFiles(conflictEntries) {
       }
 
       const canonical = state.data.projects[canonicalIdx];
+      _migrateProjectFields([conflictProject]);
 
-      // threeWayMerge: base=正規, mine=正規, disk=競合コピー
-      // → 競合コピーだけが変更したフィールドを自動適用、両者が異なる場合はconflict
+      // 競合コピーには共通の祖先(base)がないため、更新日時で新旧を判定して突き合わせる。
+      //  ・コピーの方が古い: base=コピー, mine=正規(+コピーにだけある項目), disk=コピー → 正規側の内容を優先し、コピーにだけある項目は残す
+      //  ・コピーの方が新しい: base=mine=正規, disk=コピー(+正規にだけある項目) → コピーの変更を適用するが、正規にだけある項目は削除扱いにしない
+      // （旧実装は常に base=正規 としていたため、コピー側に無い項目が「削除された」と扱われて消え、
+      //   古いコピーの値が新しい正規の値を巻き戻すことがあった）
+      let canonLM = 0, copyLM = 0;
+      try { copyLM = (await entry.getFile()).lastModified; } catch(e) {}
+      try { canonLM = (await (await state.rootDirHandle.getFileHandle(_projectFileName(pid))).getFile()).lastModified; } catch(e) {}
+      const copyIsOlder = copyLM && canonLM && copyLM < canonLM;
       const wrap = p => ({ version: 3, format: 'split', projects: [deepCopy(p)], nextProjectNum: 1 });
-      const result = threeWayMerge(wrap(canonical), wrap(canonical), wrap(conflictProject));
+      const result = copyIsOlder
+        ? threeWayMerge(wrap(conflictProject), wrap(_augmentWithOnly(canonical, conflictProject)), wrap(conflictProject))
+        : threeWayMerge(wrap(canonical), wrap(canonical), wrap(_augmentWithOnly(conflictProject, canonical)));
       const mergedProject = result.merged.projects[0];
 
       if (result.conflicts.length === 0) {
@@ -3169,6 +3205,7 @@ async function _loadSplitFormat(entries) {
   _baseSnapshots = {};
   state.data.projects.forEach(p => { _baseSnapshots[p.id] = deepCopy(p); });
   _dirtyProjects = new Set();
+  _pendingConflicts = {}; _updatePendingBar();
 }
 
 // 旧形式（単一JSON）の読み込み → 初回保存で分割形式に移行
@@ -3178,6 +3215,7 @@ async function _loadLegacyFormat(text) {
     state.data = { version: 3, format: 'split', projects: [], nextProjectNum: 1 };
     _baseSnapshots = {};
     _dirtyProjects = new Set();
+    _pendingConflicts = {}; _updatePendingBar();
     return;
   }
 
@@ -3209,12 +3247,12 @@ function _migrateProjectFields(projects) {
     if (!p.wikiPages) {
       p.wikiPages = [];
       if (p.wiki) {
-        p.wikiPages.push({ id: uid(), title: 'Home', content: p.wiki, order: 0, updatedAt: new Date().toISOString() });
+        p.wikiPages.push({ id: p.id ? 'home_' + p.id : uid(), title: 'Home', content: p.wiki, order: 0, updatedAt: new Date().toISOString() });
       }
     }
     delete p.wiki;
     if (!p.wikiPages.length) {
-      p.wikiPages.push({ id: uid(), title: 'Home', content: '', order: 0, updatedAt: new Date().toISOString() });
+      p.wikiPages.push({ id: p.id ? 'home_' + p.id : uid(), title: 'Home', content: '', order: 0, updatedAt: new Date().toISOString() });
     }
     p.wikiPages.forEach((pg, i) => { if (pg.order === undefined || pg.order === null) pg.order = i; if (!pg.title) pg.title = '無題'; if (pg.content === undefined) pg.content = ''; });
     if (p.archived === undefined) p.archived = false;
@@ -3268,9 +3306,10 @@ function _projectFileName(pid) {
   return `project_P${num}.json`;
 }
 
-async function writeProjectFile(pid) {
+// snapshot を渡すと、その内容をそのまま書き込む（書込み中の画面操作が混ざらないようにするため）
+async function writeProjectFile(pid, snapshot) {
   if (!state.rootDirHandle) return;
-  const project = state.data.projects.find(p => p.id === pid);
+  const project = snapshot || state.data.projects.find(p => p.id === pid);
   if (!project) return;
   const fh = await state.rootDirHandle.getFileHandle(_projectFileName(pid), { create: true });
   const w  = await fh.createWritable();
@@ -3292,20 +3331,48 @@ async function deleteProjectFile(pid) {
 }
 
 // ── プロジェクトファイルをディスクから再読み込み ──────
-async function readProjectFromDisk(pid) {
-  if (!state.rootDirHandle) return null;
+// 戻り値: { status:'ok'|'missing'|'error', project, stamp }
+//   missing = ファイルが存在しない / error = 読込・解析に失敗（JSON破損・ロック中・同期途中など）
+// 旧実装は error も null（＝ファイルなし）として返していたため、一時的な読込失敗で
+// 「初回書込」扱いになり、他の人の変更を自分の内容で全上書きしてしまう恐れがあった。
+async function readProjectFromDiskEx(pid) {
+  if (!state.rootDirHandle) return { status: 'error' };
+  let fh;
   try {
-    const fh   = await state.rootDirHandle.getFileHandle(_projectFileName(pid));
-    const text = await (await fh.getFile()).text();
+    fh = await state.rootDirHandle.getFileHandle(_projectFileName(pid));
+  } catch(e) {
+    return { status: (e && e.name === 'NotFoundError') ? 'missing' : 'error', error: e };
+  }
+  try {
+    const file = await fh.getFile();
+    const text = await file.text();
+    if (!text.trim()) return { status: 'error' };
     const project = JSON.parse(text);
+    if (!project || typeof project !== 'object') return { status: 'error' };
     // ディスクから読み込んだデータにも必ずマイグレーションを適用する。
     // これを怠ると、旧形式のまま保存されているファイル（例: 移行前の
     // 単一ページ文字列 wiki）が threeWayMerge の disk 側としてそのまま
     // 比較されてしまい、「mine側は base から変更なし」と判定されるケースで
     // 旧形式（＝未移行）のディスク内容が正として採用され、既に移行済みの
     // データが上書き・消失してしまう不具合の原因になる。
-    if (project) _migrateProjectFields([project]);
-    return project;
+    _migrateProjectFields([project]);
+    return { status: 'ok', project, stamp: file.lastModified + ':' + file.size };
+  } catch(e) {
+    return { status: 'error', error: e };
+  }
+}
+
+async function readProjectFromDisk(pid) {
+  const r = await readProjectFromDiskEx(pid);
+  return r.status === 'ok' ? r.project : null;
+}
+
+// ファイルの更新スタンプ（書込み直前の再確認用）。取得できなければ null
+async function _diskStamp(pid) {
+  try {
+    const fh = await state.rootDirHandle.getFileHandle(_projectFileName(pid));
+    const f = await fh.getFile();
+    return f.lastModified + ':' + f.size;
   } catch(e) { return null; }
 }
 
@@ -3323,6 +3390,7 @@ async function writeFileRaw(dataToWrite) {
 // ─────────────────────────────────────────
 let saveTimer;
 let _isSaving = false;
+let _saveRetryCount = 0;
 
 // pid を渡すと dirty マーク + スケジュール。省略時はスケジュールのみ。
 function autoSave(pid, immediate=false) {
@@ -3341,8 +3409,22 @@ async function _autoSaveExec() {
   try {
     // dirty なプロジェクトを fetchAndMerge（silent）経由で書き込み
     const pids = [..._dirtyProjects];
+    let hadError = false;
     for (const pid of pids) {
-      await _fetchAndMergeProject(pid, 'silent');
+      const r = await _fetchAndMergeProject(pid, 'silent');
+      if (r === 'error') hadError = true;
+    }
+    // 読込失敗などで保存できなかった場合は、他の人の変更を消さないよう書込みを保留し、少し待って再試行する
+    if (hadError) {
+      _saveRetryCount++;
+      if (_saveRetryCount <= 6) {
+        toast('⚠️ 保存を保留しました（ファイルを読み込めません）。自動で再試行します', 'warn');
+        setTimeout(() => autoSave(), 5000);
+      } else {
+        toast('⚠️ 保存できていません。フォルダの状態を確認し、Ctrl+S で再保存してください', 'error', 6000);
+      }
+    } else {
+      _saveRetryCount = 0;
     }
     // 旧形式の移行完了通知
     if (state._needsMigration && _dirtyProjects.size === 0) {
@@ -3356,69 +3438,107 @@ async function _autoSaveExec() {
 // ─────────────────────────────────────────
 // CORE MERGE: per-project
 // ─────────────────────────────────────────
+// 書込み内容のスナップショットを取り、dirty を先に外してから書き込み、スナップショットを base にする。
+//  ・書込み中に画面で行われた編集は autoSave で dirty が再度立つ（旧実装は書込み後に dirty を消していたため取りこぼした）
+//  ・base は「実際に書いた内容」から作る（旧実装は書込み後の画面の状態から作っていたため、
+//    書込み中の編集が base に混ざり、次回マージで「相手の変更」と誤判定されて巻き戻っていた）
+async function _commitProject(pid, project) {
+  const snap = deepCopy(project);
+  _dirtyProjects.delete(pid);
+  try {
+    await writeProjectFile(pid, snap);
+  } catch(e) {
+    _dirtyProjects.add(pid);
+    throw e;
+  }
+  _baseSnapshots[pid] = snap;
+  _lastFetchAt = Date.now();
+}
+
 // 単一プロジェクトの fetchAndMerge
 // Returns: 'clean' | 'automerged' | 'conflict' | 'error'
 async function _fetchAndMergeProject(pid, mode) {
   try {
-    const disk = await readProjectFromDisk(pid);
-    const mine = state.data.projects.find(p => p.id === pid);
-    if (!mine) { _dirtyProjects.delete(pid); return 'clean'; }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const rd = await readProjectFromDiskEx(pid);
+      const mine = state.data.projects.find(p => p.id === pid);
+      if (!mine) { _dirtyProjects.delete(pid); return 'clean'; }
 
-    const base = _baseSnapshots[pid];
-    if (!base || !disk) {
-      // baseやdiskがない → 初回書き込み
-      await writeProjectFile(pid);
-      _baseSnapshots[pid] = deepCopy(mine);
-      _dirtyProjects.delete(pid);
-      return 'clean';
-    }
+      // 読込失敗: 書込まず dirty のまま保留（他の人の変更を自分の内容で上書きしない）
+      if (rd.status === 'error') {
+        console.warn('_fetchAndMergeProject: read failed, save deferred', pid, rd.error);
+        return 'error';
+      }
 
-    // プロジェクト単位の threeWayMerge
-    // 全体 merge ラッパーを使い、1プロジェクト分のデータを渡す
-    const fakeBase = { version:3, projects:[base], nextProjectNum:1 };
-    const fakeMine = { version:3, projects:[mine], nextProjectNum:1 };
-    const fakeDisk = { version:3, projects:[disk], nextProjectNum:1 };
-    const result = threeWayMerge(fakeBase, fakeMine, fakeDisk);
+      const base = _baseSnapshots[pid];
+      const disk = rd.project;
+      if (!base || rd.status === 'missing') {
+        // baseやファイルがない → 初回書き込み
+        await _commitProject(pid, mine);
+        return 'clean';
+      }
 
-    const mergedProject = result.merged.projects[0];
-    if (!mergedProject) { _dirtyProjects.delete(pid); return 'clean'; }
+      // プロジェクト単位の threeWayMerge
+      // 全体 merge ラッパーを使い、1プロジェクト分のデータを渡す
+      const fakeBase = { version:3, projects:[base], nextProjectNum:1 };
+      const fakeMine = { version:3, projects:[mine], nextProjectNum:1 };
+      const fakeDisk = { version:3, projects:[disk], nextProjectNum:1 };
+      const result = threeWayMerge(fakeBase, fakeMine, fakeDisk);
 
-    // state.data に反映
-    const idx = state.data.projects.findIndex(p => p.id === pid);
-    if (idx !== -1) state.data.projects[idx] = mergedProject;
+      const mergedProject = result.merged.projects[0];
+      if (!mergedProject) { _dirtyProjects.delete(pid); return 'clean'; }
 
-    if (result.conflicts.length === 0) {
-      await writeProjectFile(pid);
-      _baseSnapshots[pid] = deepCopy(mergedProject);
-      _dirtyProjects.delete(pid);
-      _lastFetchAt = Date.now();
-      if (result.autoMerged > 0) { renderCurrentView(); renderSidebar(); }
-      return result.autoMerged > 0 ? 'automerged' : 'clean';
-    } else {
+      // 書込み直前にファイルが更新されていないか再確認（読込〜書込みの間に他の人が保存した場合は読み直す）。
+      // 旧実装は確認なしに書き込んでいたため、同時保存で先に書いた人の変更が消えていた
+      if (rd.stamp && attempt < 2) {
+        const st = await _diskStamp(pid);
+        if (st !== null && st !== rd.stamp) continue;
+      }
+
+      // state.data に反映
+      const idx = state.data.projects.findIndex(p => p.id === pid);
+      if (idx !== -1) state.data.projects[idx] = mergedProject;
+
+      if (result.conflicts.length === 0) {
+        await _commitProject(pid, mergedProject);
+        if (result.autoMerged > 0) { renderCurrentView(); renderSidebar(); }
+        return result.autoMerged > 0 ? 'automerged' : 'clean';
+      }
+
       if (mode === 'save') {
-        return new Promise(resolve => {
+        return await new Promise(resolve => {
           showConflictDialog(result.conflicts, result.merged, async (resolved) => {
-            const rp = resolved.projects[0];
-            const i2 = state.data.projects.findIndex(p => p.id === pid);
-            if (i2 !== -1) state.data.projects[i2] = rp;
-            await writeProjectFile(pid);
-            _baseSnapshots[pid] = deepCopy(rp);
-            _dirtyProjects.delete(pid);
-            renderCurrentView(); renderSidebar();
-            resolve('conflict');
+            try {
+              const rp = resolved.projects[0];
+              const i2 = state.data.projects.findIndex(p => p.id === pid);
+              if (i2 !== -1) state.data.projects[i2] = rp;
+              await _commitProject(pid, rp);
+              renderCurrentView(); renderSidebar();
+              resolve('conflict');
+            } catch(e) { console.error(e); resolve('error'); }
+          }, async () => {
+            // キャンセル: 競合は保留にして、自動マージ済みの部分だけを保存する
+            // （旧実装はPromiseが解決されず _isSaving が true のまま固まり、以後の自動保存が止まっていた）
+            try {
+              _addPendingConflicts(pid, result.conflicts);
+              await _commitProject(pid, mergedProject);
+              renderCurrentView(); renderSidebar();
+              toast(`競合 ${result.conflicts.length} 件は保留にしました。画面下のバナーからいつでも解決できます`, 'warn', 4500);
+              resolve('conflict');
+            } catch(e) { console.error(e); resolve('error'); }
           });
         });
-      } else {
-        // silent: 自動マージ済み部分を適用してトースト
-        await writeProjectFile(pid);
-        _baseSnapshots[pid] = deepCopy(mergedProject);
-        _dirtyProjects.delete(pid);
-        _lastFetchAt = Date.now();
-        renderCurrentView(); renderSidebar();
-        toast(`⚠️ ${result.conflicts.length}件の競合があります — Ctrl+S で解決してください`, 'error');
-        return 'conflict';
       }
+
+      // silent: 競合は保留にして（自分の値を保持）、自動マージ済みの部分だけを保存する。
+      // 旧実装は競合項目を黙って相手の値で確定していたため、自分の編集が消えていた
+      _addPendingConflicts(pid, result.conflicts);
+      await _commitProject(pid, mergedProject);
+      renderCurrentView(); renderSidebar();
+      toast(`⚠️ ${result.conflicts.length}件の競合を保留しました（画面下のバナー、または Ctrl+S で解決できます）`, 'warn', 4500);
+      return 'conflict';
     }
+    return 'error';
   } catch(e) {
     console.error('_fetchAndMergeProject error:', pid, e);
     return 'error';
@@ -3533,6 +3653,10 @@ async function saveFile(manual=false) {
   saveTimer = null;
   _lastFetchAt = 0;
 
+  // 自動保存中に保留された競合があれば、先に解決ダイアログを表示する
+  if (_pendingCount() > 0) await showPendingConflicts();
+  if (_isSaving) return;
+
   _isSaving = true;
 
   // 初回（baseSnapshots が空）: 全プロジェクトを dirty にして書き込み
@@ -3565,6 +3689,102 @@ async function saveFile(manual=false) {
 // ─────────────────────────────────────────
 // 3-WAY MERGE ENGINE
 // ─────────────────────────────────────────
+// ─────────────────────────────────────────
+// TEXT 3-WAY MERGE (行単位 diff3) — Wiki本文・詳細などの複数行テキスト用
+// ─────────────────────────────────────────
+// a の a[s:e] を lines に置換する「差分ハンクの配列」を返す。
+// 先頭・末尾の共通行を除いた中間部分だけを LCS で比較する（大きすぎる場合は中間全体を1ハンクにする）。
+function _diffHunks(a, b) {
+  let pre = 0;
+  while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
+  let suf = 0;
+  while (suf < a.length - pre && suf < b.length - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++;
+  const aM = a.slice(pre, a.length - suf), bM = b.slice(pre, b.length - suf);
+  if (!aM.length && !bM.length) return [];
+  if (!aM.length || !bM.length || aM.length * bM.length > 4000000) {
+    return [{ s: pre, e: pre + aM.length, lines: bM }];
+  }
+  const n = aM.length, m = bM.length;
+  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = aM[i] === bM[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const hunks = [];
+  let i = 0, j = 0, cur = null;
+  const flush = () => { if (cur) { hunks.push(cur); cur = null; } };
+  while (i < n || j < m) {
+    if (i < n && j < m && aM[i] === bM[j]) { flush(); i++; j++; continue; }
+    if (!cur) cur = { s: pre + i, e: pre + i, lines: [] };
+    if (j < m && (i >= n || dp[i][j + 1] >= dp[i + 1][j])) { cur.lines.push(bM[j]); j++; }
+    else { i++; cur.e = pre + i; }
+  }
+  flush();
+  return hunks;
+}
+
+// base / mine / theirs の3者を行単位でマージする。
+// 変更箇所が重ならなければ自動マージ（conflict:false）。同じ行付近を別々に変更していれば conflict:true を返す。
+function _textMerge3(base, mine, theirs) {
+  if (mine === theirs) return { text: mine, conflict: false };
+  if (mine === base)   return { text: theirs, conflict: false };
+  if (theirs === base) return { text: mine, conflict: false };
+  const a = base.split('\n');
+  const hm = _diffHunks(a, mine.split('\n'));
+  const ht = _diffHunks(a, theirs.split('\n'));
+  const overlap = (x, y) => (x.s < y.e && y.s < x.e) || x.s === y.s;
+  const out = [];
+  let pos = 0, i = 0, j = 0;
+  while (i < hm.length || j < ht.length) {
+    const x = hm[i], y = ht[j];
+    if (x && y && overlap(x, y)) {
+      const same = x.s === y.s && x.e === y.e && x.lines.length === y.lines.length && x.lines.every((l, k) => l === y.lines[k]);
+      if (!same) return { text: null, conflict: true };
+      out.push(...a.slice(pos, x.s), ...x.lines);
+      pos = x.e; i++; j++;
+      continue;
+    }
+    const takeX = x && (!y || x.s < y.s);
+    const h = takeX ? x : y;
+    out.push(...a.slice(pos, h.s), ...h.lines);
+    pos = h.e;
+    if (takeX) i++; else j++;
+  }
+  out.push(...a.slice(pos));
+  return { text: out.join('\n'), conflict: false };
+}
+
+// 3者に現れるキーのうち、固定の比較対象（handled）に含まれないものを返す（未登録フィールドの取りこぼし防止）
+function _extraKeys(objs, handled) {
+  const s = new Set();
+  objs.forEach(o => { if (o && typeof o === 'object') Object.keys(o).forEach(k => { if (!handled.has(k)) s.add(k); }); });
+  return [...s];
+}
+// src[f] を target[f] へ反映（src側に無ければ削除）
+function _setField(target, src, f) {
+  if (src && src[f] !== undefined) target[f] = src[f];
+  else delete target[f];
+}
+// 'description' / 'content' が両者変更で競合した場合、行単位マージを試みて成功すれば競合から外す。成功件数を返す
+function _tryTextMergeFields(res, b, m, d, target) {
+  let n = 0;
+  ['description', 'content'].forEach(name => {
+    const i = res.conflictFields.findIndex(c => c.name === name);
+    if (i < 0) return;
+    const mv = m?.[name], dv = d?.[name];
+    if (typeof mv !== 'string' || typeof dv !== 'string') return;
+    const bv = typeof b?.[name] === 'string' ? b[name] : '';
+    const r = _textMerge3(bv, mv, dv);
+    if (!r.conflict) { target[name] = r.text; res.conflictFields.splice(i, 1); n++; }
+  });
+  return n;
+}
+const _PROJ_HANDLED = new Set(['id','number','deleted','tasks','milestones','wikiPages','weeklyNotes','nextTaskNum','wiki','name','description','startDate','endDate','members','color','archived','projectSettings']);
+const _TASK_HANDLED = new Set(['id','comments','checklist','activity','likes','bookmarks','_deletedCommentIds','nextCommentNo','estimatedHours','actualHours','creator','createdAtTime','title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime']);
+const _MS_HANDLED = new Set(['id','name','description','startDate','endDate','color']);
+const _WP_HANDLED = new Set(['id','title','content','order','updatedAt']);
+
 function threeWayMerge(base, mine, disk) {
   // Work on deep copies
   const merged = deepCopy(disk); // start from disk as base
@@ -3615,8 +3835,10 @@ function threeWayMerge(base, mine, disk) {
 
     // Both have it — merge project-level fields + tasks
     const mergedP = deepCopy(d); // start from disk
-    const projFieldConflicts = mergeEntityFields(b, m, d, ['name','description','startDate','endDate','members','color','archived','projectSettings'], pid, null);
-    projFieldConflicts.autoFields.forEach(f => { mergedP[f] = m[f]; autoMerged++; });
+    // 固定リスト＋未登録フィールド（プラグイン等が持つ項目）も比較対象にする（旧実装は未登録項目の変更を破棄していた）
+    const projFieldConflicts = mergeEntityFields(b, m, d, ['name','description','startDate','endDate','members','color','archived','projectSettings'].concat(_extraKeys([b, m, d], _PROJ_HANDLED)), pid, null);
+    projFieldConflicts.autoFields.forEach(f => { _setField(mergedP, m, f); autoMerged++; });
+    autoMerged += _tryTextMergeFields(projFieldConflicts, b, m, d, mergedP);
     if (projFieldConflicts.conflictFields.length > 0) {
       conflicts.push({
         kind: 'project',
@@ -3683,8 +3905,9 @@ function threeWayMerge(base, mine, disk) {
         // 既存MSのフィールドマージ（diskを起点にmineの変更を適用）
         const mergedMsItem = deepCopy(md || mm);
         if (mm && md) {
-          const msFieldRes = mergeEntityFields(mb, mm, md, ['name','description','startDate','endDate','color']);
-          msFieldRes.autoFields.forEach(f => { mergedMsItem[f] = mm[f]; autoMerged++; });
+          const msFieldRes = mergeEntityFields(mb, mm, md, ['name','description','startDate','endDate','color'].concat(_extraKeys([mb, mm, md], _MS_HANDLED)));
+          msFieldRes.autoFields.forEach(f => { _setField(mergedMsItem, mm, f); autoMerged++; });
+          autoMerged += _tryTextMergeFields(msFieldRes, mb, mm, md, mergedMsItem);
           if (msFieldRes.conflictFields.length > 0) {
             conflicts.push({
               kind: 'milestone',
@@ -3743,8 +3966,12 @@ function threeWayMerge(base, mine, disk) {
         }
         const mergedWpItem = deepCopy(wd || wm);
         if (wm && wd) {
-          const wpFieldRes = mergeEntityFields(wb, wm, wd, ['title','content']);
-          wpFieldRes.autoFields.forEach(f => { mergedWpItem[f] = wm[f]; autoMerged++; });
+          // order（並び順）も比較対象にする。旧実装は order をdisk側の値で固定していたため、ページの並べ替えが巻き戻っていた
+          const wpFieldRes = mergeEntityFields(wb, wm, wd, ['title','content','order'].concat(_extraKeys([wb, wm, wd], _WP_HANDLED)));
+          wpFieldRes.autoFields.forEach(f => { _setField(mergedWpItem, wm, f); autoMerged++; });
+          // 本文は行単位で3-wayマージ（変更箇所が重ならなければ自動マージ）
+          autoMerged += _tryTextMergeFields(wpFieldRes, wb, wm, wd, mergedWpItem);
+          if (wm.updatedAt || wd.updatedAt) mergedWpItem.updatedAt = (wm.updatedAt || '') > (wd.updatedAt || '') ? wm.updatedAt : wd.updatedAt;
           if (wpFieldRes.conflictFields.length > 0) {
             conflicts.push({
               kind: 'wikipage',
@@ -3816,10 +4043,11 @@ function threeWayMerge(base, mine, disk) {
         // estimatedHours/actualHoursはbaseEstimatedHours+コメントeffortLogから導出される値なので
         // フィールド単位の競合比較対象から外し、代わりに独立入力値であるbaseEstimatedHoursを対象にする。
         // 導出値は下のrecalcHours(mergedT)でコメントマージ後に再計算する。
-        ['title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime'],
+        ['title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime'].concat(_extraKeys([tb, tm, td], _TASK_HANDLED)),
         pid, tid
       );
-      taskFields.autoFields.forEach(f => { mergedT[f] = tm[f]; autoMerged++; });
+      taskFields.autoFields.forEach(f => { _setField(mergedT, tm, f); autoMerged++; });
+      autoMerged += _tryTextMergeFields(taskFields, tb, tm, td, mergedT);
       // creator / createdAtTime: 最初に値が設定されたほうを優先（上書き防止）
       mergedT.creator       = td.creator       || tm?.creator       || tb?.creator       || '';
       mergedT.createdAtTime = td.createdAtTime  || tm?.createdAtTime || tb?.createdAtTime || null;
@@ -3828,6 +4056,15 @@ function threeWayMerge(base, mine, disk) {
       const mergedChecklist = mergeArrayById(tb?.checklist||[], tm?.checklist||[], td?.checklist||[]);
       mergedT.checklist = mergedChecklist.result;
       autoMerged += mergedChecklist.changed;
+      // チェックリスト文言を両者が別々に編集した場合は競合として扱う（結果は相手側の文言を仮採用）
+      mergedChecklist.conflicts.forEach(cc => {
+        conflicts.push({
+          kind: 'checklist', id: cc.id, taskId: tid, parentId: pid,
+          label: `チェックリスト「${cc.mine.text}」（タスク #${tm?.number||td?.number}）`,
+          fields: [{ name: 'text', mine: cc.mine.text, theirs: cc.theirs.text }],
+          mine: cc.mine, theirs: cc.theirs, choice: 'mine',
+        });
+      });
 
       // タスク自体へのいいね: ユーザー名をidとして3-wayマージ（追加・取り消し双方を反映）
       const mergedTaskLikes = mergeArrayById(tb?.likes||[], tm?.likes||[], td?.likes||[]);
@@ -3898,10 +4135,12 @@ function threeWayMerge(base, mine, disk) {
             // 両者が同じIDで独立追加（稀）→ disk優先
             winner = diskComMap[id];
           } else {
-            // baseとの差分を比較
-            const baseStr = JSON.stringify(baseComMap[id]);
-            const memStr  = JSON.stringify(memComMap[id]);
-            const diskStr = JSON.stringify(diskComMap[id]);
+            // baseとの差分を比較（いいね・ブックマークは本文の編集とは独立にマージするため比較から除く。
+            // 含めると、他人が「いいね」しただけで自分の本文編集が「相手の変更」扱いになり消えていた）
+            const _strip = c => { const o = { ...c }; delete o.likes; delete o.bookmarks; return JSON.stringify(o); };
+            const baseStr = _strip(baseComMap[id]);
+            const memStr  = _strip(memComMap[id]);
+            const diskStr = _strip(diskComMap[id]);
             const memChanged  = memStr  !== baseStr;
             const diskChanged = diskStr !== baseStr;
 
@@ -3909,8 +4148,20 @@ function threeWayMerge(base, mine, disk) {
               // Bだけが編集 → Bのバージョンを採用
               winner = memComMap[id];
             } else {
-              // Diskが編集（またはどちらも変更なし、または両者が編集した場合はdisk優先）
+              // Diskが編集（またはどちらも変更なし）→ disk
               winner = diskComMap[id];
+              if (memChanged && diskChanged && memStr !== diskStr) {
+                // 両者が別々に編集 → 競合として扱う（結果は相手側を仮採用）
+                const _mc = memComMap[id], _dc = diskComMap[id];
+                let _cf = ['text', 'effortLog'].filter(k => JSON.stringify(_mc[k]) !== JSON.stringify(_dc[k]));
+                if (!_cf.length) _cf = ['text'];
+                conflicts.push({
+                  kind: 'comment', id, taskId: tid, parentId: pid,
+                  label: `コメント #${_mc.no || ''}（タスク #${tm?.number||td?.number}）`,
+                  fields: _cf.map(k => ({ name: k, mine: _mc[k], theirs: _dc[k] })),
+                  mine: _mc, theirs: _dc, choice: 'mine',
+                });
+              }
             }
           }
           // コメントへのいいねは本文の勝者判定とは独立に3-wayマージ（取りこぼし防止）
@@ -4005,6 +4256,7 @@ function mergeArrayById(base, mine, disk) {
   const diskIdx = indexBy(disk, 'id');
   const allIds = new Set([...Object.keys(baseIdx),...Object.keys(mineIdx),...Object.keys(diskIdx)]);
   let changed = 0;
+  const conflicts = [];
   const resultMap = {};
   allIds.forEach(id => {
     const b=baseIdx[id], m=mineIdx[id], d=diskIdx[id];
@@ -4016,6 +4268,7 @@ function mergeArrayById(base, mine, disk) {
       const r = deepCopy(d);
       if (m && b && m.checked !== b.checked && d.checked === b.checked) { r.checked = m.checked; changed++; }
       if (m && b && m.text !== b.text && d.text === b.text) { r.text = m.text; changed++; }
+      if (m && b && m.text !== b.text && d.text !== b.text && m.text !== d.text) conflicts.push({ id, mine: m, theirs: d });
       resultMap[id] = r;
     }
   });
@@ -4024,7 +4277,7 @@ function mergeArrayById(base, mine, disk) {
   const mineOrderSet = new Set(mineOrder);
   const rest = Object.keys(resultMap).filter(id => !mineOrderSet.has(id));
   const result = [...mineOrder, ...rest].map(id => resultMap[id]);
-  return { result, changed };
+  return { result, changed, conflicts };
 }
 
 function indexBy(arr, key) {
@@ -4042,13 +4295,14 @@ const FIELD_LABELS = {
   estimatedHours:'見積工数(h)', actualHours:'実績工数(h)',
   description:'詳細', milestoneId:'MS', labels:'ラベル', priority:'優先度',
   completedAt:'完了日', name:'名前', archived:'アーカイブ',
-  color:'カラー', wiki:'Wiki', members:'メンバー',
+  color:'カラー', wiki:'Wiki', members:'メンバー', text:'文言', order:'並び順', effortLog:'工数',
   description:'説明', endDate:'終了日', content:'内容',
 };
 
-function showConflictDialog(conflicts, mergedBase, onResolve) {
+function showConflictDialog(conflicts, mergedBase, onResolve, onCancel) {
   _conflictItems = conflicts.map(c => ({...c, choice:'mine'}));
   _conflictResolveCallback = onResolve;
+  _conflictCancelCallback = onCancel || null;
   _conflictMergedBase = mergedBase;
 
   document.getElementById('conflict-count').textContent = `${conflicts.length}件の競合`;
@@ -4057,7 +4311,8 @@ function showConflictDialog(conflicts, mergedBase, onResolve) {
   document.getElementById('conflict-modal').classList.add('show');
 }
 
-let _conflictMergedBase = null;
+let _conflictMergedBase = null;  // オブジェクト、または解決時に最新の状態を返す関数
+let _conflictCancelCallback = null;
 
 function renderConflictList() {
   const list = document.getElementById('conflict-list');
@@ -4083,7 +4338,7 @@ function renderConflictList() {
     }).join('');
     return `<div class="conflict-item" id="conflict-item-${idx}">
       <div class="conflict-item-header">
-        <span>${item.kind === 'task' ? '📋' : '📁'}</span>
+        <span>${{task:'📋',comment:'💬',checklist:'☑️',wikipage:'📖'}[item.kind] || '📁'}</span>
         <span>${esc(item.label)}</span>
       </div>
       <div class="conflict-cols">
@@ -4118,6 +4373,8 @@ function formatConflictVal(field, val) {
   if (field === 'storyPoints') return val === 0 ? '未設定' : String(val);
   if (field === 'estimatedHours' || field === 'actualHours') return val === 0 ? '未設定' : `${val}h`;
   if (typeof val === 'boolean') return val ? 'はい' : 'いいえ';
+  if (typeof val === 'object') { const s = JSON.stringify(val); return s.length > 60 ? s.slice(0,60)+'…' : s; }
+  if (field === 'text') { const s = String(val); return s.length > 60 ? s.slice(0,60)+'…' : (s || '（空）'); }
   if (field === 'description' || field === 'wiki' || field === 'content') {
     const s = String(val);
     return s.length > 40 ? s.slice(0,40)+'…' : (s || '（空）');
@@ -4145,9 +4402,11 @@ function updateConflictFooter() {
 
 function resolveConflict() {
   // Build final merged data applying choices
-  const resolved = deepCopy(_conflictMergedBase);
+  const resolved = typeof _conflictMergedBase === 'function' ? _conflictMergedBase() : deepCopy(_conflictMergedBase);
 
-  _conflictItems.forEach(item => {
+  // コメント・チェックリストの解決は、タスク項目（mineを選ぶとマージ済みのコメント/チェックリストで置換する）より後に適用する
+  const _late = k => (k === 'comment' || k === 'checklist') ? 1 : 0;
+  [..._conflictItems].sort((a, b) => _late(a.kind) - _late(b.kind)).forEach(item => {
     const src = item.choice === 'mine' ? item.mine : item.theirs;
     if (!src) return;
 
@@ -4164,6 +4423,20 @@ function resolveConflict() {
       if (!p) return;
       const wpItem = (p.wikiPages||[]).find(x => x.id === item.id);
       if (wpItem) item.fields.forEach(f => { wpItem[f.name] = src[f.name]; });
+    } else if (item.kind === 'comment') {
+      const p = resolved.projects.find(x => x.id === item.parentId);
+      const t = p && (p.tasks||[]).find(x => x.id === item.taskId);
+      const c = t && (t.comments||[]).find(x => x.id === item.id);
+      if (!c) return;
+      const _skip = ['id','no','likes','bookmarks'];
+      Object.keys(c).forEach(k => { if (!_skip.includes(k) && !(k in src)) delete c[k]; });
+      Object.keys(src).forEach(k => { if (!_skip.includes(k)) c[k] = src[k]; });
+      recalcHours(t);
+    } else if (item.kind === 'checklist') {
+      const p = resolved.projects.find(x => x.id === item.parentId);
+      const t = p && (p.tasks||[]).find(x => x.id === item.taskId);
+      const cl = t && (t.checklist||[]).find(x => String(x.id) === String(item.id));
+      if (cl) cl.text = src.text;
     } else {
       // task
       const p = resolved.projects.find(x => x.id === item.parentId);
@@ -4183,6 +4456,7 @@ function resolveConflict() {
 
   document.getElementById('conflict-modal').classList.remove('show');
   _conflictItems = [];
+  _conflictCancelCallback = null;
   if (_conflictResolveCallback) {
     _conflictResolveCallback(resolved);
     _conflictResolveCallback = null;
@@ -4194,8 +4468,120 @@ function cancelConflict() {
   _conflictItems = [];
   _conflictResolveCallback = null;
   _conflictMergedBase = null;
-  toast('競合の解決をキャンセルしました。再度保存するまで変更は反映されません。', 'warn');
+  const cb = _conflictCancelCallback;
+  _conflictCancelCallback = null;
+  if (cb) cb();
+  else toast('競合の解決をキャンセルしました。', 'warn');
 }
+
+// ─────────────────────────────────────────
+// PENDING CONFLICTS（自動保存中に検出した競合の保留）
+// ─────────────────────────────────────────
+// 自動保存（silent）で競合した項目は、相手の値で保存を進めつつ、自分の値を保持したまま保留する。
+// 画面下のバナーまたは Ctrl+S で解決ダイアログを開き、「自分／相手」を選ぶ。
+let _pendingConflicts = {}; // { pid: [conflictItem...] }
+
+function _pendingCount() {
+  return Object.values(_pendingConflicts).reduce((n, a) => n + (a ? a.length : 0), 0);
+}
+
+function _addPendingConflicts(pid, items) {
+  const cur = _pendingConflicts[pid] || [];
+  items.forEach(it => {
+    const c = { ...it };
+    delete c.mergedBase; // 保留中は最新の状態に対して適用するため、古いマージ結果は持たない
+    delete c.choice;
+    const i = cur.findIndex(x => x.kind === c.kind && String(x.id) === String(c.id) && (x.taskId || '') === (c.taskId || ''));
+    if (i >= 0) cur[i] = c; else cur.push(c);
+  });
+  _pendingConflicts[pid] = cur;
+  _updatePendingBar();
+}
+
+function _pendingEntity(p, item) {
+  const sameId = (a, b) => String(a) === String(b);
+  switch (item.kind) {
+    case 'project':   return p;
+    case 'milestone': return (p.milestones || []).find(x => sameId(x.id, item.id));
+    case 'wikipage':  return (p.wikiPages || []).find(x => sameId(x.id, item.id));
+    case 'task':      return (p.tasks || []).find(x => sameId(x.id, item.id));
+    case 'comment': {
+      const t = (p.tasks || []).find(x => x.id === item.taskId);
+      return t && (t.comments || []).find(x => sameId(x.id, item.id));
+    }
+    case 'checklist': {
+      const t = (p.tasks || []).find(x => x.id === item.taskId);
+      return t && (t.checklist || []).find(x => sameId(x.id, item.id));
+    }
+  }
+  return null;
+}
+
+// 保留後にさらに別の値へ変更された項目（自分でも相手の値でもない）は、もう競合ではないので除外する
+function _pendingValid(pid, item) {
+  const p = getProject(pid);
+  if (!p) return null;
+  const ent = _pendingEntity(p, item);
+  if (!ent) return null;
+  const fields = item.fields.filter(f => {
+    const cur = JSON.stringify(ent[f.name]);
+    return cur === JSON.stringify(f.mine) || cur === JSON.stringify(f.theirs);
+  });
+  return fields.length ? { ...item, fields } : null;
+}
+
+function _updatePendingBar() {
+  let bar = document.getElementById('pending-conflict-bar');
+  const n = _pendingCount();
+  if (!n) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'pending-conflict-bar';
+    bar.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9000;background:#b45309;color:#fff;padding:8px 14px;border-radius:10px;font-size:13px;display:flex;gap:12px;align-items:center;box-shadow:0 4px 14px rgba(0,0,0,.35)';
+    bar.innerHTML = '<span id="pending-conflict-msg"></span><button type="button" style="background:#fff;color:#b45309;border:none;border-radius:6px;padding:4px 10px;font-weight:600;cursor:pointer" onclick="showPendingConflicts()">解決する</button>';
+    document.body.appendChild(bar);
+  }
+  document.getElementById('pending-conflict-msg').textContent = `⚠️ 他の人の変更と重なった項目が ${n} 件あります`;
+}
+
+// 保留中の競合を解決ダイアログで表示する。解決（またはキャンセル）後に resolve する
+function showPendingConflicts() {
+  return new Promise(resolve => {
+    const items = [];
+    Object.keys(_pendingConflicts).forEach(pid => {
+      const keep = (_pendingConflicts[pid] || []).map(it => _pendingValid(pid, it)).filter(Boolean);
+      if (keep.length) { _pendingConflicts[pid] = keep; keep.forEach(it => items.push(it)); }
+      else delete _pendingConflicts[pid];
+    });
+    _updatePendingBar();
+    if (!items.length) { resolve(false); return; }
+    const pids = new Set(items.map(it => it.kind === 'project' ? it.id : it.parentId));
+    // 解決は「ダイアログを開いた時点」ではなく「OKを押した時点」の最新の状態に対して適用する
+    showConflictDialog(items, () => ({ version: 3, projects: state.data.projects.map(deepCopy) }), async resolved => {
+      pids.forEach(pid => {
+        const rp = resolved.projects.find(p => p.id === pid);
+        const i = state.data.projects.findIndex(p => p.id === pid);
+        if (rp && i >= 0) { state.data.projects[i] = rp; autoSave(pid, true); }
+        delete _pendingConflicts[pid];
+      });
+      _updatePendingBar();
+      renderCurrentView(); renderSidebar();
+      toast('競合を解決しました', 'success');
+      resolve(true);
+    }, () => {
+      toast('競合は保留のままです。画面下のバナーからいつでも解決できます', 'warn');
+      resolve(false);
+    });
+  });
+}
+
+// 未保存・未解決の変更が残っている状態でページを閉じようとしたときに警告する
+window.addEventListener('beforeunload', e => {
+  if (_pendingCount() > 0 || _dirtyProjects.size > 0 || _isSaving) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 
 // ═══════════════════════════════════════
@@ -5632,8 +6018,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.25';
-const APP_VERSION_DATE = '2026-10-22';
+const APP_VERSION      = '1.1.26';
+const APP_VERSION_DATE = '2026-10-23';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -7877,6 +8263,7 @@ function ganttScrollToToday(e) {
 // ═══════════════════════════════════════
 let _wikiMode = 'preview';
 let _wikiDirty = false;
+let _wikiEditBase = null; // { pageId, content }: textareaが最後に同期していた本文（他者の変更の検出・3-wayマージのbase）
 let _wikiAutoSaveTimer = null; // 改善C: Wiki編集中の debounced autoSave タイマー
 let _wikiCurrentPageId = null; // v1.1.6〜: 複数ページ化。現在表示中のページID（プロジェクトごとにリセット）
 
@@ -8024,6 +8411,49 @@ function renderWiki() {
   setWikiMode('preview');
 }
 
+// Wikiの編集内容(raw)をページに反映する。
+// 編集中に他の人の変更がマージされて page.content が変わっていた場合は、行単位で3-wayマージする。
+//  ・変更箇所が重ならない → 自動マージ（textareaも結果に更新）
+//  ・同じ行付近を両者が変更 → 自分の内容を採用し、相手の内容を競合として保留（画面下バナーから解決）
+// 旧実装は textarea の内容でページ全体を上書きしていたため、編集中に他の人が保存した内容が消えていた。
+function _wikiApplyEdit(page, raw, ta) {
+  const cur = page.content || '';
+  const b = (_wikiEditBase && _wikiEditBase.pageId === page.id) ? _wikiEditBase.content : null;
+  let result = raw;
+  if (b !== null && cur !== b && raw !== b && raw !== cur) {
+    const r = _textMerge3(b, raw, cur);
+    if (!r.conflict) {
+      result = r.text;
+      toast('他の人のWiki変更を自動マージしました', 'success');
+    } else {
+      const pid = state.currentProjectId;
+      _addPendingConflicts(pid, [{
+        kind: 'wikipage', id: page.id, parentId: pid,
+        label: `Wikiページ「${page.title}」`,
+        fields: [{ name: 'content', mine: raw, theirs: cur }],
+        mine: { content: raw }, theirs: { content: cur },
+      }]);
+      toast('⚠️ Wikiが他の人の変更と重なりました。画面下のバナーから解決してください', 'warn', 4500);
+    }
+  }
+  page.content = result;
+  page.updatedAt = new Date().toISOString();
+  _wikiEditBase = { pageId: page.id, content: result };
+  if (ta && ta.value !== result) {
+    // カーソル位置を保ったままtextareaを更新（最初に違う位置より後ろにあれば長さの差だけずらす）
+    const ss = ta.selectionStart, se = ta.selectionEnd, st = ta.scrollTop;
+    let k = 0;
+    while (k < raw.length && k < result.length && raw[k] === result[k]) k++;
+    const delta = result.length - raw.length;
+    ta.value = result;
+    const ns = ss > k ? Math.max(0, ss + delta) : ss;
+    const ne = se > k ? Math.max(0, se + delta) : se;
+    try { ta.setSelectionRange(ns, ne); } catch(e) {}
+    ta.scrollTop = st;
+  }
+  return result;
+}
+
 // ページ切替（編集中は不可。プレビューに戻ってから選択する）
 function switchWikiPage(pageId) {
   if (pageId === _wikiCurrentPageId) return;
@@ -8101,6 +8531,8 @@ function setWikiMode(mode) {
     eBtn.classList.add('active');
     pBtn.classList.remove('active');
     _toggleFmtBtns('wiki-edit-btn', true);
+    { const _bp = getProject(state.currentProjectId); const _bg = _bp && _currentWikiPage(_bp);
+      _wikiEditBase = _bg ? { pageId: _bg.id, content: _bg.content || '' } : null; }
     renderWikiPageList(); // ページ選択をロック
     buildToc(ta.value); // 編集モードでも目次が現在の本文を反映するようにする
     ta.focus();
@@ -8116,8 +8548,7 @@ function setWikiMode(mode) {
         const _p = getProject(state.currentProjectId);
         const _page = _p && _currentWikiPage(_p);
         if (_page && _wikiDirty) {
-          _page.content = ta.value;
-          _page.updatedAt = new Date().toISOString();
+          _wikiApplyEdit(_page, ta.value, ta);
           autoSave(state.currentProjectId);
         }
       }, 3000);
@@ -8126,16 +8557,20 @@ function setWikiMode(mode) {
     // プレビューに切り替わる際、debounced タイマーをキャンセルして確定保存する
     clearTimeout(_wikiAutoSaveTimer);
     _wikiAutoSaveTimer = null;
-    const raw = ta.value;
+    let raw = ta.value;
     const p = getProject(state.currentProjectId);
     const page = p && _currentWikiPage(p);
     if (_wikiDirty && page) {
-      page.content = raw;
-      page.updatedAt = new Date().toISOString();
+      raw = _wikiApplyEdit(page, raw, ta);
       autoSave(state.currentProjectId);
       _wikiDirty = false;
       toast('Wiki を保存しました', 'success');
+    } else if (page && !_wikiDirty && typeof page.content === 'string' && page.content !== raw) {
+      // 未編集のまま、他の人の変更がマージされていた場合は最新の本文を表示する
+      raw = page.content;
+      ta.value = raw;
     }
+    _wikiEditBase = null;
     const html = buildWikiHtml(raw);
     pv.innerHTML = html;
     ta.style.display = 'none';
@@ -8153,8 +8588,7 @@ function setWikiMode(mode) {
 function saveWiki() {
   const p = getProject(state.currentProjectId); if(!p) return;
   const page = _currentWikiPage(p); if (!page) return;
-  page.content = document.getElementById('wiki-textarea').value;
-  page.updatedAt = new Date().toISOString();
+  _wikiApplyEdit(page, document.getElementById('wiki-textarea').value, document.getElementById('wiki-textarea'));
   autoSave(state.currentProjectId);
   _wikiDirty = false;
   toast('Wiki を保存しました', 'success');
@@ -9412,6 +9846,7 @@ function _openTaskPanelInner(taskId){
       history.replaceState(null, '', newHash);
     }
   }
+  _panelFormOrig = _readPanelForm();
   renderBacklinks(t, p);
   // プラグインへ task-open イベントを通知
   if (window.TaskFlow) window.TaskFlow.emit('task-open', { task: t, project: p });
@@ -9577,37 +10012,78 @@ function removePanelLabel(idx){
   t.labels.splice(idx,1); renderPanelLabels(t.labels); panelDirty=true;
 }
 
+// パネルを開いた時点のフォーム値。保存時に「ユーザーが実際に変更した項目だけ」を反映するために使う。
+// 旧実装は全項目をフォーム値で上書きしていたため、パネルを開いている間に他の人の変更が
+// マージされていると、触っていない項目まで古い値に戻して巻き戻していた。
+let _panelFormOrig = null;
+function _readPanelForm(){
+  const v = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+  return {
+    title: v('panel-title').trim(),
+    creator: v('panel-creator').trim(),
+    status: v('panel-status'),
+    priority: v('panel-priority') || null,
+    assignee: v('panel-assignee').trim(),
+    start: v('panel-start'),
+    due: v('panel-due'),
+    completed: v('panel-completed'),
+    points: parseInt(v('panel-points')) || 0,
+    desc: v('panel-desc'),
+    milestone: v('panel-milestone') || null,
+  };
+}
+
 function savePanelTask(){
   const t=getTask(state.currentProjectId,_panelTaskId); if(!t)return;
-  const newStatus=document.getElementById('panel-status').value;
+  const form=_readPanelForm();
+  const orig=_panelFormOrig;
+  const ch=k=>!orig || form[k]!==orig[k];   // 開いた時点から変更された項目か
+
   const oldStatus=t.status;
   const oldAssignee=t.assignee||'';
   const oldDue=t.dueDate||'';
   const oldDesc=t.description||'';
   const oldPriority=t.priority||null;
 
-  t.title=document.getElementById('panel-title').value.trim()||t.title;
-  const _creatorIn = document.getElementById('panel-creator');
-  if (_creatorIn) t.creator = _creatorIn.value.trim();
-  t.status=newStatus;
-  const newPriority=document.getElementById('panel-priority').value||null;
-  t.priority=newPriority;
-  const newAssignee=document.getElementById('panel-assignee').value.trim();
-  t.assignee=newAssignee;
-  const newDue=document.getElementById('panel-due').value;
-  t.startDate=document.getElementById('panel-start').value;
-  t.dueDate=newDue;
-  t.storyPoints=parseInt(document.getElementById('panel-points').value)||0;
-  const newDesc=document.getElementById('panel-desc').value;
-  t.description=newDesc;
-  t.milestoneId=document.getElementById('panel-milestone').value||null;
-  if(newStatus==='done'){
-    t.completedAt = document.getElementById('panel-completed').value || today();
-    if(oldStatus!==newStatus) t.completedAtTime = new Date().toISOString();
-  } else {
-    t.completedAt = null;
-    t.completedAtTime = null;
+  if(ch('title')) t.title=form.title||t.title;
+  if(ch('creator')) t.creator=form.creator;
+  if(ch('status')) t.status=form.status;
+  if(ch('priority')) t.priority=form.priority;
+  if(ch('assignee')) t.assignee=form.assignee;
+  if(ch('start')) t.startDate=form.start;
+  if(ch('due')) t.dueDate=form.due;
+  if(ch('points')) t.storyPoints=form.points;
+  if(ch('milestone')) t.milestoneId=form.milestone;
+  if(ch('desc')){
+    // 編集中に他の人が同じ詳細を更新していた場合は、行単位でマージする（重なる場合は自分の内容を採用し、競合として保留）
+    let nd=form.desc;
+    if(orig && oldDesc!==orig.desc && oldDesc!==form.desc){
+      const r=_textMerge3(orig.desc, form.desc, oldDesc);
+      if(!r.conflict){ nd=r.text; toast('他の人の詳細の変更を自動マージしました','success'); }
+      else{
+        _addPendingConflicts(state.currentProjectId,[{kind:'task',id:t.id,parentId:state.currentProjectId,
+          label:`#${t.number||''} ${t.title}`,fields:[{name:'description',mine:form.desc,theirs:oldDesc}],
+          mine:{description:form.desc},theirs:{description:oldDesc}}]);
+        toast('⚠️ 詳細が他の人の変更と重なりました。画面下のバナーから解決してください','warn',4500);
+      }
+    }
+    t.description=nd;
   }
+  const newStatus=t.status;
+  const newPriority=t.priority||null;
+  const newAssignee=t.assignee||'';
+  const newDue=t.dueDate||'';
+  const newDesc=t.description||'';
+  if(ch('status')||ch('completed')){
+    if(newStatus==='done'){
+      t.completedAt = form.completed || today();
+      if(oldStatus!==newStatus) t.completedAtTime = new Date().toISOString();
+    } else {
+      t.completedAt = null;
+      t.completedAtTime = null;
+    }
+  }
+  _panelFormOrig = form;
 
   // ── Activity logging ──
   if(!t.activity) t.activity=[];
