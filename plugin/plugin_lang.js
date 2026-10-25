@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.9',
+      version:     '1.3.10',
     });
   }
 
@@ -611,6 +611,40 @@
     '検索キーワードを入力してください':   'Please enter search keywords',
     '📖 Wiki / プロジェクト概要':          '📖 Wiki / Project Overview',
     '📋 タスク':                          '📋 Task',
+    'プロジェクト: すべて':               'Project: All',
+    'マイルストーン: すべて':             'Milestone: All',
+    'プロジェクトを選ぶとマイルストーンで絞り込めます': 'Select a project to filter by milestone',
+    '🏁 マイルストーン指定中は、Wiki・概要は検索対象外です': '🏁 Wiki & Overview are not searched while a milestone is selected',
+    '（ショートカット: Ctrl + Shift + F）': '(Shortcut: Ctrl + Shift + F)',
+
+    // ── 翻訳漏れの補完（v1.1.28） ──────────────────────────
+    // ヘッダー：ボタンのラベルは translateNode が絵文字付きのキーで引くが、tooltip（title）は文言のみ
+    'テーマ切替':                         'Toggle theme',
+    'フォルダ変更':                       'Change Folder',
+    '開発を支援する (GitHub Sponsors)':   'Support Development (GitHub Sponsors)',
+    '📁 プラグインフォルダを変更':        '📁 Change Plugin Folder',
+    '🔄 フォルダ選択をやり直す':          '🔄 Re-select Folder',
+    'データフォルダ配下の自動作成ではなく、任意のフォルダ（htmlと同じフォルダなど）を明示的に選び直します':
+      'Explicitly re-select any folder (e.g. the same folder as the HTML) instead of auto-creating one under the data folder',
+    '別のプロジェクトと同名フォルダのプラグイン設定が混ざって表示される場合などに使用します':
+      'Use this when plugin settings from another project with a same-named folder appear mixed in',
+    'プラグインフォルダを変更しました':   'Plugin folder changed',
+    // Wiki
+    'ページ':                             'Pages',
+    'ページを追加':                       'Add page',
+    'ページ一覧を表示/非表示':            'Show/hide page list',
+    '🔗 リンク':                          '🔗 Link',
+    'このページへのリンクをコピー（コメント等に貼り付け可能）': 'Copy link to this page (can be pasted into comments, etc.)',
+    'この見出しへのリンクをコピー':       'Copy link to this heading',
+    'Wikiへのリンクをコピーしました。コメントや詳細に貼り付けられます': 'Wiki link copied. You can paste it into comments or details',
+    // タスク詳細・モーダル
+    '一番下へ移動':                       'Jump to bottom',
+    '作成から24時間以内のみ編集できます': 'Can only be edited within 24 hours of creation',
+    'テンプレートから作成':               'Create from template',
+    '── テンプレートを選択 ──':           '── Select a template ──',
+    '見積もり工数 (h)':                   'Estimated effort (h)',
+    '🖼️ アバター画像の設定':             '🖼️ Set Avatar Image',
+    '例:\n環境変数を確認\nステージングでテスト\n本番デプロイ': 'e.g.\nCheck environment variables\nTest on staging\nDeploy to production',
   };
 
   let _lang = 'ja';
@@ -658,6 +692,10 @@
     s = s.replace(/^フォルダ「(.+)」が必要です$/, 'Folder "$1" is required');
     s = s.replace(/^「(.+)」フォルダを開いてください$/, 'Please open the "$1" folder');
     s = s.replace(/^「(.+)」を削除しますか？$/, 'Delete "$1"?');
+    // 全体検索：ヒット件数（「N 件ヒットしました」）
+    s = s.replace(/^(\d+) 件ヒットしました$/, (m, n) => n === '1' ? '1 result found' : n + ' results found');
+    // 全体検索：プロジェクト選択プルダウンの完了プロジェクト表記
+    s = s.replace(/^(.+)（完了）$/, '$1 (Archived)');
     s = s.replace(/^"(.+)" をプラグインリストから削除しますか？\n（JSファイルは削除されません）$/, 'Remove "$1" from plugin list?\n(JS file will not be deleted)');
     // プラグイン有効/無効切り替えトースト（設定画面「プラグイン」ペイン）
     s = s.replace(/^(.+) を有効にしました（リロードで反映）$/, '$1 enabled (reload to apply)');
@@ -924,11 +962,28 @@
       const trimmed  = original.trim();
       if (!trimmed) return;
       
-      const translated = t(trimmed);
+      let translated = t(trimmed);
+      // ボタンのラベルが「絵文字 + <span class="btn-label">文言</span>」の形になっている場合、
+      // 文言だけでは辞書（'📂 フォルダ変更' のように絵文字付きのキー）に一致しないため、
+      // 直前の絵文字を付けた形で先に引き、一致すれば絵文字を除いた訳語を使う
+      const labelEl = node.parentElement;
+      if (labelEl && labelEl.classList && labelEl.classList.contains('btn-label')) {
+        const prev = labelEl.previousSibling;
+        const icon = prev && prev.nodeType === Node.TEXT_NODE ? prev.textContent.trim() : '';
+        if (icon) {
+          const full = t(icon + ' ' + trimmed);
+          if (full !== icon + ' ' + trimmed && full.indexOf(icon + ' ') === 0) {
+            translated = full.slice(icon.length + 1);
+          }
+        }
+      }
       if (translated !== trimmed) {
         node.textContent = original.replace(trimmed, translated);
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
+      // placeholder / title はUI文言なので、input / textarea（ユーザー入力領域として除外される要素）でも翻訳する
+      if (node.placeholder) node.placeholder = t(node.placeholder);
+      if (node.title) node.title = t(node.title.trim());
       if (isUserContent(node)) {
         // ユーザー入力領域は丸ごとスキップ。ただし内側のUI文言（空のWiki表示など）だけは翻訳する
         node.querySelectorAll(UI_IN_USER_CONTENT_SELECTOR).forEach(translateNode);
@@ -959,6 +1014,13 @@
       if (m) {
         subtitle.innerHTML = `To view the linked task, you need to select the <br><strong style="color:var(--accent2)">${m[1]}</strong> folder.`;
       }
+    }
+
+    // 全体検索：0件のときのメッセージ（キーワードのspanはそのまま残す）
+    const noHit = document.getElementById('global-search-nohit');
+    if (noHit) {
+      const mh = noHit.innerHTML.match(/^「(<span[^>]*>[\s\S]*<\/span>)」に一致する情報は見つかりませんでした$/);
+      if (mh) noHit.innerHTML = `No results found for \u201c${mh[1]}\u201d`;
     }
 
     const wi = document.querySelector('.welcome-info');

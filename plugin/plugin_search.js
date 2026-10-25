@@ -7,8 +7,9 @@
       id:          'search',
       name:        '全体検索',
       description: '全プロジェクトのタスク・コメント・Wikiから横断的に検索します。' +
+                   'プロジェクト・マイルストーンでの絞り込みも可能です。' +
                    'ショートカット Ctrl+Shift+F で素早くアクセスできます。',
-      version:     '1.2.0',
+      version:     '1.3.0',
     });
   }
 
@@ -46,6 +47,18 @@
         <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); cursor:pointer; background:var(--surface2); padding:0 12px; border:1px solid var(--border); border-radius:var(--radius); user-select:none;">
           <input type="checkbox" id="global-search-exclude-archived" checked style="accent-color:var(--accent);"> 完了プロジェクトを除外
         </label>
+      </div>
+
+      <div style="display:flex; gap:8px; margin:-12px 0 12px; max-width:800px; flex-wrap:wrap;">
+        <select id="global-search-project" class="form-select" style="flex:1; min-width:200px; max-width:320px; font-size:13px;">
+          <option value="">プロジェクト: すべて</option>
+        </select>
+        <select id="global-search-milestone" class="form-select" style="flex:1; min-width:200px; max-width:320px; font-size:13px;" disabled title="プロジェクトを選ぶとマイルストーンで絞り込めます">
+          <option value="">マイルストーン: すべて</option>
+        </select>
+      </div>
+      <div id="global-search-ms-note" style="display:none; max-width:800px; margin:0 0 12px; font-size:11px; color:var(--muted);">
+        🏁 マイルストーン指定中は、Wiki・概要は検索対象外です
       </div>
 
       <div id="global-search-results" style="display:flex; flex-direction:column; gap:12px; max-width:800px; padding-bottom:40px;">
@@ -107,6 +120,7 @@
 
       TaskFlow.getState().currentProjectId = null;
 
+      rebuildProjectOptions();
       searchView.style.display = 'block';
       TaskFlow.viewFadeIn(searchView);
 
@@ -138,12 +152,52 @@
     const filter = document.getElementById('global-search-filter');
     const excludeArchived = document.getElementById('global-search-exclude-archived');
     const resultsContainer = document.getElementById('global-search-results');
+    const projectSel = document.getElementById('global-search-project');
+    const msSel = document.getElementById('global-search-milestone');
+    const msNote = document.getElementById('global-search-ms-note');
     let debounceTimer;
+
+    const escHtml = (str) => String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    // プロジェクトのプルダウンを再構築（現在の選択は可能な限り維持）
+    function rebuildProjectOptions() {
+      const cur = projectSel.value;
+      const projects = TaskFlow.getProjects() || [];
+      let html = '<option value="">プロジェクト: すべて</option>';
+      projects.forEach(p => {
+        html += `<option value="${escHtml(p.id)}">${escHtml(p.name)}${p.archived ? '（完了）' : ''}</option>`;
+      });
+      projectSel.innerHTML = html;
+      projectSel.value = projects.some(p => p.id === cur) ? cur : '';
+      rebuildMilestoneOptions(true);
+    }
+
+    // マイルストーンのプルダウンを再構築（プロジェクト未選択時は無効）
+    function rebuildMilestoneOptions(keepSelection) {
+      const prev = keepSelection ? msSel.value : '';
+      const projects = TaskFlow.getProjects() || [];
+      const p = projects.find(x => x.id === projectSel.value);
+      let html = '<option value="">マイルストーン: すべて</option>';
+      if (p) {
+        html += '<option value="__none__">未割り当て</option>';
+        (p.milestones || []).forEach(m => {
+          html += `<option value="${escHtml(m.id)}">${escHtml(m.name)}</option>`;
+        });
+      }
+      msSel.innerHTML = html;
+      msSel.disabled = !p;
+      msSel.value = [...msSel.options].some(o => o.value === prev) ? prev : '';
+    }
 
     const performSearch = () => {
       const q = input.value.trim().toLowerCase();
       const target = filter.value;
       const skipArchived = excludeArchived.checked;
+      const projFilter = projectSel.value;
+      // マイルストーン指定はプロジェクト選択時のみ有効
+      const msFilter = projFilter ? msSel.value : '';
+      msNote.style.display = msFilter ? 'block' : 'none';
 
       if (!q) {
         resultsContainer.innerHTML = '<div style="color:var(--muted); font-size:13px; text-align:center; padding:40px;">検索キーワードを入力してください</div>';
@@ -162,13 +216,18 @@
       };
 
       projects.forEach(p => {
-        if (skipArchived && p.archived) return;
+        if (projFilter) {
+          // プロジェクトを明示選択した場合は、完了プロジェクトでも検索対象にする
+          if (p.id !== projFilter) return;
+        } else if (skipArchived && p.archived) {
+          return;
+        }
 
         const pColor = p.color || '#4f8eff';
         const pBadge = `<span style="background:${pColor}22; color:${pColor}; padding:1px 6px; border-radius:3px; font-size:10px; font-weight:600;">${escAndMark(p.name)}</span>`;
 
         // ① Wiki / プロジェクト概要
-        if (target === 'all' || target === 'wiki') {
+        if (!msFilter && (target === 'all' || target === 'wiki')) {
           const wikiPages = p.wikiPages || [];
           const nameOrDescHit = p.name.toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q);
           const matchedPages = wikiPages.filter(wp => (wp.content||'').toLowerCase().includes(q) || (wp.title||'').toLowerCase().includes(q));
@@ -212,6 +271,12 @@
         // ② タスク / コメント
         if (target === 'all' || target === 'task' || target === 'comment') {
           (p.tasks || []).forEach(t => {
+            if (msFilter === '__none__') {
+              // 未割り当て（削除済みマイルストーンを指しているタスクも含む）
+              if (t.milestoneId && (p.milestones || []).some(m => m.id === t.milestoneId)) return;
+            } else if (msFilter) {
+              if (t.milestoneId !== msFilter) return;
+            }
             let hitType = '';
             let hitSnippet = '';
             let commentNo = null;
@@ -270,7 +335,7 @@
         resultsContainer.innerHTML = `
           <div style="text-align:center; padding:40px;">
             <div style="font-size:32px; opacity:0.5; margin-bottom:12px;">👻</div>
-            <div style="color:var(--muted); font-size:14px;">「<span style="color:var(--text)">${escAndMark(input.value)}</span>」に一致する情報は見つかりませんでした</div>
+            <div id="global-search-nohit" style="color:var(--muted); font-size:14px;">「<span data-no-translate style="color:var(--text)">${escAndMark(input.value)}</span>」に一致する情報は見つかりませんでした</div>
           </div>`;
       } else {
         resultsContainer.innerHTML = `
@@ -287,6 +352,11 @@
       debounceTimer = setTimeout(performSearch, 300);
     });
     filter.addEventListener('change', performSearch);
+    projectSel.addEventListener('change', () => {
+      rebuildMilestoneOptions(false);
+      performSearch();
+    });
+    msSel.addEventListener('change', performSearch);
     excludeArchived.addEventListener('change', performSearch);
 
     // 7. ショートカット (Ctrl + Shift + F)
