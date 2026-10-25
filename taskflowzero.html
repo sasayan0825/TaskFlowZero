@@ -137,6 +137,14 @@ html.light .modal{box-shadow:0 8px 32px rgba(0,0,0,.18)}
 @keyframes tfViewEnter{from{opacity:0}to{opacity:1}}
 .view-enter{animation:tfViewEnter 0.25s ease backwards}
 .plugin-spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:plugin-spin .7s linear infinite;flex-shrink:0}
+/* プロジェクト切替などの読み込み待ちオーバーレイ（project-detail 全体に重ねる） */
+#project-detail{position:relative}
+#view-loading{position:absolute;inset:0;z-index:50;display:none;align-items:flex-start;justify-content:center;padding-top:22vh;background:color-mix(in srgb,var(--bg) 72%,transparent);color:var(--muted);font-size:14px;gap:10px}
+#view-loading.show{display:flex}
+/* 直リンク（#フォルダ名-P1-1）でアクセス許可済みフォルダを自動で開く間、TOPを見せない */
+#auto-open-msg{display:none;align-items:center;gap:10px;margin-top:25vh;color:var(--muted);font-size:14px}
+#file-loader.auto-opening>*{display:none}
+#file-loader.auto-opening>#auto-open-msg{display:flex}
 .plugin-drop-zone.loading{pointer-events:none;opacity:.6}
 .plugin-drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;color:var(--muted);font-size:13px;transition:all .15s;cursor:pointer}
 .plugin-drop-zone.dragover{border-color:var(--accent);background:rgba(79,142,255,.07);color:var(--accent)}
@@ -955,6 +963,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
 <!-- FILE LOADER -->
 <div id="file-loader">
+  <div id="auto-open-msg"><span class="plugin-spinner"></span><span>読み込み中…</span></div>
   <div id="hash-folder-banner" style="display:none" class="hash-folder-banner">
     <span style="font-size:20px;flex-shrink:0">📎</span>
     <div id="hash-folder-banner-text"></div>
@@ -1198,6 +1207,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
     <!-- PROJECT DETAIL -->
     <div id="project-detail" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div id="view-loading"><span class="plugin-spinner"></span><span>読み込み中…</span></div>
       <div id="project-header">
         <div class="project-title-row">
           <div class="project-color-badge" id="ph-color-badge"></div>
@@ -2887,8 +2897,33 @@ function _fmtHistoryDate(iso) {
   } catch(e) { return ''; }
 }
 
+// 直リンク（#フォルダ名-P1-1）で、該当フォルダのアクセス許可が残っていれば TOP を出さずに直接開く。
+// 許可が切れている・履歴にない・読み込みに失敗した場合は false を返し、従来どおり TOP（バナー案内）を表示する。
+async function _tryAutoOpenHashFolder(history) {
+  const name = window._pendingHashFolder;
+  const entry = name ? history.find(h => h.name === name) : null; // 履歴は新しい順なので最初の一致が直近
+  if (!entry) return false;
+  try {
+    if (await entry.handle.queryPermission({ mode: 'readwrite' }) !== 'granted') return false;
+    await _loadFromRootDir(entry.handle);
+    toast('フォルダを開きました: ' + entry.name, 'success');
+    return true;
+  } catch(e) {
+    console.warn('hash auto-open failed:', e);
+    return false;
+  }
+}
+
 async function initFolderHistory() {
   const history = await loadFolderHistory();
+
+  // 直リンクの自動オープン（起動時に1回だけ試行。TOPへ戻る・履歴削除後の再描画では行わない）
+  if (window._pendingHashFolder && !window._hashAutoOpenTried) {
+    window._hashAutoOpenTried = true;
+    if (await _tryAutoOpenHashFolder(history)) return;
+  }
+  // 自動オープンしない場合はTOPを表示する（起動時に隠していた分を戻す）
+  document.getElementById('file-loader').classList.remove('auto-opening');
 
   // ハッシュにフォルダ名が含まれる場合は TOP 画面を変化させる
   const _pendingFolder = window._pendingHashFolder || null;
@@ -6005,6 +6040,24 @@ function _renderLikesTabContent(myName) {
 // ── /いいねタブ ───────────────────────────────────────────────
 
 
+// 読み込み待ちオーバーレイ（150ms 以内に終わる場合は出さずチラつきを防ぐ）
+let _viewLoadingSeq = 0, _viewLoadingTimer = null;
+function _showViewLoading() {
+  const seq = ++_viewLoadingSeq;
+  clearTimeout(_viewLoadingTimer);
+  _viewLoadingTimer = setTimeout(() => {
+    const el = document.getElementById('view-loading');
+    if (el && seq === _viewLoadingSeq) el.classList.add('show');
+  }, 150);
+  return seq;
+}
+function _hideViewLoading(seq) {
+  if (seq !== _viewLoadingSeq) return; // 後続の切替が待機中なら消さない
+  clearTimeout(_viewLoadingTimer);
+  const el = document.getElementById('view-loading');
+  if (el) el.classList.remove('show');
+}
+
 function _viewFadeIn(el) {
   if (!el) return;
   el.style.opacity = '0';
@@ -6018,8 +6071,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.26';
-const APP_VERSION_DATE = '2026-10-23';
+const APP_VERSION      = '1.1.27';
+const APP_VERSION_DATE = '2026-10-25';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -6929,7 +6982,10 @@ function switchView(view) {
   if (!panelDirty && Object.keys(_baseSnapshots).length > 0 && (Date.now() - _lastFetchAt >= _FETCH_COOLDOWN_MS)) {
     // クールダウン経過後のみファイルを読み直してマージ
     if (state.currentProjectId) _dirtyProjects.add(state.currentProjectId);
-    fetchAndMerge('silent').then(() => { _renderView(); window.TaskFlow.emit('view-change', { view }); });
+    const _ls = _showViewLoading();
+    fetchAndMerge('silent')
+      .then(() => { _renderView(); window.TaskFlow.emit('view-change', { view }); })
+      .finally(() => _hideViewLoading(_ls));
   } else {
     _renderView();
     window.TaskFlow.emit('view-change', { view });
@@ -12628,6 +12684,8 @@ if(!window.showDirectoryPicker){
   (function() {
     const m = window.location.hash.match(/^#([^-]+)-P\d+-\d+/i);
     window._pendingHashFolder = m ? m[1] : null;
+    // 直リンク時は、自動オープンできるか判定するまでTOPを見せない（initFolderHistory 内で解除）
+    if (window._pendingHashFolder) document.getElementById('file-loader').classList.add('auto-opening');
   })();
   // Check for last-used file handle in IndexedDB
   initLastFileButton();
