@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.10',
+      version:     '1.3.11',
     });
   }
 
@@ -113,6 +113,11 @@
     '時刻不明のアクティビティ':           'Activities with unknown time',
     '▲ すべて折りたたむ':                 '▲ Collapse All',
     'セルをクリックして日付ごとの詳細を表示': 'Click a cell to view daily details',
+    '◀ 前日':                             '◀ Prev day',
+    '翌日 ▶':                             'Next day ▶',
+    '前日のアクティビティを表示':         'Show the previous day\'s activity',
+    '翌日のアクティビティを表示':         'Show the next day\'s activity',
+    '今日より先には進めません':           'Cannot go past today',
     'クリックで詳細表示':                 'Click for details',
     '少ない':                             'Less',
     '多い':                               'More',
@@ -254,6 +259,8 @@
     '💬 コメントより':                    '💬 From comment',
     '📋 詳細情報':                        '📋 Details',
     'クリックで詳細情報の開閉':           'Click to expand/collapse details',
+    'このラベルで絞り込み':               'Filter by this label',
+    'このマイルストーンで絞り込み':       'Filter by this milestone',
     '詳細':                               'Details',
     '(Markdown対応)':                     '(Markdown supported)',
     'コメント / アクティビティ':          'Comments / Activity',

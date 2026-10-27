@@ -893,8 +893,11 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 .conflict-col-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:6px}
 .conflict-field{font-size:12px;padding:3px 0;display:flex;gap:6px;line-height:1.5}
 .conflict-field-name{color:var(--muted);flex-shrink:0;min-width:70px}
-.conflict-field-val{color:var(--text);word-break:break-word}
+.conflict-field-val{color:var(--text);word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;flex:1;min-width:0;max-height:220px;overflow-y:auto}
 .conflict-field-val.changed{color:var(--accent2);font-weight:600}
+.cf-diff{font-weight:600;border-radius:2px;padding:0 1px}
+.conflict-col.cf-mine .cf-diff{color:var(--accent);background:rgba(79,142,255,.2)}
+.conflict-col.cf-theirs .cf-diff{color:#a78bfa;background:rgba(168,139,250,.2)}
 .conflict-choose{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border)}
 .conflict-choose-btn{padding:8px 14px;background:none;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;color:var(--muted)}
 .conflict-choose-btn:hover{background:rgba(79,142,255,.12);color:var(--accent)}
@@ -1506,7 +1509,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       </div>
       <div class="meta-field">
         <div class="meta-label">マイルストーン</div>
-        <select class="meta-select" id="panel-milestone" onchange="panelDirty=true">
+        <select class="meta-select" id="panel-milestone" onchange="panelDirty=true;_refreshPanelMetaCollapsed()">
           <option value="">未割り当て</option>
         </select>
       </div>
@@ -3816,7 +3819,7 @@ function _tryTextMergeFields(res, b, m, d, target) {
   return n;
 }
 const _PROJ_HANDLED = new Set(['id','number','deleted','tasks','milestones','wikiPages','weeklyNotes','nextTaskNum','wiki','name','description','startDate','endDate','members','color','archived','projectSettings']);
-const _TASK_HANDLED = new Set(['id','comments','checklist','activity','likes','bookmarks','_deletedCommentIds','nextCommentNo','estimatedHours','actualHours','creator','createdAtTime','title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime']);
+const _TASK_HANDLED = new Set(['id','comments','checklist','activity','likes','bookmarks','_deletedCommentIds','nextCommentNo','estimatedHours','actualHours','creator','createdAtTime','title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime','completedBy']);
 const _MS_HANDLED = new Set(['id','name','description','startDate','endDate','color']);
 const _WP_HANDLED = new Set(['id','title','content','order','updatedAt']);
 
@@ -4078,7 +4081,7 @@ function threeWayMerge(base, mine, disk) {
         // estimatedHours/actualHoursはbaseEstimatedHours+コメントeffortLogから導出される値なので
         // フィールド単位の競合比較対象から外し、代わりに独立入力値であるbaseEstimatedHoursを対象にする。
         // 導出値は下のrecalcHours(mergedT)でコメントマージ後に再計算する。
-        ['title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime'].concat(_extraKeys([tb, tm, td], _TASK_HANDLED)),
+        ['title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime','completedBy'].concat(_extraKeys([tb, tm, td], _TASK_HANDLED)),
         pid, tid
       );
       taskFields.autoFields.forEach(f => { _setField(mergedT, tm, f); autoMerged++; });
@@ -4354,34 +4357,33 @@ function renderConflictList() {
   list.innerHTML = _conflictItems.map((item, idx) => {
     const mineSelected   = item.choice === 'mine';
     const theirsSelected = item.choice === 'theirs';
-    const fieldsHtml = item.fields.map(f => {
+    // 値は省略せず全文を表示する（長い場合は各欄の中でスクロール）。
+    // 長い文字列は、自分と相手で異なる箇所だけ色を変えて表示する。
+    const _rows = item.fields.map(f => {
       const label = FIELD_LABELS[f.name] || f.name;
       const mv = formatConflictVal(f.name, f.mine);
       const tv = formatConflictVal(f.name, f.theirs);
-      return `<div class="conflict-field">
-        <span class="conflict-field-name">${esc(label)}</span>
-        <span class="conflict-field-val changed">${esc(mv)}</span>
-      </div>`;
-    }).join('');
-    const theirFieldsHtml = item.fields.map(f => {
-      const label = FIELD_LABELS[f.name] || f.name;
-      const tv = formatConflictVal(f.name, f.theirs);
-      return `<div class="conflict-field">
-        <span class="conflict-field-name">${esc(label)}</span>
-        <span class="conflict-field-val changed">${esc(tv)}</span>
-      </div>`;
-    }).join('');
+      if (Math.max(mv.length, tv.length) <= 20 && mv.indexOf('\n') < 0 && tv.indexOf('\n') < 0) {
+        const cell = v => `<div class="conflict-field"><span class="conflict-field-name">${esc(label)}</span><span class="conflict-field-val changed">${esc(v)}</span></div>`;
+        return { m: cell(mv), t: cell(tv) };
+      }
+      const d = _cfDiff(mv, tv);
+      const cell = ops => `<div class="conflict-field"><span class="conflict-field-name">${esc(label)}</span><span class="conflict-field-val">${_cfHtml(ops)}</span></div>`;
+      return { m: cell(d.a), t: cell(d.b) };
+    });
+    const fieldsHtml = _rows.map(r => r.m).join('');
+    const theirFieldsHtml = _rows.map(r => r.t).join('');
     return `<div class="conflict-item" id="conflict-item-${idx}">
       <div class="conflict-item-header">
         <span>${{task:'📋',comment:'💬',checklist:'☑️',wikipage:'📖'}[item.kind] || '📁'}</span>
         <span>${esc(item.label)}</span>
       </div>
       <div class="conflict-cols">
-        <div class="conflict-col">
+        <div class="conflict-col cf-mine">
           <div class="conflict-col-label" style="color:var(--accent)">✏️ 自分の変更</div>
           ${fieldsHtml}
         </div>
-        <div class="conflict-col">
+        <div class="conflict-col cf-theirs">
           <div class="conflict-col-label" style="color:#a78bfa">👤 相手の変更</div>
           ${theirFieldsHtml}
         </div>
@@ -4408,13 +4410,53 @@ function formatConflictVal(field, val) {
   if (field === 'storyPoints') return val === 0 ? '未設定' : String(val);
   if (field === 'estimatedHours' || field === 'actualHours') return val === 0 ? '未設定' : `${val}h`;
   if (typeof val === 'boolean') return val ? 'はい' : 'いいえ';
-  if (typeof val === 'object') { const s = JSON.stringify(val); return s.length > 60 ? s.slice(0,60)+'…' : s; }
-  if (field === 'text') { const s = String(val); return s.length > 60 ? s.slice(0,60)+'…' : (s || '（空）'); }
-  if (field === 'description' || field === 'wiki' || field === 'content') {
-    const s = String(val);
-    return s.length > 40 ? s.slice(0,40)+'…' : (s || '（空）');
-  }
+  // 長文も省略せず全文を返す（表示側で各欄内をスクロールできる）
+  if (typeof val === 'object') return JSON.stringify(val);
   return String(val) || '（空）';
+}
+
+// 2つの文字列の差分を、文字単位で「変更あり／なし」の区間に分けて返す（競合ダイアログの色分け用）
+function _cfDiff(a, b) {
+  const aOps = [], bOps = [];
+  const push = (arr, c, t) => { if (!t) return; const l = arr[arr.length-1]; if (l && l[0] === c) l[1] += t; else arr.push([c, t]); };
+  const n = a.length, m = b.length;
+  let p = 0; while (p < n && p < m && a[p] === b[p]) p++;
+  let q = 0; while (q < n-p && q < m-p && a[n-1-q] === b[m-1-q]) q++;
+  const am = a.slice(p, n-q), bm = b.slice(p, m-q);
+  push(aOps, false, a.slice(0, p)); push(bOps, false, b.slice(0, p));
+  const N = am.length, M = bm.length;
+  let done = false;
+  if (N && M && N*M <= 1500000) {
+    const w = M+1, dp = new Uint16Array((N+1)*w);
+    for (let i = N-1; i >= 0; i--) for (let j = M-1; j >= 0; j--)
+      dp[i*w+j] = am[i] === bm[j] ? dp[(i+1)*w+j+1]+1 : Math.max(dp[(i+1)*w+j], dp[i*w+j+1]);
+    // 共通部分が少なすぎる（ほぼ別の文章）ときは、細切れに色を付けず全体を変更扱いにする
+    if (dp[0] >= 0.3 * Math.max(N, M)) {
+      let i = 0, j = 0;
+      while (i < N && j < M) {
+        if (am[i] === bm[j]) { push(aOps, false, am[i]); push(bOps, false, bm[j]); i++; j++; }
+        else if (dp[(i+1)*w+j] >= dp[i*w+j+1]) push(aOps, true, am[i++]);
+        else push(bOps, true, bm[j++]);
+      }
+      while (i < N) push(aOps, true, am[i++]);
+      while (j < M) push(bOps, true, bm[j++]);
+      done = true;
+    }
+  }
+  if (!done) { push(aOps, true, am); push(bOps, true, bm); }
+  push(aOps, false, a.slice(n-q)); push(bOps, false, b.slice(m-q));
+  return { a: _cfCoalesce(aOps), b: _cfCoalesce(bOps) };
+}
+// 変更箇所に挟まれた1〜2文字だけの「変更なし」は、色が細切れにならないよう変更扱いにまとめる
+function _cfCoalesce(ops) {
+  for (let i = 1; i < ops.length-1; i++)
+    if (!ops[i][0] && ops[i][1].length <= 2 && ops[i-1][0] && ops[i+1][0]) ops[i][0] = true;
+  const out = [];
+  ops.forEach(o => { const l = out[out.length-1]; if (l && l[0] === o[0]) l[1] += o[1]; else out.push([o[0], o[1]]); });
+  return out;
+}
+function _cfHtml(ops) {
+  return ops.map(([c, t]) => c ? `<mark class="cf-diff">${esc(t)}</mark>` : esc(t)).join('');
 }
 
 function conflictChooseOne(idx, choice) {
@@ -5352,6 +5394,24 @@ function toggleAllActivityTimelineGroups(keys, expand) {
   renderMyTasks();
 }
 
+// 選択中の日付を前日（delta=-1）／翌日（delta=+1）へ移動する。今日より先には進めない
+function shiftActivityDate(delta) {
+  if (!_myActivitySelDate) return;
+  const d = new Date(_myActivitySelDate + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  const ds = localDateStr(d);
+  if (ds > today()) return;
+  _myActivitySelDate = ds;
+  _myActivityYear = d.getFullYear();   // 年をまたいだら、ヒートマップの表示年も合わせる
+  _myActivityTimelineExpanded = {};
+  _myActivityPerfExpanded = {};
+  // 再描画で画面の縦位置が変わらないよう、スクロール位置を保持する
+  const body = document.getElementById('my-tasks-body');
+  const st = body ? body.scrollTop : 0;
+  renderMyTasks();
+  if (body) body.scrollTop = st;
+}
+
 function changeActivityYear(delta) {
   const thisYear = new Date().getFullYear();
   _myActivityYear = Math.min(thisYear, _myActivityYear + delta);
@@ -5379,8 +5439,8 @@ function _buildActivityEvents(myName) {
     const pc = p.color || '#4f8eff';
     (p.tasks || []).forEach(t => {
       _ctx.p = p; _ctx.t = t;
-      // タスク完了（担当者）
-      if (t.assignee === myName && t.completedAt) {
+      // タスク完了（完了操作をした人。completedBy未記録の過去データは担当者に帰属）
+      if ((t.completedBy ? t.completedBy === myName : t.assignee === myName) && t.completedAt) {
         add(t.completedAtTime || t.completedAt, { type:'complete', icon:'✅', text:`タスクを完了しました`, pid:p.id, tid:t.id, pname:p.name, pc });
       }
       // タスク作成（作成者）
@@ -5811,9 +5871,16 @@ function _renderActivityTabContent(myName) {
         </table>
       </div>` : '';
 
+    const _atLatest = _myActivitySelDate >= today();
     detailHtml = `<div style="margin-top:16px">
-      <div data-activity-header style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+        <div data-activity-header style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">
         ${_myActivitySelDate} &nbsp;—&nbsp; ${evts.length}件のアクティビティ
+        </div>
+        <div style="display:flex;gap:6px">
+          <button type="button" class="btn btn-secondary btn-xs" title="前日のアクティビティを表示" onclick="shiftActivityDate(-1)">◀ 前日</button>
+          <button type="button" class="btn btn-secondary btn-xs" title="${_atLatest?'今日より先には進めません':'翌日のアクティビティを表示'}" onclick="shiftActivityDate(1)"${_atLatest?' disabled style="opacity:.4;cursor:not-allowed"':''}>翌日 ▶</button>
+        </div>
       </div>
       ${projSummaryHtml}
       ${sorted.length ? _renderActivityTimelineView(sorted)
@@ -6071,8 +6138,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.28';
-const APP_VERSION_DATE = '2026-10-25';
+const APP_VERSION      = '1.1.29';
+const APP_VERSION_DATE = '2026-10-26';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -6601,10 +6668,11 @@ function renameMyName() {
         }
       });
 
-      // checklist activities
-      (t.activities || []).forEach(a => {
+      // アクティビティの実行者（by）・完了者
+      (t.activity || []).forEach(a => {
         if (a.by === oldName) { a.by = trimmed; dirty = true; }
       });
+      if (t.completedBy === oldName) { t.completedBy = trimmed; dirty = true; }
 
       // description 内の @メンション
       if (t.description && t.description.includes(`@${oldName}`)) {
@@ -7475,8 +7543,16 @@ function onDrop(e,status){
   const p = getProject(state.currentProjectId); if(!p)return;
   const t = p.tasks.find(x=>x.id===tid); if(!t)return;
   const old = t.status; t.status=status;
-  if(status==='done'&&!t.completedAt){ t.completedAt=today(); t.completedAtTime=new Date().toISOString(); }
-  else if(status!=='done'){ t.completedAt=null; t.completedAtTime=null; }
+  const _by = getMyName() || null;   // ステータスを実際に変えた人
+  if(status==='done'&&!t.completedAt){ t.completedAt=today(); t.completedAtTime=new Date().toISOString(); t.completedBy=_by; }
+  else if(status==='done'&&old!=='done'){ t.completedBy=_by; }
+  else if(status!=='done'){ t.completedAt=null; t.completedAtTime=null; t.completedBy=null; }
+  if(old!==status){
+    const sOld=STATUSES.find(x=>x.id===old)?.label||old;
+    const sNew=STATUSES.find(x=>x.id===status)?.label||status;
+    if(!t.activity) t.activity=[];
+    t.activity.push({type:'status',icon:'🔄',text:`ステータスを <b>${sOld}</b> → <b>${sNew}</b> に変更`,at:new Date().toISOString(),by:_by||undefined});
+  }
   autoSave(state.currentProjectId); renderKanban(); renderSidebar();
   if(old!==status) toast(`#${t.number} を「${STATUSES.find(s=>s.id===status)?.label}」に移動`,'success');
 }
@@ -9745,7 +9821,7 @@ function saveNewTask(){
   const _createdAtTime = new Date().toISOString();
   const estimatedHours = parseFloat(document.getElementById('tm-estimated').value)||0;
   const _priorityVal = document.getElementById('tm-priority').value || null;
-  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours,baseEstimatedHours:estimatedHours,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,priority:_priorityVal,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,completedAtTime:status==='done'?_createdAtTime:null,comments:[],checklist:checklistItems,activity:[],likes:[],bookmarks:[]};
+  const task={id:uid(),number:p.nextTaskNum++,title,description,status,assignee:document.getElementById('tm-assignee').value.trim(),startDate:document.getElementById('tm-start').value,dueDate:document.getElementById('tm-due').value,storyPoints:parseInt(document.getElementById('tm-points').value)||0,estimatedHours,baseEstimatedHours:estimatedHours,actualHours:0,milestoneId:document.getElementById('tm-milestone').value||null,labels,priority:_priorityVal,createdAt:today(),createdAtTime:_createdAtTime,creator:_creatorVal,completedAt:status==='done'?today():null,completedAtTime:status==='done'?_createdAtTime:null,completedBy:status==='done'?(_creatorVal||null):null,comments:[],checklist:checklistItems,activity:[],likes:[],bookmarks:[]};
   p.tasks.push(task);
   closeTaskModal(); autoSave(state.currentProjectId); renderCurrentView(); renderSidebar(); updateFilters();
   toast(`タスク #${task.number} を追加しました`,'success');
@@ -10040,10 +10116,31 @@ function renderPanelLabels(labels){
 function _renderPanelMetaCollapsedLabels(labels){
   const el = document.getElementById('panel-meta-collapsed-labels');
   if (!el) return;
-  el.innerHTML = (labels||[]).map(l=>
+  // マイルストーン（ラベルの左側）。未設定なら表示せず、ラベルを左へ詰める
+  const _msId = document.getElementById('panel-milestone')?.value || '';
+  const _ms = _msId ? getMilestone(getProject(state.currentProjectId), _msId) : null;
+  const _msHtml = _ms
+    ? `<span class="label-chip" style="background:${_ms.color||'#4f8eff'}22;color:${_ms.color||'#4f8eff'};border:1px solid ${_ms.color||'#4f8eff'}44;cursor:pointer" title="このマイルストーンで絞り込み" onclick="filterByPanelMilestone('${esc(_ms.id).replace(/'/g,"\\'")}')">🏁 ${esc(_ms.name)}</span>`
+    : '';
+  el.innerHTML = _msHtml + (labels||[]).map(l=>
     `<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44;cursor:pointer" title="このラベルで絞り込み" onclick="filterByPanelLabel('${esc(l).replace(/'/g,"\\'")}')">${esc(l)}</span>`
   ).join('');
-  el.classList.toggle('visible', _panelMetaCollapsed && (labels||[]).length>0);
+  el.classList.toggle('visible', _panelMetaCollapsed && (!!_ms || (labels||[]).length>0));
+}
+
+// 折りたたみ時に表示されているマイルストーンをクリックした際、そのマイルストーンで一覧を絞り込む
+function filterByPanelMilestone(msId){
+  const sel = document.getElementById('filter-milestone');
+  if (!sel) return;
+  sel.value = msId;
+  closeTaskPanel();
+  renderCurrentView();
+}
+
+// パネルのマイルストーン／ラベルの現在値で、折りたたみ時の表示を更新する
+function _refreshPanelMetaCollapsed(){
+  const t = getTask(state.currentProjectId, _panelTaskId);
+  _renderPanelMetaCollapsedLabels((t && t.labels) || []);
 }
 
 // 折りたたみ時に表示されているラベルチップをクリックした際、そのラベルで一覧を絞り込む
@@ -10133,10 +10230,11 @@ function savePanelTask(){
   if(ch('status')||ch('completed')){
     if(newStatus==='done'){
       t.completedAt = form.completed || today();
-      if(oldStatus!==newStatus) t.completedAtTime = new Date().toISOString();
+      if(oldStatus!==newStatus){ t.completedAtTime = new Date().toISOString(); t.completedBy = getMyName() || null; }
     } else {
       t.completedAt = null;
       t.completedAtTime = null;
+      t.completedBy = null;
     }
   }
   _panelFormOrig = form;
@@ -10144,25 +10242,26 @@ function savePanelTask(){
   // ── Activity logging ──
   if(!t.activity) t.activity=[];
   const now = new Date().toISOString();
+  const _by = getMyName() || undefined;   // 変更した人（右上アカウントの名前）
   if(oldStatus!==newStatus){
     const sOld=STATUSES.find(x=>x.id===oldStatus)?.label||oldStatus;
     const sNew=STATUSES.find(x=>x.id===newStatus)?.label||newStatus;
-    t.activity.push({type:'status',icon:'🔄',text:`ステータスを <b>${sOld}</b> → <b>${sNew}</b> に変更`,at:now});
+    t.activity.push({type:'status',icon:'🔄',text:`ステータスを <b>${sOld}</b> → <b>${sNew}</b> に変更`,at:now,by:_by});
   }
   if(oldAssignee!==newAssignee){
-    if(!newAssignee) t.activity.push({type:'assignee',icon:'👤',text:`担当者を解除（元: <b>${esc(oldAssignee)}</b>）`,at:now});
-    else t.activity.push({type:'assignee',icon:'👤',text:`担当者を <b>${esc(newAssignee)}</b> に変更${oldAssignee?` （元: ${esc(oldAssignee)}）`:''}`,at:now});
+    if(!newAssignee) t.activity.push({type:'assignee',icon:'👤',text:`担当者を解除（元: <b>${esc(oldAssignee)}</b>）`,at:now,by:_by});
+    else t.activity.push({type:'assignee',icon:'👤',text:`担当者を <b>${esc(newAssignee)}</b> に変更${oldAssignee?` （元: ${esc(oldAssignee)}）`:''}`,at:now,by:_by});
   }
   if(oldDue!==newDue){
     const oldStr=oldDue?fmtFull(oldDue):'未設定', newStr=newDue?fmtFull(newDue):'削除';
-    t.activity.push({type:'due',icon:'📅',text:`期限を <b>${oldStr}</b> → <b>${newStr}</b> に変更`,at:now});
+    t.activity.push({type:'due',icon:'📅',text:`期限を <b>${oldStr}</b> → <b>${newStr}</b> に変更`,at:now,by:_by});
   }
   if(oldDesc!==newDesc && newDesc.trim()){
-    t.activity.push({type:'desc',icon:'📝',text:'詳細内容を更新',at:now});
+    t.activity.push({type:'desc',icon:'📝',text:'詳細内容を更新',at:now,by:_by});
   }
   if(oldPriority!==newPriority){
     const pLabel = v => v==='high'?'高':v==='low'?'低':'未設定';
-    t.activity.push({type:'priority',icon:'🚩',text:`優先度を <b>${pLabel(oldPriority)}</b> → <b>${pLabel(newPriority)}</b> に変更`,at:now});
+    t.activity.push({type:'priority',icon:'🚩',text:`優先度を <b>${pLabel(oldPriority)}</b> → <b>${pLabel(newPriority)}</b> に変更`,at:now,by:_by});
   }
 
   panelDirty=false;
@@ -12206,10 +12305,7 @@ function _applyPanelMetaCollapsed(collapsed) {
   if (wrap)   wrap.classList.toggle('collapsed', collapsed);
   if (toggle) toggle.classList.toggle('collapsed', collapsed);
   if (titleWrap) titleWrap.classList.toggle('meta-collapsed', collapsed);
-  if (collapsedLabels) {
-    const t = getTask(state.currentProjectId, _panelTaskId);
-    collapsedLabels.classList.toggle('visible', collapsed && !!(t && t.labels && t.labels.length));
-  }
+  if (collapsedLabels) _refreshPanelMetaCollapsed();
 }
 
 function togglePanelMetaCollapse() {
@@ -12400,7 +12496,7 @@ window.TaskFlow = {
     if (fields && fields.estimatedHours !== undefined && fields.baseEstimatedHours === undefined) {
       task.baseEstimatedHours = fields.estimatedHours;
     }
-    if (task.status === 'done' && !task.completedAt) { task.completedAt = today(); task.completedAtTime = new Date().toISOString(); }
+    if (task.status === 'done' && !task.completedAt) { task.completedAt = today(); task.completedAtTime = new Date().toISOString(); if (task.completedBy === undefined) task.completedBy = getMyName() || null; }
     p.tasks.push(task);
     return task;
   },
@@ -12416,8 +12512,8 @@ window.TaskFlow = {
     if (changes && changes.estimatedHours !== undefined && changes.baseEstimatedHours === undefined) {
       task.baseEstimatedHours = changes.estimatedHours;
     }
-    if (task.status === 'done' && !wasDone) { task.completedAt = task.completedAt || today(); task.completedAtTime = new Date().toISOString(); }
-    else if (task.status !== 'done') { task.completedAt = null; task.completedAtTime = null; }
+    if (task.status === 'done' && !wasDone) { task.completedAt = task.completedAt || today(); task.completedAtTime = new Date().toISOString(); if (!(changes && 'completedBy' in changes)) task.completedBy = getMyName() || null; }
+    else if (task.status !== 'done') { task.completedAt = null; task.completedAtTime = null; task.completedBy = null; }
     return task;
   },
 
