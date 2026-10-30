@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.29-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.2.0-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -118,6 +118,19 @@ Wikiの見出しにカーソルを合わせると表示される🔗アイコン
 
 ### 📤 プロジェクトのエクスポート / インポート
 プロジェクト設定の「保存」タブから、プロジェクト単位でJSON（またはZIP、添付ファイル同梱）としてエクスポートできます。別環境の「プロジェクト一覧」画面からインポートすれば、プロジェクト番号を自動的に振り直しつつ、タスクやコメント内の参照リンクもインポート先の番号に自動で書き換わります。
+
+### 📱 スマホで使う（閲覧＋軽い更新）
+iPhone・iPad の Safari や Android の Chrome など、フォルダを選べないブラウザで開くと、自動で「スマホモード」になります（PC の Chrome / Edge でも、URL の末尾に `?mobile=1` を付けると確認できます）。データはその端末のブラウザ内（IndexedDB）に保存され、PC とは「同期パッケージ」（JSONファイル）をTeamsなどで送り合ってやり取りします。
+
+1. PC：「設定 → スマホ連携 → スマホ用に書き出し」で、プロジェクトを選んでファイルにまとめる
+2. スマホ：「設定 → スマホ連携 → パッケージを取り込む」で開く（初回は最初の画面のボタンから）（スマホ側のデータは、この内容に置き換わります）
+3. スマホ：タスクの確認、ステータス変更、チェックリスト、コメント追加、新規タスクの追加ができます。ガントとバーンダウンは横向きにすると広く見られます
+4. スマホ：「設定 → スマホ連携 → 変更を書き出し」で、自分の変更分だけのファイルを作って共有する
+5. PC：「設定 → スマホ連携 → スマホの変更を取り込み」で開く。PC側の変更と食い違う項目だけ、競合ダイアログで選べます
+
+PCをまだ使い始めていない場合は、スマホの最初の画面で「新規で始める」を選ぶと、スマホだけで始められます（スマホで作ったプロジェクトは、マイルストーンやWikiも編集でき、PCに取り込むと新しいプロジェクトとして追加されます）。
+
+PCから取り込んだプロジェクトでは、スマホ側の削除、プロジェクト・マイルストーン・Wikiの編集はPCに反映されません。データはブラウザ内にあるため、ブラウザのデータを消すと失われます。こまめに「変更を書き出し」してください（iPhoneでは、ホーム画面に追加して使うのがおすすめです）。
 
 ### 🔗 コメントアンカーリンク
 URLは `#[FolderName-]P1-42-C3` 形式に対応。特定のコメントへ直接ジャンプするリンクを共有できます。

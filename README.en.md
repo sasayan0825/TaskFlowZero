@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.1.29-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.2.0-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -121,6 +121,19 @@ Mark tasks as High or Low priority. In the list view, a bold red ↑ (High) or g
 
 ### 📤 Project Export / Import
 From the "Save" tab in project settings, export a project as JSON (or as a ZIP with attachments included). Import it from the "Projects" screen in another environment — the project number is reassigned automatically, and reference links inside tasks and comments are rewritten to match the new number.
+
+### 📱 Using it on a phone (view + light updates)
+Open TaskFlowZero in a browser that can't pick a folder — Safari on iPhone/iPad, Chrome on Android, etc. — and it starts in "mobile mode" automatically (on desktop Chrome / Edge you can try it by adding `?mobile=1` to the URL). Data is stored inside that browser (IndexedDB), and you exchange data with the PC by sending "sync package" JSON files back and forth, for example via Teams.
+
+1. PC: "Settings → Mobile Sync → Export for Mobile", pick the projects and bundle them into one file
+2. Phone: "Settings → Mobile Sync → Import package" to open it (use the button on the first screen the very first time) (the phone's data is replaced with this content)
+3. Phone: browse tasks, change status, tick checklists, add comments and create new tasks. Rotate to landscape for a wider Gantt / Burndown view
+4. Phone: "Settings → Mobile Sync → Export changes" creates a small file containing only your changes; share it
+5. PC: "Settings → Mobile Sync → Import Mobile Changes" opens it. Only items that conflict with changes made on the PC are shown in the conflict dialog
+
+If you haven't started using the PC version yet, choose "Start new" on the first screen to begin on the phone alone (projects created on the phone can also have milestones and Wiki pages edited, and are added as new projects when imported on the PC).
+
+For projects imported from the PC, deletions and edits to projects, milestones and Wiki pages made on the phone are not reflected on the PC. Because the data lives in the browser, clearing browser data erases it — export your changes regularly (on iPhone, adding the app to the Home Screen is recommended).
 
 ### 🔗 Comment Anchor Links
 URLs support the format `#[FolderName-]P1-42-C3`, letting you share a link that jumps directly to a specific comment.

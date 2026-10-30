@@ -2,7 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<script>
+// スマホモード判定: File System Access API が無い端末で有効。?mobile=1 で強制ON、?mobile=0 で強制OFF
+(function(){var f=new URLSearchParams(location.search).get('mobile');window.IS_MOBILE_MODE=(f==='1')||(f!=='0'&&!window.showDirectoryPicker);if(window.IS_MOBILE_MODE)document.documentElement.classList.add('mobile-mode');})();
+</script>
 <title>TaskFlowZero</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0f1a'/%3E%3Cpolygon points='19,3 10,18 16,18 13,29 22,14 16,14' fill='%234f8eff' stroke='%237aa7ff' stroke-width='0.8'/%3E%3C/svg%3E">
 <meta name="theme-color" content="#0b0f1a">
@@ -960,6 +964,121 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 .ps-item-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px}
 .ps-item-row .ps-item-name{flex:1;font-size:13px;color:var(--text)}
 .ps-item-row .ps-item-meta{font-size:11px;color:var(--muted)}
+
+/* ═══ スマホモード（v1.2.0）═══
+   File System Access API が使えない端末（または ?mobile=1）で html.mobile-mode が付く */
+#mobile-loader,#m-menu-btn,#m-backdrop,.m-rotate-hint{display:none}
+.sync-unsent{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;font-family:'JetBrains Mono',monospace}
+html.mobile-mode body{height:100dvh}
+html.mobile-mode #file-loader > .loader-card,html.mobile-mode #file-loader > .welcome-info,html.mobile-mode #file-loader > .hash-folder-banner{display:none !important}
+html.mobile-mode #mobile-loader{display:block;width:100%;max-width:420px;padding:0 16px;box-sizing:border-box}
+html.mobile-mode #mobile-loader .loader-card{width:100%;box-sizing:border-box}
+html.mobile-mode #mobile-loader .welcome-info{margin-top:14px}
+html.mobile-mode #header{padding:6px 10px;gap:6px 8px;min-height:44px;padding-top:max(6px,env(safe-area-inset-top))}
+html.mobile-mode #m-menu-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;flex-shrink:0}
+html.mobile-mode #file-status,html.mobile-mode #theme-toggle,html.mobile-mode #header button[onclick="openFile()"]{display:none !important}
+html.mobile-mode #logo{font-size:15px}
+html.mobile-mode #sidebar{position:fixed;left:0;top:0;bottom:0;width:272px !important;max-width:84vw;z-index:900;transform:translateX(-102%);transition:transform .22s ease;box-shadow:none;padding-top:env(safe-area-inset-top)}
+html.mobile-mode #sidebar.m-open{transform:none;box-shadow:6px 0 28px rgba(0,0,0,.45)}
+html.mobile-mode #sidebar-header-row,html.mobile-mode #plugin-sidebar-items{display:none !important}
+html.mobile-mode #m-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:850;display:block;opacity:0;pointer-events:none;transition:opacity .2s}
+html.mobile-mode #m-backdrop.show{opacity:1;pointer-events:auto}
+html.mobile-mode .sidebar-item{padding-top:10px;padding-bottom:10px}
+html.mobile-mode #main{width:100%}
+/* PC向けの編集系ボタンは出さない（スマホは閲覧＋軽い更新） */
+html.mobile-mode #project-header .project-title-row .btn:not([data-keep]),
+html.mobile-mode #plugin-tab-container,
+html.mobile-mode #wiki-edit-btn,html.mobile-mode .wiki-page-sidebar-header button,
+html.mobile-mode #panel-url-copy-btn,html.mobile-mode #panel-ref-create-btn,
+html.mobile-mode [onclick*="deleteTask"],html.mobile-mode [onclick*="deleteProject"]{display:none !important}
+html.mobile-mode .project-title-row{gap:6px;flex-wrap:wrap}
+html.mobile-mode .project-title{font-size:17px}
+html.mobile-mode #project-header{padding-left:12px !important;padding-right:12px !important}
+html.mobile-mode .view-tabs{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+html.mobile-mode .view-tabs::-webkit-scrollbar{display:none}
+html.mobile-mode .view-tab{padding:9px 13px;flex-shrink:0}
+html.mobile-mode #filter-bar{padding:6px 10px;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+html.mobile-mode #filter-bar > *{flex-shrink:0}
+html.mobile-mode #filter-bar .btn-primary{margin-left:0 !important}
+html.mobile-mode #filter-bar .filter-label{display:none}
+html.mobile-mode .filter-search{width:150px;font-size:14px;padding:7px 10px}
+html.mobile-mode .filter-select{font-size:13px;padding:6px 6px}
+html.mobile-mode #my-tasks-view{padding:14px 12px}
+/* カンバン：1列ずつスワイプ */
+html.mobile-mode #kanban-view{padding:10px;gap:10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+html.mobile-mode .kanban-col{width:84vw;min-width:84vw;scroll-snap-align:center}
+/* タスク詳細・モーダルは画面いっぱい */
+html.mobile-mode #task-panel{width:100vw !important;min-width:0 !important;max-width:100vw !important;height:100dvh}
+html.mobile-mode #panel-resize-handle{display:none}
+html.mobile-mode .modal{width:96vw !important;max-width:96vw;max-height:92dvh;padding:18px}
+html.mobile-mode input,html.mobile-mode textarea,html.mobile-mode select{font-size:16px}
+html.mobile-mode .btn{min-height:36px}
+/* ガント・バーンダウン：縦向きでは横向きを案内し、横向きでは広く使う */
+html.mobile-mode .m-rotate-hint{align-items:center;gap:8px;margin:8px 12px;padding:8px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--muted)}
+@media (orientation:portrait){html.mobile-mode .m-rotate-hint{display:flex}}
+html.mobile-mode #burndown-view{padding:10px}
+html.mobile-mode .burndown-card{padding:12px;max-width:none}
+html.mobile-mode .burndown-stats-row{gap:16px;margin-bottom:12px}
+html.mobile-mode .chart-container{height:300px}
+html.mobile-mode #gantt-left{width:140px}
+html.mobile-mode #gantt-right{-webkit-overflow-scrolling:touch}
+@media (orientation:landscape) and (max-height:520px){
+  html.mobile-mode #header{min-height:36px;padding-top:max(3px,env(safe-area-inset-top));padding-bottom:3px}
+  html.mobile-mode #m-menu-btn{width:30px;height:30px}
+  html.mobile-mode #project-header{padding-top:4px !important;padding-bottom:0 !important}
+  html.mobile-mode .project-desc{display:none}
+  html.mobile-mode .view-tab{padding:6px 12px}
+  html.mobile-mode #filter-bar{padding:4px 10px}
+  html.mobile-mode .chart-container{height:calc(100dvh - 190px);min-height:200px}
+  html.mobile-mode .kanban-col{width:300px;min-width:300px}
+  html.mobile-mode #task-panel{width:min(100vw,640px) !important}
+}
+
+/* スマホ：タスク詳細の2列が右端で切れないように / ガント・バーンダウンの横向き利用 */
+html.mobile-mode .panel-meta-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+html.mobile-mode .meta-field{min-width:0}
+html.mobile-mode .meta-input,html.mobile-mode .meta-select{min-width:0;width:100%;box-sizing:border-box}
+html.mobile-mode .gantt-milestone-control{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+html.mobile-mode .gantt-milestone-control > *{flex-shrink:0}
+#m-focus-btn{display:none;position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:700;width:40px;height:40px;border-radius:50%;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:18px;align-items:center;justify-content:center;opacity:.85}
+html.mobile-mode.m-focus #header,html.mobile-mode.m-focus #project-header,html.mobile-mode.m-focus #filter-bar{display:none !important}
+@media (orientation:landscape) and (max-height:520px){
+  html.mobile-mode[data-view="gantt"] #filter-bar,html.mobile-mode[data-view="burndown"] #filter-bar,
+  html.mobile-mode[data-view="gantt"] .project-title-row,html.mobile-mode[data-view="burndown"] .project-title-row,
+  html.mobile-mode[data-view="gantt"] .project-desc,html.mobile-mode[data-view="burndown"] .project-desc{display:none !important}
+  html.mobile-mode[data-view="gantt"] #m-focus-btn,html.mobile-mode[data-view="burndown"] #m-focus-btn{display:flex}
+  html.mobile-mode .m-rotate-hint{display:none}
+}
+
+/* スマホで作ったプロジェクト（data-owned=1）だけは、プロジェクト・マイルストーン・Wikiも編集できる */
+html.mobile-mode[data-owned="1"] #project-header .project-title-row .btn[onclick^="openMilestoneModal"],
+html.mobile-mode[data-owned="1"] #project-header .project-title-row .btn[onclick^="openProjectModal"]{display:inline-flex !important}
+html.mobile-mode[data-owned="1"] #wiki-edit-btn,html.mobile-mode[data-owned="1"] .wiki-page-sidebar-header button{display:inline-block !important}
+
+/* スマホ：Wikiは1ペイン中心（目次を隠し、ページ一覧を細く、ツールバーは横スクロール） */
+html.mobile-mode #wiki-toc-pane,html.mobile-mode #wiki-page-sidebar-resize-handle{display:none}
+html.mobile-mode #wiki-page-sidebar{width:112px !important;padding:10px 6px}
+html.mobile-mode #wiki-page-sidebar-inner{width:100px !important}
+html.mobile-mode #wiki-page-sidebar.hidden{width:0 !important;padding-left:0;padding-right:0}
+html.mobile-mode .wiki-toolbar{padding:6px 10px;overflow-x:auto;flex-wrap:nowrap;white-space:nowrap;-webkit-overflow-scrolling:touch}
+html.mobile-mode .wiki-toolbar > *{flex-shrink:0}
+html.mobile-mode #wiki-preview{padding:14px 14px}
+html.mobile-mode #wiki-textarea{padding:14px 14px}
+html.mobile-mode #wiki-page-link-btn{display:none}
+
+/* 設定 → スマホ連携 */
+.sync-block{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;max-width:560px}
+.sync-block h4{margin:0 0 6px;font-size:14px;font-weight:600}
+.sync-block p{margin:0 0 12px;font-size:12px;color:var(--muted);line-height:1.7}
+.settings-nav-item .sync-unsent{margin-left:8px}
+/* スマホの設定画面は縦積み。プラグインは使わない */
+html.mobile-mode #settings-view{padding:14px}
+html.mobile-mode #settings-body{flex-direction:column !important;height:auto !important;flex:1;min-height:0}
+html.mobile-mode #settings-left{width:100% !important;flex-direction:row !important;border-right:none !important;border-bottom:1px solid var(--border);overflow-x:auto}
+html.mobile-mode #settings-left .settings-nav-item{flex-shrink:0;border-left:none;border-bottom:3px solid transparent;white-space:nowrap}
+html.mobile-mode #settings-left .settings-nav-item.active{border-bottom-color:var(--accent2)}
+html.mobile-mode #settings-nav-plugins,html.mobile-mode #settings-pane-plugins{display:none !important}
+html.mobile-mode #settings-right{padding:16px !important}
 </style>
 </head>
 <body>
@@ -998,6 +1117,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
       <button class="btn btn-secondary" onclick="createNewFile()">✨ 新規作成</button>
     </div>
   </div>
+  <div id="mobile-loader"></div>
   <div class="welcome-info">
     💡 <strong>Chrome / Edge</strong> をご使用ください。<br>
     <strong>フォルダ履歴</strong>: 過去に開いたフォルダを一覧から即時復元<br>
@@ -1008,6 +1128,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
 <!-- HEADER -->
 <div id="header" style="display:none">
+  <button id="m-menu-btn" onclick="openMobileDrawer()" aria-label="メニュー">☰</button>
   <div id="logo" onclick="returnToTop()" style="cursor:pointer" title="TOPへ戻る">⚡ TaskFlowZero</div>
   <div id="file-status">
     <div id="file-dot"></div>
@@ -1028,6 +1149,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
   </div>
 </div>
 
+<div id="m-backdrop" onclick="closeMobileDrawer()"></div>
 <!-- APP -->
 <div id="app" style="display:none">
   <!-- SIDEBAR -->
@@ -1049,7 +1171,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
         </span>
       </div>
       <div class="sidebar-item" id="nav-settings" onclick="showSettings()">
-        <span>⚙️</span><span class="proj-name">設定</span>
+        <span>⚙️</span><span class="proj-name">設定</span><span id="settings-unsent" class="sync-unsent" style="display:none"></span>
       </div>
     </div>
     <div class="sidebar-section">
@@ -1081,14 +1203,20 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
           <div style="font-size:13px;color:var(--muted);margin-top:4px">アプリ全体の設定を管理します</div>
         </div>
       </div>
-      <div style="display:flex;gap:0;height:calc(100% - 80px);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <div id="settings-body" style="display:flex;gap:0;height:calc(100% - 80px);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
         <!-- 左ペイン -->
-        <div style="width:180px;flex-shrink:0;background:var(--surface2);border-right:1px solid var(--border);display:flex;flex-direction:column">
+        <div id="settings-left" style="width:180px;flex-shrink:0;background:var(--surface2);border-right:1px solid var(--border);display:flex;flex-direction:column">
           <div id="settings-nav-version" class="settings-nav-item active" onclick="showSettingsPane('version')">📋 バージョン</div>
+          <div id="settings-nav-sync"    class="settings-nav-item"        onclick="showSettingsPane('sync')">📱 スマホ連携<span id="sync-unsent" class="sync-unsent" style="display:none"></span></div>
           <div id="settings-nav-plugins" class="settings-nav-item"        onclick="showSettingsPane('plugins')">🔌 プラグイン</div>
         </div>
         <!-- 右ペイン -->
-        <div style="flex:1;overflow-y:auto;padding:24px">
+        <div id="settings-right" style="flex:1;overflow-y:auto;padding:24px">
+          <div id="settings-pane-sync" style="display:none">
+            <div style="font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)">📱 スマホ連携</div>
+            <div id="sync-status" style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px"></div>
+            <div id="sync-items"></div>
+          </div>
           <div id="settings-pane-version">
             <div style="font-size:16px;font-weight:600;margin-bottom:16px;color:var(--text)">アプリバージョン情報</div>
             <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:inline-flex;flex-direction:column;gap:10px;min-width:300px">
@@ -1210,6 +1338,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
     <!-- PROJECT DETAIL -->
     <div id="project-detail" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <button id="m-focus-btn" onclick="document.documentElement.classList.toggle('m-focus')" aria-label="全画面表示の切替" title="全画面表示の切替">⤢</button>
       <div id="view-loading"><span class="plugin-spinner"></span><span>読み込み中…</span></div>
       <div id="project-header">
         <div class="project-title-row">
@@ -1302,6 +1431,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
       <!-- BURNDOWN VIEW -->
       <div id="burndown-view">
+        <div class="m-rotate-hint">📱 スマホを横向きにすると見やすくなります</div>
         <div class="burndown-card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
             <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:600">バーンダウンチャート（ストーリーポイント）</div>
@@ -1320,6 +1450,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
       <!-- GANTT VIEW -->
       <div id="gantt-view">
+        <div class="m-rotate-hint">📱 スマホを横向きにすると見やすくなります</div>
         <div class="gantt-milestone-control">
           <span style="font-size:12px;color:var(--muted)">表示範囲:</span>
           <select class="filter-select" id="gantt-range" onchange="renderGantt()">
@@ -3115,7 +3246,7 @@ async function _loadFromRootDir(rootDir) {
     await _loadLegacyFormat(legacyText);
   }
 
-  await saveHandleToIDB(rootDir);
+  if (!IS_MOBILE_MODE) await saveHandleToIDB(rootDir);
   await loadAvatars();
   initApp();
 }
@@ -4686,6 +4817,7 @@ function returnToTop() {
   if (title) title.textContent = 'データフォルダを選択';
   if (subtitle) subtitle.innerHTML = 'データを保存するフォルダを開くか、<br>新規作成してください。<br>以降の変更はプロジェクト単位で自動保存されます。';
   // 履歴を再描画
+  if (IS_MOBILE_MODE) { renderMobileLoader(); return; }
   initFolderHistory();
 }
 
@@ -4720,6 +4852,8 @@ function initApp() {
 
   // ファイルキャッシュを初期化（files/ フォルダ走査）
   initFileCache();
+
+  try { renderSyncPane(); if (IS_MOBILE_MODE) refreshSyncBadge(); } catch(e) { console.warn('renderSyncPane', e); }
 
   // Handle URL hash navigation after render
   setTimeout(() => navigateToHash(window.location.hash), 200);
@@ -6138,8 +6272,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.1.29';
-const APP_VERSION_DATE = '2026-10-26';
+const APP_VERSION      = '1.2.0';
+const APP_VERSION_DATE = '2026-10-30';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -6161,15 +6295,18 @@ function showSettings() {
   document.getElementById('settings-version-num').textContent  = APP_VERSION;
   document.getElementById('settings-version-date').textContent = APP_VERSION_DATE;
   renderSidebar();
+  renderSyncPane();
+  if (IS_MOBILE_MODE) showSettingsPane('sync');   // スマホでは設定を開いたらまず「スマホ連携」
 }
 
 function showSettingsPane(pane) {
-  ['version','plugins'].forEach(p => {
+  ['version','sync','plugins'].forEach(p => {
     document.getElementById('settings-pane-' + p).style.display = p === pane ? '' : 'none';
     const nav = document.getElementById('settings-nav-' + p);
     if (nav) nav.classList.toggle('active', p === pane);
   });
   if (pane === 'plugins') initPluginPane();
+  if (pane === 'sync') { renderSyncPane(); if (IS_MOBILE_MODE) refreshSyncBadge(); }
 }
 
 // ── settings.json（プロジェクトフォルダ直下・アプリ全体設定） ──────────────
@@ -6991,6 +7128,8 @@ function switchView(view) {
   }
 
   state.currentView = view;
+  document.documentElement.setAttribute('data-view', view);
+  if (view !== 'gantt' && view !== 'burndown') document.documentElement.classList.remove('m-focus');
   // 組み込みビューの表示/非表示
   ['list','kanban','burndown','gantt','wiki'].forEach(v => {
     const tab = document.getElementById('tab-'+v);
@@ -12757,7 +12896,532 @@ function _renderPluginSidebarItems() {
 // 旧形式のフォルダ（plugin/plugins.js のみが存在）との互換のため、
 // plugin_manifest.js が見つからない場合は plugin/plugins.js にフォールバックする
 // プラグインの追加・削除はプラグイン管理UIから行うだけでOK。taskflow.html の編集は不要です
-(function() {
+// ═══════════════════════════════════════════════════════════════
+// スマホ対応（v1.2.0）
+//  ・File System Access API が使えない端末（iOS Safari / Android Chrome など）では「スマホモード」で起動
+//  ・データはブラウザの IndexedDB に保存（仮想フォルダ MobDirHandle が FileSystemDirectoryHandle の代わりを務める）
+//  ・PC ⇄ スマホは「同期パッケージ」(JSON) でやり取りする
+//      full : PC → スマホ。全プロジェクトの完全なコピー
+//      diff : スマホ → PC。取り込み時点からの自分の変更分だけ
+// ═══════════════════════════════════════════════════════════════
+const MOB_ROOT_NAME = 'スマホ';
+const MOB_DB_NAME   = 'taskflow-mobile-db';
+let _mobDbPromise = null;
+function _mobDb() {
+  if (_mobDbPromise) return _mobDbPromise;
+  _mobDbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(MOB_DB_NAME, 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      ['files', 'pkgbase', 'meta'].forEach(s => { if (!db.objectStoreNames.contains(s)) db.createObjectStore(s); });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => { _mobDbPromise = null; reject(req.error); };
+  });
+  return _mobDbPromise;
+}
+async function _mobReq(store, mode, fn) {
+  const db = await _mobDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, mode);
+    let result;
+    const r = fn(tx.objectStore(store));
+    if (r) r.onsuccess = () => { result = r.result; };
+    tx.oncomplete = () => resolve(result);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+const mobGet  = (s, k)    => _mobReq(s, 'readonly',  os => os.get(k));
+const mobPut  = (s, k, v) => _mobReq(s, 'readwrite', os => os.put(v, k));
+const mobDel  = (s, k)    => _mobReq(s, 'readwrite', os => os.delete(k));
+const mobKeys = (s)       => _mobReq(s, 'readonly',  os => os.getAllKeys());
+
+function _mobNotFound(name) { const e = new Error(name + ' が見つかりません'); e.name = 'NotFoundError'; return e; }
+// FileSystemFileHandle の代用（アプリが使う範囲のみ）
+class MobFileHandle {
+  constructor(name) { this.kind = 'file'; this.name = name; }
+  async getFile() {
+    const rec = await mobGet('files', this.name);
+    if (!rec) throw _mobNotFound(this.name);
+    return { name: this.name, lastModified: rec.lastModified, size: rec.text.length, text: async () => rec.text };
+  }
+  async createWritable() {
+    const name = this.name; let buf = '';
+    return {
+      write: async d => { buf += (typeof d === 'string') ? d : await new Response(d).text(); },
+      close: async () => { await mobPut('files', name, { text: buf, lastModified: Date.now() }); },
+    };
+  }
+}
+// FileSystemDirectoryHandle の代用。サブフォルダ（添付ファイル・プラグイン）は持たない
+class MobDirHandle {
+  constructor() { this.kind = 'directory'; this.name = MOB_ROOT_NAME; }
+  async *values() { for (const k of await mobKeys('files')) yield new MobFileHandle(k); }
+  async getFileHandle(name, opts) {
+    if (!(opts && opts.create)) { if (!(await mobGet('files', name))) throw _mobNotFound(name); }
+    return new MobFileHandle(name);
+  }
+  async removeEntry(name) { await mobDel('files', name); }
+  async getDirectoryHandle(name) { throw _mobNotFound(name); }
+  async queryPermission() { return 'granted'; }
+  async requestPermission() { return 'granted'; }
+}
+
+// ── 同期パッケージ共通 ──────────────────────────────
+const PKG_VERSION = 1;
+const _PKG_TASK_FIELDS = ['title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime','completedBy'];
+const _pkgNull = v => (v === undefined ? null : v);
+const _pkgSame = (a, b) => JSON.stringify(_pkgNull(a)) === JSON.stringify(_pkgNull(b));
+function _pkgStamp() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}
+function _pkgSafeName(s) { return String(s || '').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40) || 'data'; }
+function _pkgMyName() { try { return getMyName(); } catch(e) { return ''; } }
+
+// 取り込んだ時点（base）と現在の差分を、変更操作のリストにする
+function computeProjectOps(base, cur) {
+  const ops = [];
+  const bt = new Map((base.tasks || []).map(t => [t.id, t]));
+  (cur.tasks || []).forEach(t => {
+    const b = bt.get(t.id);
+    if (!b) { ops.push({ t: 'task-add', task: deepCopy(t) }); return; }
+    _PKG_TASK_FIELDS.forEach(f => {
+      if (!_pkgSame(b[f], t[f])) ops.push({ t: 'task-set', tid: t.id, f, b: _pkgNull(b[f]), a: _pkgNull(t[f]) });
+    });
+    const bc = new Map((b.checklist || []).map(c => [c.id, c]));
+    (t.checklist || []).forEach((c, i) => {
+      const o = bc.get(c.id);
+      const cNow = !!(c.checked || c.done);
+      if (!o) ops.push({ t: 'chk-add', tid: t.id, item: deepCopy(c), idx: i });
+      else {
+        const oNow = !!(o.checked || o.done);
+        if (oNow !== cNow || o.text !== c.text) ops.push({ t: 'chk-set', tid: t.id, cid: c.id, b: { checked: oNow, text: o.text }, a: { checked: cNow, text: c.text } });
+      }
+    });
+    const bcm = new Set((b.comments || []).map(c => c.id));
+    (t.comments || []).forEach(c => { if (!bcm.has(c.id)) ops.push({ t: 'comment-add', tid: t.id, comment: deepCopy(c) }); });
+    const ba = new Set((b.activity || []).map(a => a.at + '|' + a.type));
+    (t.activity || []).forEach(a => { if (!ba.has(a.at + '|' + a.type)) ops.push({ t: 'activity-add', tid: t.id, entry: deepCopy(a) }); });
+  });
+  return ops;
+}
+
+// PC側：操作リストから「変更前（base）」「変更後（theirs）」を作る。
+// 既存の threeWayMerge(base, 自分=PCの現在値, 相手=theirs) にそのまま渡せる形にする。
+function _buildSyntheticFromOps(cur, ops) {
+  const sb = deepCopy(cur), st = deepCopy(cur);
+  sb.tasks = sb.tasks || []; st.tasks = st.tasks || [];
+  const skipped = [];
+  let added = 0;
+  const find = (p, tid) => p.tasks.find(t => t.id === tid);
+  if (!st.nextTaskNum) st.nextTaskNum = Math.max(0, ...st.tasks.map(t => t.number || 0)) + 1;
+  if (!sb.nextTaskNum) sb.nextTaskNum = st.nextTaskNum;
+  ops.forEach(op => {
+    if (op.t === 'task-add') {
+      if (find(st, op.task.id)) return;                 // 取り込み済み
+      const t = deepCopy(op.task);
+      t.number = st.nextTaskNum++;                        // 番号はPC側で振り直す（スマホの仮番号とPCの新規タスクが重ならないように）
+      st.tasks.push(t); added++;
+      return;
+    }
+    const tt = find(st, op.tid), tb = find(sb, op.tid);
+    if (!tt || !tb) { skipped.push(op); return; }       // PC側で削除されたタスク
+    if (op.t === 'task-set') { tb[op.f] = op.b; tt[op.f] = op.a; }
+    else if (op.t === 'chk-add') {
+      tt.checklist = tt.checklist || [];
+      if (!tt.checklist.some(c => c.id === op.item.id)) tt.checklist.splice(Math.min(op.idx, tt.checklist.length), 0, deepCopy(op.item));
+    } else if (op.t === 'chk-set') {
+      const ib = (tb.checklist || []).find(c => c.id === op.cid), it = (tt.checklist || []).find(c => c.id === op.cid);
+      if (!ib || !it) { skipped.push(op); return; }
+      ib.checked = op.b.checked; ib.text = op.b.text; if ('done' in ib) ib.done = op.b.checked;
+      it.checked = op.a.checked; it.text = op.a.text; if ('done' in it) it.done = op.a.checked;
+    } else if (op.t === 'comment-add') {
+      tt.comments = tt.comments || [];
+      if (!tt.comments.some(c => c.id === op.comment.id)) tt.comments.push(deepCopy(op.comment));
+    } else if (op.t === 'activity-add') {
+      tt.activity = tt.activity || [];
+      const key = op.entry.at + '|' + op.entry.type;
+      if (!tt.activity.some(a => a.at + '|' + a.type === key)) tt.activity.push(deepCopy(op.entry));
+    }
+  });
+  return { base: sb, theirs: st, added, skipped };
+}
+
+// ファイルとして渡す（共有シート or ダウンロード）
+async function _pkgDeliver(filename, text, mode) {
+  const blob = new Blob([text], { type: 'application/json' });
+  if (mode === 'share') {
+    try {
+      const file = new File([blob], filename, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return true;
+      }
+    } catch (e) { if (e && e.name === 'AbortError') return false; }
+    toast('この端末では共有できないため、ダウンロードします', 'warn');
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  return true;
+}
+function pickPackageFile(cb) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json,application/json,text/plain';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    let pkg;
+    try { pkg = JSON.parse(await f.text()); } catch (e) { toast('ファイルを読み込めませんでした（JSONではありません）', 'error'); return; }
+    if (!pkg || pkg.tfzPackage !== PKG_VERSION) { toast('TaskFlowZeroの同期パッケージではありません', 'error'); return; }
+    cb(pkg, f);
+  };
+  inp.click();
+}
+
+// 小さなダイアログ（既存の .modal を流用）
+function _syncDialog(title, bodyHtml) {
+  closeSyncDialog();
+  const ov = document.createElement('div');
+  ov.id = 'sync-dialog'; ov.className = 'modal-overlay modal-visible'; ov.style.display = 'flex';
+  ov.innerHTML = `<div class="modal" style="width:440px"><div style="font-size:16px;font-weight:600;margin-bottom:12px">${title}</div>${bodyHtml}</div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) closeSyncDialog(); });
+  document.body.appendChild(ov);
+  return ov;
+}
+function closeSyncDialog() { const d = document.getElementById('sync-dialog'); if (d) d.remove(); }
+
+// ═══════ PC側：スマホ用パッケージの書き出し ═══════
+function openPcExportDialog() {
+  const projs = (state.data.projects || []).filter(p => !p.deleted);
+  if (!projs.length) { toast('書き出すプロジェクトがありません', 'warn'); return; }
+  const rows = projs.map(p => `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><input type="checkbox" class="sync-pick" value="${esc(p.id)}" ${p.archived ? '' : 'checked'}> P${esc(String(p.number))} ${esc(p.name)}${p.archived ? ' <span style="color:var(--muted);font-size:11px">（完了）</span>' : ''}</label>`).join('');
+  _syncDialog('📤 スマホ用パッケージを書き出し', `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">選んだプロジェクトを1つのファイルにまとめます。Teamsなどでスマホへ送り、スマホ版の「パッケージを取り込む」で開いてください。取り込むとスマホ側のデータはこの内容に置き換わります。</div>
+    <div style="max-height:40vh;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin-bottom:14px">${rows}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-secondary" onclick="closeSyncDialog()">キャンセル</button><button class="btn btn-primary" onclick="doPcExport()">ダウンロード</button></div>`);
+}
+async function doPcExport() {
+  const ids = new Set([...document.querySelectorAll('#sync-dialog .sync-pick:checked')].map(c => c.value));
+  if (!ids.size) { toast('プロジェクトを選んでください', 'warn'); return; }
+  try { if (panelDirty) savePanelTask(); } catch(e) {}
+  const pkg = {
+    tfzPackage: PKG_VERSION, kind: 'full', id: 'pkg-' + uid(), createdAt: new Date().toISOString(),
+    appVersion: APP_VERSION, owner: _pkgMyName(), source: state.rootDirHandle ? state.rootDirHandle.name : '',
+    projects: deepCopy(state.data.projects.filter(p => !p.deleted && ids.has(p.id))),
+  };
+  await _pkgDeliver(`TFZ_full_${_pkgSafeName(pkg.source)}_${_pkgStamp()}.json`, JSON.stringify(pkg), 'download');
+  closeSyncDialog();
+  toast(`スマホ用パッケージを書き出しました（${pkg.projects.length}件）`, 'success');
+}
+
+// ═══════ PC側：スマホの差分パッケージを取り込む ═══════
+function openPcImportDiff() {
+  pickPackageFile(async pkg => {
+    if (pkg.kind !== 'diff') { toast(pkg.kind === 'full' ? 'これはPCからスマホへ渡す完全版です。スマホで取り込んでください' : '差分パッケージではありません', 'warn'); return; }
+    await importDiffPackage(pkg);
+  });
+}
+async function importDiffPackage(pkg) {
+  const list = Array.isArray(pkg.projects) ? pkg.projects : [];
+  const cnt = p => (p.owned ? 1 : (p.ops ? p.ops.length : 0));
+  const total = list.reduce((n, p) => n + cnt(p), 0);
+  const ownedN = list.filter(p => p.owned).length;
+  const when = pkg.createdAt ? new Date(pkg.createdAt).toLocaleString() : '';
+  if (!confirm(`スマホの変更を取り込みます。\n作成者: ${pkg.createdBy || '（不明）'}\n作成日時: ${when}\n変更: ${total}件（${list.length}プロジェクト${ownedN ? `、うちスマホで作成したプロジェクト ${ownedN}件` : ''}）\n\n自分の変更と食い違う項目は、競合として確認画面を表示します。続けますか？`)) return;
+  const seenKey = 'taskflow-imported-pkgs::' + (state.rootDirHandle ? state.rootDirHandle.name : '');
+  let seen = []; try { seen = JSON.parse(localStorage.getItem(seenKey) || '[]'); } catch(e) {}
+  if (pkg.id && seen.includes(pkg.id) && !confirm('このパッケージは取り込み済みです。もう一度取り込みますか？\n（同じ変更は重複して追加されません）')) return;
+
+  const wrap = p => ({ version: 3, projects: [p], nextProjectNum: 1 });
+  // base / 自分(PCの現在値) / theirs を既存の3-wayマージにかけ、競合があればダイアログで選ばせる
+  const mergeInto = async (pid, base, cur, theirs) => {
+    const result = threeWayMerge(wrap(base), wrap(cur), wrap(theirs));
+    const merged = result.merged.projects[0];
+    if (!merged) return 0;
+    const commit = proj => {
+      const i = state.data.projects.findIndex(p => p.id === pid);
+      if (i !== -1) { proj.number = cur.number; state.data.projects[i] = proj; }   // プロジェクト番号はPC側のものを保つ（マージは相手側の値を起点にするため）
+      _dirtyProjects.add(pid);
+    };
+    if (result.conflicts.length === 0) { commit(merged); return 0; }
+    await new Promise(resolve => {
+      showConflictDialog(result.conflicts, result.merged, resolved => { commit(resolved.projects[0]); resolve(); }, () => {
+        _addPendingConflicts(pid, result.conflicts); commit(merged); resolve();
+      });
+    });
+    return result.conflicts.length;
+  };
+
+  let addedTasks = 0, appliedProjects = 0, newProjects = 0, skippedOps = 0, conflictCount = 0, already = 0;
+  const missing = [];
+  for (const pp of list) {
+    const cur = state.data.projects.find(p => p.id === pp.id && !p.deleted);
+    if (pp.owned && pp.project) {
+      // スマホで作ったプロジェクト：PCに無ければ追加（番号はPC側で振り直す）、あれば丸ごと3-wayマージ
+      if (!cur) {
+        const obj = deepCopy(pp.project), oldNumber = obj.number;
+        const maxNum = Math.max(0, ...state.data.projects.map(x => x.number || 0));
+        state.data.nextProjectNum = Math.max(state.data.nextProjectNum || 1, maxNum + 1);
+        obj.number = state.data.nextProjectNum++;
+        if (!Array.isArray(obj.milestones)) obj.milestones = [];
+        if (!Array.isArray(obj.tasks)) obj.tasks = [];
+        _migrateProjectFields([obj]);
+        _rewriteProjectRefs(obj, oldNumber, obj.number);
+        state.data.projects.push(obj);
+        _dirtyProjects.add(obj.id);
+        newProjects++; appliedProjects++; addedTasks += obj.tasks.length;
+        continue;
+      }
+      if (!pp.base) { already++; continue; }     // 取り込み済みの最初の版だけが届いた場合
+      conflictCount += await mergeInto(pp.id, pp.base, cur, pp.project);
+      appliedProjects++;
+      continue;
+    }
+    if (!cur) { missing.push(pp.name || pp.id); continue; }
+    const ops = pp.ops || [];
+    if (!ops.length) continue;
+    const syn = _buildSyntheticFromOps(cur, ops);
+    addedTasks += syn.added; skippedOps += syn.skipped.length;
+    conflictCount += await mergeInto(pp.id, syn.base, cur, syn.theirs);
+    appliedProjects++;
+  }
+  if (pkg.id) { seen.push(pkg.id); try { localStorage.setItem(seenKey, JSON.stringify(seen.slice(-50))); } catch(e) {} }
+  autoSave(null, true);
+  renderCurrentView(); renderSidebar();
+  try { renderProjectsList(); } catch(e) {}
+  let msg = `スマホの変更を取り込みました（${appliedProjects}プロジェクト`;
+  if (newProjects) msg += `／新規プロジェクト${newProjects}件`;
+  msg += `／新規タスク${addedTasks}件`;
+  if (conflictCount) msg += `／競合${conflictCount}件`;
+  msg += '）';
+  toast(msg, 'success', 5000);
+  if (already) toast(`取り込み済みのプロジェクト ${already}件は変更がなかったためそのままです`, 'info', 4000);
+  if (missing.length) alert('次のプロジェクトはこのフォルダに見つからなかったため、取り込めませんでした:\n' + missing.join('\n'));
+  if (skippedOps) toast(`PC側で削除されたタスクへの変更 ${skippedOps}件は取り込めませんでした`, 'warn', 5000);
+}
+
+// ═══════ スマホ側 ═══════
+async function mobReadCurrentProjects() {
+  // 画面で編集中の内容も含めて、保存済みの最新データを読む
+  try { if (state.rootDirHandle) { if (panelDirty) savePanelTask(); clearTimeout(saveTimer); await _autoSaveExec(); } } catch(e) {}
+  const out = [];
+  for (const k of await mobKeys('files')) {
+    if (!/^project_P\d+\.json$/.test(k)) continue;
+    try { const rec = await mobGet('files', k); const p = JSON.parse(rec.text); if (p && !p.deleted) out.push(p); } catch(e) {}
+  }
+  return out;
+}
+async function mobCollectDiff() {
+  const info = (await mobGet('meta', 'info')) || {};
+  const ownedIds = new Set(info.mobileOwned || []);
+  const projects = [];
+  let total = 0;
+  for (const cur of await mobReadCurrentProjects()) {
+    const base = await mobGet('pkgbase', cur.id);
+    if (!base || ownedIds.has(cur.id)) {
+      // スマホで作ったプロジェクト：PCにまだ無いかもしれないので、現在の内容と前回書き出した内容（あれば）を丸ごと渡す
+      if (base && _pkgSame(base, cur)) continue;   // 前回の書き出し以降に変更なし
+      projects.push({ id: cur.id, number: cur.number, name: cur.name, owned: true, project: deepCopy(cur), base: base ? deepCopy(base) : null, ops: [] });
+      total += base ? Math.max(1, computeProjectOps(base, cur).length) : 1 + (cur.tasks || []).length;
+      continue;
+    }
+    const ops = computeProjectOps(base, cur);
+    if (ops.length) { projects.push({ id: cur.id, number: cur.number, name: cur.name, ops }); total += ops.length; }
+  }
+  return { projects, total };
+}
+function _mobHash(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return String(h); }
+
+async function openMobileExport() {
+  const { projects, total } = await mobCollectDiff();
+  if (!total) { toast('送る変更はありません', 'info'); return; }
+  const info = (await mobGet('meta', 'info')) || {};
+  const pkg = { tfzPackage: PKG_VERSION, kind: 'diff', id: 'pkg-' + uid(), createdAt: new Date().toISOString(), appVersion: APP_VERSION, createdBy: _pkgMyName(), baseId: info.pkgId || null, projects };
+  const text = JSON.stringify(pkg);
+  const fname = `TFZ_diff_${_pkgSafeName(_pkgMyName())}_${_pkgStamp()}.json`;
+  window._mobPending = { text, fname, hash: _mobHash(JSON.stringify(projects)), owned: projects.filter(x => x.owned).map(x => ({ id: x.id, project: x.project })) };
+  const addN = projects.reduce((n, p) => n + p.ops.filter(o => o.t === 'task-add').length, 0);
+  const cmN  = projects.reduce((n, p) => n + p.ops.filter(o => o.t === 'comment-add').length, 0);
+  const newP = projects.filter(p => p.owned).length;
+  _syncDialog('📤 変更を書き出し', `
+    <div style="font-size:13px;line-height:1.8;margin-bottom:8px">変更 <b>${total}</b> 件（${projects.length}プロジェクト）<br><span style="color:var(--muted);font-size:12px">${newP ? `スマホで作成・編集したプロジェクト ${newP}件／` : ''}新規タスク ${addN}件・新規コメント ${cmN}件</span></div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">書き出したファイルをTeamsなどでPCへ送り、PC版の「スマホの変更を取り込み」で開いてください。削除はPCへ反映されません（プロジェクト・マイルストーン・Wikiの編集は、スマホで作ったプロジェクトだけ反映されます）。</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-secondary" onclick="closeSyncDialog()">閉じる</button><button class="btn btn-secondary" onclick="doMobileExport('download')">ダウンロード</button><button class="btn btn-primary" onclick="doMobileExport('share')">共有…</button></div>`);
+}
+async function doMobileExport(mode) {
+  const p = window._mobPending; if (!p) return;
+  const ok = await _pkgDeliver(p.fname, p.text, mode);
+  if (!ok) return;
+  const info = (await mobGet('meta', 'info')) || {};
+  info.lastExportAt = new Date().toISOString(); info.lastExportHash = p.hash;
+  const owned = new Set(info.mobileOwned || []);
+  for (const o of (p.owned || [])) { await mobPut('pkgbase', o.id, deepCopy(o.project)); owned.add(o.id); }
+  info.mobileOwned = [...owned];
+  await mobPut('meta', 'info', info);
+  _mobOwnedIds = owned; _mobUpdateOwned();
+  closeSyncDialog();
+  toast('変更を書き出しました', 'success');
+  refreshSyncBadge();
+}
+
+function mobPickFull() { pickPackageFile(pkg => mobImportFull(pkg).catch(e => toast('取り込みに失敗しました: ' + e.message, 'error'))); }
+async function mobImportFull(pkg) {
+  if (pkg.kind === 'diff') { toast('これはPCへ送る変更ファイルです。PC版で取り込んでください', 'warn'); return; }
+  if (pkg.kind !== 'full' || !Array.isArray(pkg.projects) || !pkg.projects.length) throw new Error('プロジェクトが含まれていません');
+  // 未送信の変更があれば確認
+  const { total, projects } = await mobCollectDiff();
+  if (total > 0) {
+    const info = (await mobGet('meta', 'info')) || {};
+    const sent = info.lastExportHash && info.lastExportHash === _mobHash(JSON.stringify(projects));
+    const msg = sent
+      ? `書き出し済みの変更が ${total} 件あります。PCに取り込み済みですか？\n取り込み済みでない場合、この変更は失われます。続けますか？`
+      : `まだ書き出していない変更が ${total} 件あります。\n取り込むとこの変更は失われます。続けますか？\n（「キャンセル」で戻り、先に「変更を書き出し」できます）`;
+    if (!confirm(msg)) return;
+  }
+  const cur0 = await mobReadCurrentProjects();
+  const dropped = cur0.filter(c => !pkg.projects.some(p => p.id === c.id)).map(c => `P${c.number} ${c.name}`);
+  if (dropped.length && !confirm(`このパッケージに含まれないプロジェクトは、スマホから消えます:\n${dropped.join('\n')}\n\n続けますか？`)) return;
+  const newNums = new Set(pkg.projects.map(p => `project_P${p.number}.json`));
+  for (const k of await mobKeys('files')) { if (/^project_P\d+\.json$/.test(k) && !newNums.has(k)) await mobDel('files', k); }
+  for (const k of await mobKeys('pkgbase')) { if (!pkg.projects.some(p => p.id === k)) await mobDel('pkgbase', k); }
+  for (const p of pkg.projects) {
+    await mobPut('files', `project_P${p.number}.json`, { text: JSON.stringify(p, null, 2), lastModified: Date.now() });
+    await mobPut('pkgbase', p.id, deepCopy(p));
+  }
+  await mobPut('meta', 'info', { pkgId: pkg.id || null, importedAt: new Date().toISOString(), owner: pkg.owner || '', source: pkg.source || '', appVersion: pkg.appVersion || '', lastExportHash: null });
+  try { const key = 'taskflow-my-name-' + MOB_ROOT_NAME; if (!localStorage.getItem(key) && pkg.owner) localStorage.setItem(key, pkg.owner); } catch(e) {}
+  toast(`パッケージを取り込みました（${pkg.projects.length}プロジェクト）`, 'success');
+  await mobOpenData();
+}
+// PCでまだ使い始めていない場合：空の状態からスマホで始める（プロジェクトはスマホで作る）
+async function mobStartNew() {
+  const key = 'taskflow-my-name-' + MOB_ROOT_NAME;
+  let name = ''; try { name = localStorage.getItem(key) || ''; } catch(e) {}
+  if (!name) {
+    name = (prompt('あなたの名前を入力してください（担当者名として使います）', '') || '').trim();
+    if (!name) return;
+    try { localStorage.setItem(key, name); } catch(e) {}
+  }
+  const info = (await mobGet('meta', 'info')) || {};
+  info.startedNew = true; info.owner = info.owner || name; info.mobileOwned = info.mobileOwned || [];
+  await mobPut('meta', 'info', info);
+  await mobOpenData();
+  toast('「新規プロジェクト」を作って始めましょう。あとでPCに「変更を書き出し」で渡せます', 'info', 5000);
+}
+// スマホで作ったプロジェクト（＝PCに無いか、PCに渡す前のもの）は、プロジェクト・マイルストーン・Wikiも編集できる
+let _mobOwnedIds = new Set(), _mobBaseIds = new Set();
+async function _mobLoadOwned() {
+  const info = (await mobGet('meta', 'info')) || {};
+  _mobOwnedIds = new Set(info.mobileOwned || []);
+  _mobBaseIds = new Set(await mobKeys('pkgbase'));
+}
+function _mobUpdateOwned() {
+  const pid = state.currentProjectId;
+  const owned = !!pid && (!_mobBaseIds.has(pid) || _mobOwnedIds.has(pid));
+  document.documentElement.setAttribute('data-owned', owned ? '1' : '0');
+}
+async function mobOpenData() {
+  await _mobLoadOwned();
+  try { await _loadFromRootDir(new MobDirHandle()); }
+  catch (e) { console.error(e); toast('データを開けませんでした: ' + e.message, 'error'); renderMobileLoader(); return; }
+  // 書き出していない変更が数日以上たまっていたら知らせる（ブラウザのデータが消える事態に備える）
+  try {
+    const { total } = await mobCollectDiff();
+    const info = (await mobGet('meta', 'info')) || {};
+    const idle = info.lastExportAt ? (Date.now() - new Date(info.lastExportAt).getTime()) / 86400000 : 99;
+    if (total > 0 && idle >= 3) toast(`⚠️ PCへ送っていない変更が ${total} 件あります（メニュー →「変更を書き出し」）`, 'warn', 6000);
+  } catch (e) {}
+}
+
+async function renderMobileLoader() {
+  const el = document.getElementById('mobile-loader');
+  if (!el) return;
+  const keys = await mobKeys('files');
+  const has = keys.some(k => /^project_P\d+\.json$/.test(k));
+  const info = (await mobGet('meta', 'info')) || {};
+  const when = info.importedAt ? new Date(info.importedAt).toLocaleString() : '';
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="loader-card" style="display:block">
+      <div class="loader-title">スマホ版</div>
+      <div class="loader-subtitle">${has ? `最後の取り込み: ${esc(when)}${info.source ? '（' + esc(info.source) + '）' : ''}` : 'PCで書き出した「スマホ用パッケージ」を取り込むと使えます。'}</div>
+      <div class="loader-btns" style="flex-direction:column">
+        ${has ? '<button class="btn btn-primary" onclick="mobOpenData()">▶ 開く</button>' : ''}
+        <button class="btn ${has ? 'btn-secondary' : 'btn-primary'}" onclick="mobPickFull()">📥 パッケージを取り込む</button>
+        ${has ? '' : '<button class="btn btn-secondary" onclick="mobStartNew()">✨ 新規で始める（PCは未使用）</button>'}
+      </div>
+    </div>
+    <div class="welcome-info" style="display:block">
+      💡 データはこの端末のブラウザ内に保存されます。ブラウザの履歴やサイトデータを消すと失われるので、変更したら「変更を書き出し」でPCへ送ってください。<br>
+      💡 ホーム画面に追加すると、iPhoneでも保存データが消えにくくなります。
+    </div>`;
+}
+
+// ── 画面まわり ──
+function openMobileDrawer() { document.getElementById('sidebar').classList.add('m-open'); document.getElementById('m-backdrop').classList.add('show'); refreshSyncBadge(); }
+function closeMobileDrawer() { const s = document.getElementById('sidebar'); if (s) s.classList.remove('m-open'); const b = document.getElementById('m-backdrop'); if (b) b.classList.remove('show'); }
+function setupMobileUi() {
+  const sb = document.getElementById('sidebar');
+  // 既存の自動折りたたみ（PC用）を常に打ち消す
+  new MutationObserver(() => { if (sb.classList.contains('collapsed')) sb.classList.remove('collapsed'); }).observe(sb, { attributes: true, attributeFilter: ['class'] });
+  sb.classList.remove('collapsed');
+  sb.addEventListener('click', e => { if (e.target.closest('.sidebar-item')) closeMobileDrawer(); });
+}
+async function refreshSyncBadge() {
+  try {
+    const { total } = await mobCollectDiff();
+    ['sync-unsent', 'settings-unsent'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = total ? String(total) : '';
+      el.style.display = total ? 'inline-block' : 'none';
+    });
+    const st = document.getElementById('sync-status');
+    if (st) {
+      const info = (await mobGet('meta', 'info')) || {};
+      const f = d => (d ? new Date(d).toLocaleString() : '―');
+      st.innerHTML = `最後の取り込み: ${esc(f(info.importedAt))}<br>最後の書き出し: ${esc(f(info.lastExportAt))}<br>PCへ送っていない変更: <b>${total}</b> 件`;
+    }
+  } catch(e) {}
+}
+// 設定 → 「スマホ連携」ペイン
+function renderSyncPane() {
+  const box = document.getElementById('sync-items');
+  if (!box) return;
+  const block = (title, text, btn, primary) => `<div class="sync-block"><h4>${title}</h4><p>${text}</p><button class="btn ${primary ? 'btn-primary' : 'btn-secondary'}" onclick="${btn[0]}">${btn[1]}</button></div>`;
+  if (IS_MOBILE_MODE) {
+    box.innerHTML =
+      block('📤 変更を書き出し', 'PCに取り込んだあとの自分の変更（タスクの更新・コメント・新規タスク、スマホで作ったプロジェクト）を、ファイルにまとめます。Teamsなどで送って、PC版の「スマホの変更を取り込み」で開いてください。削除はPCへ反映されません。', ['openMobileExport()', '変更を書き出し…'], true) +
+      block('📥 パッケージを取り込む', 'PCで書き出した「スマホ用パッケージ」を開きます。スマホ側のデータは、その内容に置き換わります（送っていない変更があれば先に確認します）。', ['mobPickFull()', 'パッケージを取り込む…'], false);
+  } else {
+    const st = document.getElementById('sync-status');
+    if (st) st.textContent = 'スマホのブラウザとデータをやり取りします。フォルダの共有は不要で、Teamsなどでファイルを送り合います。';
+    box.innerHTML =
+      block('📤 スマホ用に書き出し', '選んだプロジェクトを1つのファイルにまとめます。スマホ版の「パッケージを取り込む」で開いてください。', ['openPcExportDialog()', 'スマホ用に書き出し…'], true) +
+      block('📥 スマホの変更を取り込み', 'スマホの「変更を書き出し」で作ったファイルを開きます。PC側の変更と食い違う項目だけ、競合として確認します。', ['openPcImportDiff()', 'スマホの変更を取り込み…'], false);
+  }
+}
+
+if (IS_MOBILE_MODE) {
+  const _origOpenProject = openProject;
+  openProject = function () { const r = _origOpenProject.apply(this, arguments); try { _mobUpdateOwned(); } catch (e) {} return r; };
+}
+async function initMobileMode() {
+  const fl = document.getElementById('file-loader');
+  fl.classList.remove('auto-opening');
+  setupMobileUi();
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}   // ブラウザによる自動削除を起こりにくくする
+  const keys = await mobKeys('files');
+  if (keys.some(k => /^project_P\d+\.json$/.test(k))) await mobOpenData();
+  else renderMobileLoader();
+}
+
+
+if (!IS_MOBILE_MODE) (function() {
   function loadScript(src, onload, onerror) {
     var s = document.createElement('script');
     s.src = src;
@@ -12773,7 +13437,9 @@ function _renderPluginSidebarItems() {
   });
 })();
 
-if(!window.showDirectoryPicker){
+if (IS_MOBILE_MODE) {
+  initMobileMode();
+} else if(!window.showDirectoryPicker){
   document.querySelector('.welcome-info').innerHTML=`⚠️ <strong>File System Access API が使用できません</strong><br>このシステムは <strong>Chrome</strong> または <strong>Edge</strong> でご使用ください。`;
 } else {
   // ハッシュからフォルダ名を先読みして保持

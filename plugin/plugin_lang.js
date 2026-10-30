@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.11',
+      version:     '1.3.12',
     });
   }
 
@@ -118,6 +118,21 @@
     '前日のアクティビティを表示':         'Show the previous day\'s activity',
     '翌日のアクティビティを表示':         'Show the next day\'s activity',
     '今日より先には進めません':           'Cannot go past today',
+    'スマホ連携': 'Mobile Sync',
+    '📱 スマホ連携': '📱 Mobile Sync',
+    'スマホのブラウザとデータをやり取りします。フォルダの共有は不要で、Teamsなどでファイルを送り合います。': 'Exchange data with the mobile browser. No shared folder is needed — just send files back and forth, e.g. via Teams.',
+    '選んだプロジェクトを1つのファイルにまとめます。スマホ版の「パッケージを取り込む」で開いてください。': 'Bundles the selected projects into one file. Open it with "Import package" on the mobile version.',
+    'スマホの「変更を書き出し」で作ったファイルを開きます。PC側の変更と食い違う項目だけ、競合として確認します。': 'Opens the file created with "Export changes" on the phone. Only items that differ from changes made on the PC are shown as conflicts.',
+    'スマホ用に書き出し…': 'Export for Mobile…',
+    'スマホの変更を取り込み…': 'Import Mobile Changes…',
+    'スマホ用に書き出し': 'Export for Mobile',
+    'スマホの変更を取り込み': 'Import Mobile Changes',
+    'スマホで使うデータを1つのファイルにまとめます': 'Bundle your data into one file for the mobile app',
+    'スマホで書き出した変更ファイルを取り込みます': 'Import the change file exported from the mobile app',
+    '📤 スマホ用パッケージを書き出し': '📤 Export Package for Mobile',
+    'ダウンロード': 'Download',
+    '（完了）': '(Completed)',
+    'プロジェクトを選んでください': 'Please select a project',
     'クリックで詳細表示':                 'Click for details',
     '少ない':                             'Less',
     '多い':                               'More',
