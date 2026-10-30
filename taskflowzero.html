@@ -1079,6 +1079,19 @@ html.mobile-mode #settings-left .settings-nav-item{flex-shrink:0;border-left:non
 html.mobile-mode #settings-left .settings-nav-item.active{border-bottom-color:var(--accent2)}
 html.mobile-mode #settings-nav-plugins,html.mobile-mode #settings-pane-plugins{display:none !important}
 html.mobile-mode #settings-right{padding:16px !important}
+
+/* スマホ：プロジェクト一覧の見出し（縦書きになるのを防ぎ、ボタンは下の段に） */
+html.mobile-mode #projects-view{padding-left:14px;padding-right:14px}
+html.mobile-mode #projects-header-row{flex-wrap:wrap;gap:12px}
+html.mobile-mode #projects-header-title{flex:1 1 100%;min-width:0}
+html.mobile-mode #projects-header-title > div:first-child{font-size:21px !important;white-space:nowrap}
+html.mobile-mode #projects-header-actions{flex:1 1 100%;gap:8px}
+html.mobile-mode #projects-header-actions .btn{flex:1;justify-content:center;white-space:nowrap}
+html.mobile-mode #projects-search-bar{flex-wrap:wrap}
+html.mobile-mode #proj-search-title{flex:1 1 100%;width:100%;box-sizing:border-box}
+/* スマホ：トーストは画面上部に、横幅いっぱいで出す（下端はブラウザのツールバーに隠れるため。消えた状態も画面外へ） */
+html.mobile-mode #toast{left:12px;right:12px;bottom:auto;top:calc(env(safe-area-inset-top,0px) + 56px);transform:translateY(-160%);max-width:none;opacity:0;pointer-events:none;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+html.mobile-mode #toast.show{transform:none;opacity:1}
 </style>
 </head>
 <body>
@@ -1310,12 +1323,12 @@ html.mobile-mode #settings-right{padding:16px !important}
 
     <!-- PROJECTS LIST -->
     <div id="projects-view">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <div>
+      <div id="projects-header-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div id="projects-header-title">
           <div style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:700">プロジェクト一覧</div>
           <div style="font-size:13px;color:var(--muted);margin-top:4px" id="projects-subtitle"></div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div id="projects-header-actions" style="display:flex;gap:8px">
           <button class="btn btn-secondary" onclick="triggerProjectImport()">📥 インポート</button>
           <button class="btn btn-primary" onclick="openProjectModal()">＋ 新規プロジェクト</button>
           <input type="file" id="project-import-input" accept="application/json,.json,application/zip,.zip" style="display:none" onchange="importProjectFile(this.files[0])">
@@ -13060,7 +13073,7 @@ async function _pkgDeliver(filename, text, mode) {
         return true;
       }
     } catch (e) { if (e && e.name === 'AbortError') return false; }
-    toast('この端末では共有できないため、ダウンロードします', 'warn');
+    toast('この端末では共有できないため、ダウンロードします', 'warning');
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = filename;
@@ -13097,7 +13110,7 @@ function closeSyncDialog() { const d = document.getElementById('sync-dialog'); i
 // ═══════ PC側：スマホ用パッケージの書き出し ═══════
 function openPcExportDialog() {
   const projs = (state.data.projects || []).filter(p => !p.deleted);
-  if (!projs.length) { toast('書き出すプロジェクトがありません', 'warn'); return; }
+  if (!projs.length) { toast('書き出すプロジェクトがありません', 'warning'); return; }
   const rows = projs.map(p => `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><input type="checkbox" class="sync-pick" value="${esc(p.id)}" ${p.archived ? '' : 'checked'}> P${esc(String(p.number))} ${esc(p.name)}${p.archived ? ' <span style="color:var(--muted);font-size:11px">（完了）</span>' : ''}</label>`).join('');
   _syncDialog('📤 スマホ用パッケージを書き出し', `
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">選んだプロジェクトを1つのファイルにまとめます。Teamsなどでスマホへ送り、スマホ版の「パッケージを取り込む」で開いてください。取り込むとスマホ側のデータはこの内容に置き換わります。</div>
@@ -13106,7 +13119,7 @@ function openPcExportDialog() {
 }
 async function doPcExport() {
   const ids = new Set([...document.querySelectorAll('#sync-dialog .sync-pick:checked')].map(c => c.value));
-  if (!ids.size) { toast('プロジェクトを選んでください', 'warn'); return; }
+  if (!ids.size) { toast('プロジェクトを選んでください', 'warning'); return; }
   try { if (panelDirty) savePanelTask(); } catch(e) {}
   const pkg = {
     tfzPackage: PKG_VERSION, kind: 'full', id: 'pkg-' + uid(), createdAt: new Date().toISOString(),
@@ -13121,7 +13134,7 @@ async function doPcExport() {
 // ═══════ PC側：スマホの差分パッケージを取り込む ═══════
 function openPcImportDiff() {
   pickPackageFile(async pkg => {
-    if (pkg.kind !== 'diff') { toast(pkg.kind === 'full' ? 'これはPCからスマホへ渡す完全版です。スマホで取り込んでください' : '差分パッケージではありません', 'warn'); return; }
+    if (pkg.kind !== 'diff') { toast(pkg.kind === 'full' ? 'これはPCからスマホへ渡す完全版です。スマホで取り込んでください' : '差分パッケージではありません', 'warning'); return; }
     await importDiffPackage(pkg);
   });
 }
@@ -13201,7 +13214,7 @@ async function importDiffPackage(pkg) {
   toast(msg, 'success', 5000);
   if (already) toast(`取り込み済みのプロジェクト ${already}件は変更がなかったためそのままです`, 'info', 4000);
   if (missing.length) alert('次のプロジェクトはこのフォルダに見つからなかったため、取り込めませんでした:\n' + missing.join('\n'));
-  if (skippedOps) toast(`PC側で削除されたタスクへの変更 ${skippedOps}件は取り込めませんでした`, 'warn', 5000);
+  if (skippedOps) toast(`PC側で削除されたタスクへの変更 ${skippedOps}件は取り込めませんでした`, 'warning', 5000);
 }
 
 // ═══════ スマホ側 ═══════
@@ -13270,7 +13283,7 @@ async function doMobileExport(mode) {
 
 function mobPickFull() { pickPackageFile(pkg => mobImportFull(pkg).catch(e => toast('取り込みに失敗しました: ' + e.message, 'error'))); }
 async function mobImportFull(pkg) {
-  if (pkg.kind === 'diff') { toast('これはPCへ送る変更ファイルです。PC版で取り込んでください', 'warn'); return; }
+  if (pkg.kind === 'diff') { toast('これはPCへ送る変更ファイルです。PC版で取り込んでください', 'warning'); return; }
   if (pkg.kind !== 'full' || !Array.isArray(pkg.projects) || !pkg.projects.length) throw new Error('プロジェクトが含まれていません');
   // 未送信の変更があれば確認
   const { total, projects } = await mobCollectDiff();
@@ -13333,7 +13346,7 @@ async function mobOpenData() {
     const { total } = await mobCollectDiff();
     const info = (await mobGet('meta', 'info')) || {};
     const idle = info.lastExportAt ? (Date.now() - new Date(info.lastExportAt).getTime()) / 86400000 : 99;
-    if (total > 0 && idle >= 3) toast(`⚠️ PCへ送っていない変更が ${total} 件あります（メニュー →「変更を書き出し」）`, 'warn', 6000);
+    if (total > 0 && idle >= 3) toast(`PCへ送っていない変更が ${total} 件あります（設定 →「スマホ連携」で書き出し）`, 'warning', 6000);
   } catch (e) {}
 }
 
