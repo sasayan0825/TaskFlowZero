@@ -967,7 +967,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
 /* ═══ スマホモード（v1.2.0）═══
    File System Access API が使えない端末（または ?mobile=1）で html.mobile-mode が付く */
-#mobile-loader,#m-menu-btn,#m-backdrop,.m-rotate-hint{display:none}
+#mobile-loader,#m-menu-btn,#m-backdrop,#m-list-footer{display:none}
 .sync-unsent{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;font-family:'JetBrains Mono',monospace}
 html.mobile-mode body{height:100dvh}
 html.mobile-mode #file-loader > .loader-card,html.mobile-mode #file-loader > .welcome-info,html.mobile-mode #file-loader > .hash-folder-banner{display:none !important}
@@ -1013,9 +1013,7 @@ html.mobile-mode #panel-resize-handle{display:none}
 html.mobile-mode .modal{width:96vw !important;max-width:96vw;max-height:92dvh;padding:18px}
 html.mobile-mode input,html.mobile-mode textarea,html.mobile-mode select{font-size:16px}
 html.mobile-mode .btn{min-height:36px}
-/* ガント・バーンダウン：縦向きでは横向きを案内し、横向きでは広く使う */
-html.mobile-mode .m-rotate-hint{align-items:center;gap:8px;margin:8px 12px;padding:8px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--muted)}
-@media (orientation:portrait){html.mobile-mode .m-rotate-hint{display:flex}}
+/* ガント・バーンダウン：横向きにすると広く使える */
 html.mobile-mode #burndown-view{padding:10px}
 html.mobile-mode .burndown-card{padding:12px;max-width:none}
 html.mobile-mode .burndown-stats-row{gap:16px;margin-bottom:12px}
@@ -1047,7 +1045,6 @@ html.mobile-mode.m-focus #header,html.mobile-mode.m-focus #project-header,html.m
   html.mobile-mode[data-view="gantt"] .project-title-row,html.mobile-mode[data-view="burndown"] .project-title-row,
   html.mobile-mode[data-view="gantt"] .project-desc,html.mobile-mode[data-view="burndown"] .project-desc{display:none !important}
   html.mobile-mode[data-view="gantt"] #m-focus-btn,html.mobile-mode[data-view="burndown"] #m-focus-btn{display:flex}
-  html.mobile-mode .m-rotate-hint{display:none}
 }
 
 /* スマホで作ったプロジェクト（data-owned=1）だけは、プロジェクト・マイルストーン・Wikiも編集できる */
@@ -1092,6 +1089,13 @@ html.mobile-mode #proj-search-title{flex:1 1 100%;width:100%;box-sizing:border-b
 /* スマホ：トーストは画面上部に、横幅いっぱいで出す（下端はブラウザのツールバーに隠れるため。消えた状態も画面外へ） */
 html.mobile-mode #toast{left:12px;right:12px;bottom:auto;top:calc(env(safe-area-inset-top,0px) + 56px);transform:translateY(-160%);max-width:none;opacity:0;pointer-events:none;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 html.mobile-mode #toast.show{transform:none;opacity:1}
+
+/* スマホ：リストの下部に常に見える「タスクを追加」 / ガントの凡例は横スクロールの1行 */
+html.mobile-mode #m-list-footer{display:block;flex-shrink:0;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);background:var(--surface)}
+html.mobile-mode #m-list-footer .btn-add-task{width:100%;padding:11px;font-size:14px}
+html.mobile-mode .gantt-legend{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:18px;padding:8px 14px}
+html.mobile-mode .gantt-legend::-webkit-scrollbar{display:none}
+html.mobile-mode .gantt-legend > *{flex-shrink:0}
 </style>
 </head>
 <body>
@@ -1416,6 +1420,7 @@ html.mobile-mode #toast.show{transform:none;opacity:1}
             <div id="list-body"></div>
           </div>
         </div>
+        <div id="m-list-footer"><button class="btn-add-task" onclick="openTaskModal()">＋ タスクを追加</button></div>
       </div>
 
       <!-- KANBAN VIEW -->
@@ -1444,7 +1449,6 @@ html.mobile-mode #toast.show{transform:none;opacity:1}
 
       <!-- BURNDOWN VIEW -->
       <div id="burndown-view">
-        <div class="m-rotate-hint">📱 スマホを横向きにすると見やすくなります</div>
         <div class="burndown-card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
             <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:600">バーンダウンチャート（ストーリーポイント）</div>
@@ -1463,7 +1467,6 @@ html.mobile-mode #toast.show{transform:none;opacity:1}
 
       <!-- GANTT VIEW -->
       <div id="gantt-view">
-        <div class="m-rotate-hint">📱 スマホを横向きにすると見やすくなります</div>
         <div class="gantt-milestone-control">
           <span style="font-size:12px;color:var(--muted)">表示範囲:</span>
           <select class="filter-select" id="gantt-range" onchange="renderGantt()">
