@@ -1104,6 +1104,12 @@ html.mobile-mode .form-input,html.mobile-mode .form-select{min-width:0;width:100
 html.mobile-mode .form-textarea{min-width:0;max-width:100%;box-sizing:border-box}
 html.mobile-mode input[type="date"].form-input{-webkit-appearance:none;appearance:none;display:block;text-align:left;line-height:normal}
 html.mobile-mode .modal-footer{position:sticky;bottom:-18px;margin:16px -16px -18px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--border);z-index:2}
+
+/* スマホ：タスク詳細の入力欄（チェックリスト追加・コメントなど）が右端を超えないようにする */
+html.mobile-mode .panel-body{overflow-x:hidden}
+html.mobile-mode #task-panel input,html.mobile-mode #task-panel select,html.mobile-mode #task-panel textarea{min-width:0;max-width:100%;box-sizing:border-box}
+html.mobile-mode .checklist-add-input{flex:1 1 0;width:0;min-width:0;padding:8px 10px}
+html.mobile-mode .checklist-add-row .btn{flex-shrink:0;white-space:nowrap}
 </style>
 </head>
 <body>
