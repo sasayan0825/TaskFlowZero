@@ -1110,6 +1110,13 @@ html.mobile-mode .panel-body{overflow-x:hidden}
 html.mobile-mode #task-panel input,html.mobile-mode #task-panel select,html.mobile-mode #task-panel textarea{min-width:0;max-width:100%;box-sizing:border-box}
 html.mobile-mode .checklist-add-input{flex:1 1 0;width:0;min-width:0;padding:8px 10px}
 html.mobile-mode .checklist-add-row .btn{flex-shrink:0;white-space:nowrap}
+
+/* スマホ：タスク詳細の日付欄（iPhoneの日付入力は独自の幅を持つため、列の幅に強制的に収める） */
+html.mobile-mode .meta-field{overflow:hidden}
+html.mobile-mode .meta-input[type="date"],html.mobile-mode .meta-input[type="datetime-local"]{-webkit-appearance:none;appearance:none;display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;min-height:40px;text-align:left;overflow:hidden}
+html.mobile-mode .meta-input[type="date"]::-webkit-date-and-time-value,html.mobile-mode .meta-input[type="datetime-local"]::-webkit-date-and-time-value{text-align:left;min-width:0}
+html.mobile-mode .meta-input[type="date"]::-webkit-datetime-edit,html.mobile-mode .form-input[type="date"]::-webkit-datetime-edit{padding:0}
+html.mobile-mode .form-row > .form-group{overflow:hidden}
 </style>
 </head>
 <body>
