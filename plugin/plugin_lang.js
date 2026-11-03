@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.12',
+      version:     '1.3.13',
     });
   }
 
@@ -394,6 +394,16 @@
     'クリックで編集':                     'Click to edit',
     '作成から24時間以内のみ編集できます': 'Editable within 24h of creation',
     'メンション数':                       'Mention count',
+    '未読メンション数':                   'Unread mentions',
+    '既読・未読: すべて':                 'Read/Unread: All',
+    '未読のみ':                           'Unread only',
+    'すべて既読にする':                   'Mark all as read',
+    '既読にする':                         'Mark as read',
+    '✓ 既読にする':                       '✓ Mark as read',
+    '未読に戻す':                         'Mark as unread',
+    '↩ 未読に戻す':                       '↩ Mark as unread',
+    '未読':                               'Unread',
+    '未読のメンションはありません':       'No unread mentions',
     '担当タスク数':                       'Assigned tasks',
     '履歴から削除':                       'Remove from history',
     '✅ コピー完了':                      '✅ Copied',
@@ -714,6 +724,9 @@
     s = s.replace(/^フォルダ「(.+)」が必要です$/, 'Folder "$1" is required');
     s = s.replace(/^「(.+)」フォルダを開いてください$/, 'Please open the "$1" folder');
     s = s.replace(/^「(.+)」を削除しますか？$/, 'Delete "$1"?');
+    // マイタスク：メンション件数・既読操作
+    s = s.replace(/^(\d+)件（未読 (\d+)）$/, '$1 ($2 unread)');
+    s = s.replace(/^(\d+)件を既読にしました$/, '$1 mention(s) marked as read');
     // 全体検索：ヒット件数（「N 件ヒットしました」）
     s = s.replace(/^(\d+) 件ヒットしました$/, (m, n) => n === '1' ? '1 result found' : n + ' results found');
     // 全体検索：プロジェクト選択プルダウンの完了プロジェクト表記

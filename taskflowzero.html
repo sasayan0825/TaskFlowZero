@@ -254,6 +254,12 @@ th.sortable.sort-desc::after{content:' ↓'}
 .my-mention-author{font-size:11px;color:var(--muted)}
 .my-mention-date{font-size:10px;color:var(--muted);margin-left:auto;font-family:'JetBrains Mono',monospace}
 .my-mention-text{font-size:12px;line-height:1.5;color:var(--text)}
+.my-mention-card.is-unread{border-left:3px solid var(--accent2)}
+.my-mention-card.is-read{opacity:.72}
+.my-mention-card.is-read:hover{opacity:1}
+.mention-unread-dot{color:var(--accent2);font-size:10px;line-height:1}
+.mention-read-btn{background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:10px;padding:1px 7px;border-radius:10px;white-space:nowrap}
+.mention-read-btn:hover{color:var(--accent);border-color:var(--accent)}
 .my-task-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;transition:all .15s}
 .my-task-row:hover{border-color:var(--border2);background:var(--surface2)}
 .activity-heatmap-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;overflow-x:auto}
@@ -1204,7 +1210,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         <span id="my-tasks-icon">👤</span><span class="proj-name">マイタスク</span>
         <span class="sidebar-badge-wrap" id="my-tasks-badges" style="display:none">
           <span class="sb-badge-warn"    id="my-noname-badge" style="display:none" title="名前が未設定です。クリックして設定してください">未設定</span>
-          <span class="sb-badge-mention" id="my-mention-badge" style="display:none" title="メンション数">0</span>
+          <span class="sb-badge-mention" id="my-mention-badge" style="display:none" title="未読メンション数">0</span>
           <span class="sb-badge-task"    id="my-task-badge"    style="display:none" title="担当タスク数">0</span>
         </span>
       </div>
@@ -4343,7 +4349,7 @@ function threeWayMerge(base, mine, disk) {
           } else {
             // baseとの差分を比較（いいね・ブックマークは本文の編集とは独立にマージするため比較から除く。
             // 含めると、他人が「いいね」しただけで自分の本文編集が「相手の変更」扱いになり消えていた）
-            const _strip = c => { const o = { ...c }; delete o.likes; delete o.bookmarks; return JSON.stringify(o); };
+            const _strip = c => { const o = { ...c }; delete o.likes; delete o.bookmarks; delete o.reads; return JSON.stringify(o); };
             const baseStr = _strip(baseComMap[id]);
             const memStr  = _strip(memComMap[id]);
             const diskStr = _strip(diskComMap[id]);
@@ -4378,7 +4384,11 @@ function threeWayMerge(base, mine, disk) {
           const baseBookmarks = (inBase ? baseComMap[id].bookmarks : null) || [];
           const mergedCommentBookmarks = mergeArrayById(baseBookmarks, memComMap[id].bookmarks || [], diskComMap[id].bookmarks || []);
           autoMerged += mergedCommentBookmarks.changed;
-          mergedComments.push({ ...winner, likes: mergedCommentLikes.result, bookmarks: mergedCommentBookmarks.result });
+          // メンション既読も独立にマージ（本文の勝者判定とは無関係）
+          const mergedCommentReads = mergeMentionReads((inBase ? baseComMap[id].reads : null) || [], memComMap[id].reads || [], diskComMap[id].reads || []);
+          const _mc2 = { ...winner, likes: mergedCommentLikes.result, bookmarks: mergedCommentBookmarks.result };
+          if (mergedCommentReads.length) _mc2.reads = mergedCommentReads; else delete _mc2.reads;
+          mergedComments.push(_mc2);
         }
 
         // inMem && !inDisk && !inBase は上の「B新規追加」で処理済み
@@ -4484,6 +4494,25 @@ function mergeArrayById(base, mine, disk) {
   const rest = Object.keys(resultMap).filter(id => !mineOrderSet.has(id));
   const result = [...mineOrder, ...rest].map(id => resultMap[id]);
   return { result, changed, conflicts };
+}
+
+// メンション既読(reads)の3-wayマージ。ユーザーごとの { id, at, read } を、変更した側を採用（両者変更なら新しい at）
+function mergeMentionReads(base, mine, disk) {
+  const bi = indexBy(base, 'id'), mi = indexBy(mine, 'id'), di = indexBy(disk, 'id');
+  const ids = new Set([...Object.keys(bi), ...Object.keys(mi), ...Object.keys(di)]);
+  const out = [];
+  const diff = (x, b) => !b || x.read !== b.read || x.at !== b.at;
+  ids.forEach(id => {
+    const b = bi[id], m = mi[id], d = di[id];
+    if (m && !d) { out.push(deepCopy(m)); return; }
+    if (d && !m) { out.push(deepCopy(d)); return; }
+    if (!m || !d) return;
+    const mc = diff(m, b), dc = diff(d, b);
+    if (mc && !dc) out.push(deepCopy(m));
+    else if (dc && !mc) out.push(deepCopy(d));
+    else out.push(deepCopy((m.at || '') > (d.at || '') ? m : d));
+  });
+  return out;
 }
 
 function indexBy(arr, key) {
@@ -4673,7 +4702,7 @@ function resolveConflict() {
       const t = p && (p.tasks||[]).find(x => x.id === item.taskId);
       const c = t && (t.comments||[]).find(x => x.id === item.id);
       if (!c) return;
-      const _skip = ['id','no','likes','bookmarks'];
+      const _skip = ['id','no','likes','bookmarks','reads'];
       Object.keys(c).forEach(k => { if (!_skip.includes(k) && !(k in src)) delete c[k]; });
       Object.keys(src).forEach(k => { if (!_skip.includes(k)) c[k] = src[k]; });
       recalcHours(t);
@@ -5264,6 +5293,23 @@ function renderSidebar() {
 // MY TASKS
 // ═══════════════════════════════════════
 
+// メンションの既読管理。コメントの reads 配列に { id:自分の名前, at:操作日時, read:true|false } を持つ（いいね同様に共有データへ保存）。
+// 記録がない場合の既定: 導入前（MENTION_READ_CUTOFF より前）のコメントは既読、以降は未読。
+const MENTION_READ_CUTOFF = '2026-11-02T00:00:00.000Z';
+function _isMentionRead(c, myName) {
+  const e = (c.reads || []).find(r => r.id === myName);
+  if (e) return !!e.read;
+  return (c.createdAt || '') < MENTION_READ_CUTOFF;
+}
+function _setMentionRead(c, myName, read) {
+  if (!c.reads) c.reads = [];
+  const at = new Date().toISOString();
+  const e = c.reads.find(r => r.id === myName);
+  if (e) { e.read = !!read; e.at = at; }
+  else c.reads.push({ id: myName, at, read: !!read });
+}
+
+// 未読メンション数（サイドバーのバッジ用）
 function _countMyMentions(myName) {
   if (!myName) return 0;
   const pattern = `@${myName}`;
@@ -5271,11 +5317,60 @@ function _countMyMentions(myName) {
   (state.data.projects || []).forEach(p => {
     (p.tasks || []).filter(t => t.status !== 'done').forEach(t => {
       (t.comments || []).forEach(c => {
-        if (c.text && c.text.includes(pattern)) count++;
+        if (c.text && c.text.includes(pattern) && !_isMentionRead(c, myName)) count++;
       });
     });
   });
   return count;
+}
+
+// 既読／未読の切替（カードのボタン用）
+function toggleMentionRead(pid, tid, cid) {
+  const myName = getMyName(); if (!myName) return;
+  const t = getTask(pid, tid); if (!t) return;
+  const c = (t.comments || []).find(x => x.id === cid); if (!c) return;
+  _setMentionRead(c, myName, !_isMentionRead(c, myName));
+  autoSave(pid, true);
+  renderSidebar();
+  renderMyTasks();
+}
+
+// カードを開いたら未読→既読にしてからタスクを開く
+function openMentionCard(pid, tid, commentNo, cid) {
+  const myName = getMyName();
+  const t = getTask(pid, tid);
+  const c = t && (t.comments || []).find(x => x.id === cid);
+  if (myName && c && !_isMentionRead(c, myName)) {
+    _setMentionRead(c, myName, true);
+    autoSave(pid, true);
+    renderSidebar();
+  }
+  openTaskPanelFromMyTasks(pid, tid, commentNo);
+  renderMyTasks();
+}
+
+// 表示中のメンションをまとめて既読にする
+function markAllMentionsRead() {
+  const myName = getMyName(); if (!myName) return;
+  const pf = document.getElementById('my-mention-proj-filter')?.value || '';
+  const sf = document.getElementById('my-mention-stat-filter')?.value || 'open';
+  const pattern = `@${myName}`;
+  let n = 0;
+  (state.data.projects || []).forEach(p => {
+    if (pf && p.id !== pf) return;
+    let pd = false;
+    (p.tasks || []).forEach(t => {
+      if (sf === 'open' && t.status === 'done') return;
+      (t.comments || []).forEach(c => {
+        if (c.text && c.text.includes(pattern) && !_isMentionRead(c, myName)) { _setMentionRead(c, myName, true); n++; pd = true; }
+      });
+    });
+    if (pd) autoSave(p.id, true);
+  });
+  if (!n) { toast('未読のメンションはありません', 'info'); return; }
+  renderSidebar();
+  renderMyTasks();
+  toast(`${n}件を既読にしました`, 'success');
 }
 
 function _countMyTasks(myName) {
@@ -5353,6 +5448,7 @@ function renderMyTasks() {
   // フィルター値取得（DOM から）
   const mentionProjFilter = document.getElementById('my-mention-proj-filter')?.value || '';
   const mentionStatFilter = document.getElementById('my-mention-stat-filter')?.value || 'open';
+  const mentionReadFilter = document.getElementById('my-mention-read-filter')?.value || 'all';
   const taskProjFilter    = document.getElementById('my-task-proj-filter')?.value    || '';
   const taskStatFilter    = document.getElementById('my-task-stat-filter')?.value    || 'open';
 
@@ -5397,6 +5493,8 @@ function renderMyTasks() {
       });
     });
     mentions.sort((a,b) => b.comment.createdAt.localeCompare(a.comment.createdAt));
+    const unreadTotal = mentions.filter(m => !_isMentionRead(m.comment, myName)).length;
+    if (mentionReadFilter === 'unread') mentions = mentions.filter(m => !_isMentionRead(m.comment, myName));
 
     contentHtml = `
       <div class="my-tasks-filter-bar">
@@ -5407,7 +5505,12 @@ function renderMyTasks() {
           <option value="open">完了以外</option>
           <option value="all">すべて</option>
         </select>
-        <span style="font-size:12px;color:var(--muted);margin-left:4px">${mentions.length}件</span>
+        <select id="my-mention-read-filter" onchange="renderMyTasks()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:12px;padding:4px 8px;border-radius:var(--radius);outline:none">
+          <option value="all">既読・未読: すべて</option>
+          <option value="unread">未読のみ</option>
+        </select>
+        <span style="font-size:12px;color:var(--muted);margin-left:4px">${mentions.length}件（未読 ${unreadTotal}）</span>
+        <button onclick="markAllMentionsRead()" ${unreadTotal ? '' : 'disabled'} style="margin-left:auto;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:12px;padding:4px 10px;border-radius:var(--radius);cursor:pointer;${unreadTotal ? '' : 'opacity:.5;cursor:default'}">すべて既読にする</button>
       </div>
       ${mentions.length ? mentions.map(({project:p, task:t, comment:c, commentNo}) => {
         const s = SMAP[t.status]||SMAP['todo'];
@@ -5417,14 +5520,17 @@ function renderMyTasks() {
         );
         const hash = buildTaskHash(p, t, commentNo);
         const commentUrl = window.location.href.split('#')[0] + hash;
-        return `<div class="my-mention-card" onclick="openTaskPanelFromMyTasks('${p.id}','${t.id}',${commentNo})">
+        const isRead = _isMentionRead(c, myName);
+        return `<div class="my-mention-card${isRead ? ' is-read' : ' is-unread'}" onclick="openMentionCard('${p.id}','${t.id}',${commentNo},'${c.id}')">
           <div class="my-mention-meta">
+            ${isRead ? '' : '<span class="mention-unread-dot" title="未読">●</span>'}
             <span class="my-mention-proj" style="background:${p.color||'#4f8eff'}22;color:${p.color||'#4f8eff'}">${esc(p.name)}</span>
             <span class="my-mention-task">#${t.number} ${esc(t.title)}</span>
             <span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--surface3);color:var(--muted);padding:1px 6px;border-radius:3px">C${commentNo}</span>
             <span class="my-mention-author">${esc(c.author||'匿名')}</span>
             <span style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44;border-radius:10px;font-size:10px;font-weight:600;padding:1px 7px">${s.label}</span>
             <span class="my-mention-date">${fmtDatetime(c.createdAt)}</span>
+            <button onclick="event.stopPropagation();toggleMentionRead('${p.id}','${t.id}','${c.id}')" title="${isRead ? '未読に戻す' : '既読にする'}" class="mention-read-btn">${isRead ? '↩ 未読に戻す' : '✓ 既読にする'}</button>
             <button onclick="event.stopPropagation();navigator.clipboard.writeText('${commentUrl}').then(()=>toast('リンクをコピーしました','success'))" title="コメントリンクをコピー" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 3px" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">🔗</button>
           </div>
           <div class="my-mention-text">${highlighted}</div>
@@ -5527,6 +5633,7 @@ function renderMyTasks() {
   if (_myTasksTab === 'mention') {
     if (mentionProjFilter) { const el=document.getElementById('my-mention-proj-filter'); if(el) el.value=mentionProjFilter; }
     if (mentionStatFilter) { const el=document.getElementById('my-mention-stat-filter'); if(el) el.value=mentionStatFilter; }
+    if (mentionReadFilter) { const el=document.getElementById('my-mention-read-filter'); if(el) el.value=mentionReadFilter; }
   } else {
     if (taskProjFilter)    { const el=document.getElementById('my-task-proj-filter');    if(el) el.value=taskProjFilter; }
     if (taskStatFilter)    { const el=document.getElementById('my-task-stat-filter');    if(el) el.value=taskStatFilter; }
@@ -6309,8 +6416,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.0';
-const APP_VERSION_DATE = '2026-10-30';
+const APP_VERSION      = '1.2.1';
+const APP_VERSION_DATE = '2026-11-02';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -6835,6 +6942,7 @@ function renameMyName() {
         if (c.author === oldName) { c.author = trimmed; dirty = true; }
         (c.likes     || []).forEach(l => { if (l.id === oldName) { l.id = trimmed; dirty = true; } });
         (c.bookmarks || []).forEach(b => { if (b.id === oldName) { b.id = trimmed; dirty = true; } });
+        (c.reads     || []).forEach(r => { if (r.id === oldName) { r.id = trimmed; dirty = true; } });
         // @メンションをテキスト内で置換
         if (c.text && c.text.includes(`@${oldName}`)) {
           c.text = c.text.split(`@${oldName}`).join(`@${trimmed}`);
