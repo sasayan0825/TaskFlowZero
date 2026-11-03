@@ -2,6 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<!-- v1.2.3: CSP（多層防御）。外部通信はCDN(jsdelivr)のみ許可。
+     プラグインで外部API等へ通信する場合は connect-src にそのオリジンを追加してください。 -->
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; script-src 'self' file: 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' file: data: https://fonts.gstatic.com; img-src 'self' file: data: blob: https:; connect-src 'self' file: blob: data: https://cdn.jsdelivr.net">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <script>
 // スマホモード判定: File System Access API が無い端末で有効。?mobile=1 で強制ON、?mobile=0 で強制OFF
@@ -59,10 +62,13 @@
 <script>
 // CDN → ローカルファイル フォールバックローダー
 // 同フォルダに marked.min.js / chart.min.js を置くとオフライン環境でも動作します
+// v1.2.3: CDN版はバージョン固定＋SRI（改ざん検知）。ハッシュが一致しない場合は実行されず、ローカルにフォールバックします。
 (function() {
-  function loadScript(cdnUrl, localFile, onload) {
+  function loadScript(cdnUrl, sri, localFile, onload) {
     var s = document.createElement('script');
     s.src = cdnUrl;
+    s.integrity = sri;
+    s.crossOrigin = 'anonymous';
     s.onload = onload || null;
     s.onerror = function() {
       var s2 = document.createElement('script');
@@ -76,7 +82,8 @@
     document.head.appendChild(s);
   }
   loadScript(
-    'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
+    'https://cdn.jsdelivr.net/npm/marked@18.1.1/lib/marked.umd.js',
+    'sha384-rATToyt6602Jnq8c7w8HZwmyOUgPL7mzxX01FBWoV48ns/EgkakGozpES+PnaYOI',
     'marked.min.js',
     function() {
       try {
@@ -85,6 +92,7 @@
             var code, L;
             if (tok && typeof tok === 'object') { code = tok.text||''; L = tok.lang||'plaintext'; }
             else { code = String(tok||''); L = String(lang||'plaintext'); }
+            L = String(L).replace(/[^\w+#.\-]/g, '') || 'plaintext';
             var h = window._hlFn ? window._hlFn(code, L)
               : code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             return '<pre><code class="hljs language-'+L+'">'+h+'</code></pre>\n';
@@ -99,7 +107,8 @@
     }
   );
   loadScript(
-    'https://cdn.jsdelivr.net/npm/chart.js',
+    'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js',
+    'sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ',
     'chart.min.js'
   );
 })();
@@ -2775,7 +2784,7 @@ function renderPluginList() {
         <input type="checkbox" class="plugin-enabled-cb" data-file="${esc(name)}"
           ${isEnabled ? 'checked' : ''}
           style="width:15px;height:15px;accent-color:var(--accent2);cursor:pointer;flex-shrink:0"
-          onchange="togglePluginEnabled('${esc(name)}',this.checked,this.closest('.plugin-list-item'))">
+          onchange="togglePluginEnabled('${jsq(name)}',this.checked,this.closest('.plugin-list-item'))">
       </label>
       <div style="flex:1;min-width:0;margin-left:10px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -2786,7 +2795,7 @@ function renderPluginList() {
           ${description ? esc(description) : '<span style="font-style:italic;opacity:.6">説明未登録</span>'}
         </div>
       </div>
-      ${hasSettings ? `<button class="icon-btn" title="${esc(displayName)}の設定" onclick="openPluginConfig('${esc(name)}')">⚙️</button>` : ''}
+      ${hasSettings ? `<button class="icon-btn" title="${esc(displayName)}の設定" onclick="openPluginConfig('${jsq(name)}')">⚙️</button>` : ''}
       <button class="plugin-del-btn" title="削除" onclick="removePlugin(${idx})">🗑</button>`;
 
     // ドラッグ&ドロップ（既存ロジック流用）
@@ -3189,7 +3198,7 @@ async function initFolderHistory() {
     item.innerHTML = `
       <span class="folder-history-icon">📁</span>
       <div class="folder-history-info">
-        <div class="folder-history-name" title="${entry.name}">${entry.name}</div>
+        <div class="folder-history-name" title="${esc(entry.name)}">${esc(entry.name)}</div>
         <div class="folder-history-meta">${hasPerm ? '✅ アクセス許可あり' : '🔑 許可が必要'} · ${_fmtHistoryDate(entry.lastAccessed)}</div>
       </div>
       <button class="btn btn-primary btn-sm folder-history-open" data-idx="${idx}">
@@ -3490,6 +3499,7 @@ async function _loadLegacyFormat(text) {
 
 // プロジェクト・タスクのフィールド補完（マイグレーション共通）
 function _migrateProjectFields(projects) {
+  _tfzNeutralizeUnsafeIds(projects);   // v1.2.3: 不正なID・危険なキーを無効化（全ての読み込み・取り込み経路が通る）
   projects.forEach(p => {
     if (!p.milestones) p.milestones = [];
     // v1.1.6〜: Wikiを複数ページ化。既存の単一ページ文字列(p.wiki)はHomeページへ移行
@@ -5135,11 +5145,13 @@ function initials(n){ if(!n)return'?'; const p=n.trim().split(/\s+/); return p.l
 // className: 適用するCSSクラス（member-avatar / comment-avatar / assignee-avatar / mention-avatar）
 // extraStyle: 追加インラインスタイル文字列
 function avatarHtml(name, className='member-avatar', extraStyle='') {
-  const dataUrl = name && state.avatars && state.avatars[name];
+  let dataUrl = name && state.avatars && state.avatars[name];
+  // v1.2.3: avatars.json は共有フォルダ上のデータなので、画像のdata URL以外は使わない
+  if (dataUrl && !/^data:image\/(?:png|jpe?g|gif|webp);base64,[A-Za-z0-9+\/=]+$/.test(dataUrl)) dataUrl = null;
   if (dataUrl) {
     return `<img class="${className}" src="${dataUrl}" title="${esc(name)}" style="object-fit:cover;${extraStyle}" alt="${esc(initials(name))}">`;
   }
-  return `<div class="${className}" title="${esc(name)}" style="${extraStyle}">${initials(name||'?')}</div>`;
+  return `<div class="${className}" title="${esc(name)}" style="${extraStyle}">${esc(initials(name||'?'))}</div>`;
 }
 
 // avatars.json を読み込み state.avatars に反映
@@ -5182,6 +5194,140 @@ function getLabelColor(l, projectId) {
   return cs[Math.abs(h) % cs.length];
 }
 function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ═══════════════════════════════════════
+// SECURITY HELPERS（v1.2.3）
+// ═══════════════════════════════════════
+// インラインハンドラ（onclick="f('...')"）の JS 文字列リテラルへ値を埋め込むためのエスケープ。
+// 英数字・_ ・- ・. ・: ・/ ・# ・% などはそのまま、JS/HTML の特殊文字だけを \uXXXX にする。
+function jsq(s){
+  return String(s == null ? '' : s).replace(/[\\'"<>&`$\u0000-\u001f\u007f\u2028\u2029]/g,
+    c => '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4));
+}
+// HTML属性値（"..."）用。esc() と違い & は変換しない（marked が出力した &amp; を二重にエスケープしないため）
+function escAttrKeep(s){ return String(s == null ? '' : s).replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;'); }
+
+// Markdown → HTML 変換結果のサニタイズ（ホワイトリスト方式）。
+// marked は生HTMLをそのまま通すため、そのまま innerHTML へ入れると <img onerror=…> や javascript: リンクが実行される。
+const _SAN_TAGS = new Set(('a abbr b blockquote br caption code col colgroup dd del details div dl dt em h1 h2 h3 h4 h5 h6 hr i img input ins kbd li mark ol p pre q s samp small span strike strong sub summary sup table tbody td tfoot th thead tr u ul var').split(' '));
+const _SAN_DROP = new Set(('script style iframe frame frameset object embed applet link meta base form svg math template noscript title head textarea select option button audio video source track canvas dialog xmp plaintext listing noembed noframes portal').split(' '));
+const _SAN_ATTR = {
+  a: ['href'], img: ['src','alt','width','height'], td: ['colspan','rowspan','align'], th: ['colspan','rowspan','align','scope'],
+  ol: ['start','type'], ul: ['type'], li: ['value'], details: ['open'], input: ['type','checked','disabled'],
+  col: ['span'], colgroup: ['span']
+};
+const _SAN_GLOBAL_ATTR = ['class','title','lang','dir','style'];
+const _SAN_SCHEMES_LINK = ['http','https','mailto','tel','tfz','wiki','file','ftp','msteams'];
+const _SAN_SCHEMES_IMG  = ['http','https','tfz','blob','file'];
+function _sanUrlOk(v, schemes, isImg){
+  const s = String(v).replace(/[\u0000-\u0020\u007f-\u009f\u00ad\u200b-\u200f\u2028\u2029\ufeff]/g, '');
+  const m = /^([a-z][a-z0-9+.\-]*):/i.exec(s);
+  if (!m) return true;   // 相対URL・#アンカー
+  const p = m[1].toLowerCase();
+  if (isImg && p === 'data') return /^data:image\/(?:png|jpe?g|gif|webp|bmp|avif)[;,]/i.test(s);
+  return schemes.includes(p);
+}
+function _sanStyleOk(v){
+  return !/url\s*\(|expression|@import|javascript:|behavior|binding|\\|position\s*:\s*(?:fixed|absolute|sticky)|z-index/i.test(String(v));
+}
+function _sanClass(v){
+  // コードのシンタックスハイライト用（hljs-* / language-*）以外の class は、アプリのUI部品に成りすませるため残さない
+  return String(v).split(/\s+/).filter(c => /^(?:hljs[\w-]*|language-[\w+#.\-]*)$/.test(c)).join(' ');
+}
+function _sanOnce(html){
+  const doc = new DOMParser().parseFromString('<!DOCTYPE html><html><body>' + html + '</body></html>', 'text/html');
+  const body = doc.body;
+  const cw = doc.createTreeWalker(body, NodeFilter.SHOW_COMMENT);
+  const comments = [];
+  while (cw.nextNode()) comments.push(cw.currentNode);
+  comments.forEach(n => n.parentNode && n.parentNode.removeChild(n));
+  const els = Array.from(body.querySelectorAll('*'));
+  for (const el of els) {
+    if (!el.parentNode) continue;                       // 取り除かれた要素の内側
+    const tag = el.tagName.toLowerCase();
+    if (_SAN_DROP.has(tag)) { el.parentNode.removeChild(el); continue; }
+    if (!_SAN_TAGS.has(tag)) {                          // 未知のタグは中身だけ残す
+      const parent = el.parentNode;
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+      continue;
+    }
+    const allowed = _SAN_ATTR[tag] || [];
+    for (const a of Array.from(el.attributes)) {
+      const n = a.name.toLowerCase();
+      if (!(allowed.includes(n) || _SAN_GLOBAL_ATTR.includes(n))) { el.removeAttribute(a.name); continue; }
+      if (n === 'href') { if (!_sanUrlOk(a.value, _SAN_SCHEMES_LINK, false)) el.removeAttribute(a.name); }
+      else if (n === 'src') { if (!_sanUrlOk(a.value, _SAN_SCHEMES_IMG, true)) el.removeAttribute(a.name); }
+      else if (n === 'style') { if (!_sanStyleOk(a.value)) el.removeAttribute(a.name); }
+      else if (n === 'class') { const c = _sanClass(a.value); if (c) el.setAttribute('class', c); else el.removeAttribute('class'); }
+    }
+    if (tag === 'input') {
+      if ((el.getAttribute('type') || '').toLowerCase() !== 'checkbox') { el.parentNode.removeChild(el); continue; }
+      el.setAttribute('disabled', '');
+    }
+  }
+  return body.innerHTML;
+}
+function sanitizeMdHtml(html){
+  // 再パースしても内容が変わらない形になるまで2回通す（mutation XSS 対策）
+  return _sanOnce(_sanOnce(String(html == null ? '' : html)));
+}
+function mdParse(raw){ return sanitizeMdHtml(marked.parse(raw)); }
+
+// 読み込んだプロジェクトJSON内の不正なID・キーを無効化する。
+// IDは多数の onclick / data-* 属性へ埋め込まれるため、形式を限定する。
+// 安全でないIDは、そのIDを参照している箇所も含めて決定的に別の安全なIDへ置き換える（参照関係は保たれる）。
+const _TFZ_SAFE_ID_RE = /^[A-Za-z0-9_.:\-]{1,128}$/;
+const _TFZ_ID_KEY_RE  = /^(?:id|[A-Za-z0-9_]*Ids?|[A-Za-z0-9_]*_ids?)$/;
+const _TFZ_DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+function _tfzHash8(s){ let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); }
+function _tfzNeutralizeUnsafeIds(projects){
+  if (!Array.isArray(projects)) return;
+  const bad = new Map();
+  let dangerous = 0;
+  const collect = (v, key, depth) => {
+    if (depth > 40) return;
+    if (Array.isArray(v)) { for (const x of v) collect(x, key, depth + 1); return; }
+    if (v && typeof v === 'object') { for (const k of Object.keys(v)) collect(v[k], k, depth + 1); return; }
+    if (typeof v === 'string' && v !== '' && !_TFZ_SAFE_ID_RE.test(v) && _TFZ_ID_KEY_RE.test(key || '')) bad.set(v, 'x_' + _tfzHash8(v));
+  };
+  const fix = (v, depth) => {
+    if (depth > 40) return v;
+    if (typeof v === 'string') return bad.has(v) ? bad.get(v) : v;
+    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = fix(v[i], depth + 1); return v; }
+    if (v && typeof v === 'object') {
+      for (const k of Object.keys(v)) {
+        if (_TFZ_DANGEROUS_KEYS.includes(k)) { delete v[k]; dangerous++; continue; }
+        const nk = bad.has(k) ? bad.get(k) : k;
+        const nv = fix(v[k], depth + 1);
+        if (nk !== k) delete v[k];
+        v[nk] = nv;
+      }
+    }
+    return v;
+  };
+  projects.forEach(p => collect(p, '', 0));
+  projects.forEach(p => fix(p, 0));
+  // 番号は数値に限定（"P${number}-…" 形式の参照・ファイルキーで文字列連結されるため）
+  for (const p of projects) {
+    if (!p || typeof p !== 'object') continue;
+    if (p.number != null && typeof p.number !== 'number') p.number = parseInt(p.number, 10) || 0;
+    for (const t of (Array.isArray(p.tasks) ? p.tasks : [])) {
+      if (!t || typeof t !== 'object') continue;
+      if (t.number != null && typeof t.number !== 'number') t.number = parseInt(t.number, 10) || 0;
+      for (const c of (Array.isArray(t.comments) ? t.comments : [])) {
+        if (c && typeof c === 'object' && c.no != null && typeof c.no !== 'number') c.no = parseInt(c.no, 10) || 0;
+      }
+    }
+  }
+  if (bad.size || dangerous) {
+    console.warn('[TaskFlowZero] 不正な形式のID/キーを無効化しました:', bad.size, '件のID,', dangerous, '件のキー');
+    if (!window._tfzIdWarned) {
+      window._tfzIdWarned = true;
+      try { toast('データに不正な形式のIDまたはキーが含まれていたため、無効化しました', 'warn', 6000); } catch (e) {}
+    }
+  }
+}
 function dateToNum(d){ return d?new Date(d+'T00:00:00').getTime():null; }
 function addDays(d,n){ const x=new Date(d+'T00:00:00'); x.setDate(x.getDate()+n); return localDateStr(x); }
 
@@ -5558,7 +5704,7 @@ function renderMyTasks() {
         const hash = buildTaskHash(p, t, commentNo);
         const commentUrl = window.location.href.split('#')[0] + hash;
         const isRead = _isMentionRead(c, myName);
-        return `<div class="my-mention-card${isRead ? ' is-read' : ' is-unread'}" onclick="openMentionCard('${p.id}','${t.id}',${commentNo},'${c.id}')">
+        return `<div class="my-mention-card${isRead ? ' is-read' : ' is-unread'}" onclick="openMentionCard('${jsq(p.id)}','${jsq(t.id)}',${commentNo},'${jsq(c.id)}')">
           <div class="my-mention-meta">
             ${isRead ? '' : '<span class="mention-unread-dot" title="未読">●</span>'}
             <span class="my-mention-proj" style="background:${p.color||'#4f8eff'}22;color:${p.color||'#4f8eff'}">${esc(p.name)}</span>
@@ -5567,8 +5713,8 @@ function renderMyTasks() {
             <span class="my-mention-author">${esc(c.author||'匿名')}</span>
             <span style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44;border-radius:10px;font-size:10px;font-weight:600;padding:1px 7px">${s.label}</span>
             <span class="my-mention-date">${fmtDatetime(c.createdAt)}</span>
-            <button onclick="event.stopPropagation();toggleMentionRead('${p.id}','${t.id}','${c.id}')" title="${isRead ? '未読に戻す' : '既読にする'}" class="mention-read-btn">${isRead ? '↩ 未読に戻す' : '✓ 既読にする'}</button>
-            <button onclick="event.stopPropagation();navigator.clipboard.writeText('${commentUrl}').then(()=>toast('リンクをコピーしました','success'))" title="コメントリンクをコピー" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 3px" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">🔗</button>
+            <button onclick="event.stopPropagation();toggleMentionRead('${jsq(p.id)}','${jsq(t.id)}','${jsq(c.id)}')" title="${isRead ? '未読に戻す' : '既読にする'}" class="mention-read-btn">${isRead ? '↩ 未読に戻す' : '✓ 既読にする'}</button>
+            <button onclick="event.stopPropagation();navigator.clipboard.writeText('${jsq(commentUrl)}').then(()=>toast('リンクをコピーしました','success'))" title="コメントリンクをコピー" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 3px" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">🔗</button>
           </div>
           <div class="my-mention-text">${highlighted}</div>
         </div>`;
@@ -5640,7 +5786,7 @@ function renderMyTasks() {
           const ms = getMilestone(p, t.milestoneId);
           const diff = daysDiff(t.dueDate);
           const dueCls = diff!==null?(diff<0?'color:var(--red)':diff<=3?'color:var(--yellow)':''):'';
-          return `<tr class="my-tasks-row" style="border-bottom:1px solid var(--border)" onclick="openTaskPanelFromMyTasks('${p.id}','${t.id}')">
+          return `<tr class="my-tasks-row" style="border-bottom:1px solid var(--border)" onclick="openTaskPanelFromMyTasks('${jsq(p.id)}','${jsq(t.id)}')">
             <td style="padding:7px 8px;font-family:'JetBrains Mono',monospace;color:var(--muted)">#${t.number||'?'}</td>
             <td style="padding:7px 8px;font-weight:500">${esc(t.title)}</td>
             <td style="padding:7px 8px">${t.priority==='high'?'<span class="priority-flag priority-high" title="優先度: 高">↑</span>':t.priority==='low'?'<span class="priority-flag priority-low" title="優先度: 低">↓</span>':'<span style="color:var(--muted);font-size:12px">—</span>'}</td>
@@ -5779,7 +5925,7 @@ function _buildActivityEvents(myName) {
       // チェックリスト操作（自分が行ったもの）
       (t.activity || []).forEach(a => {
         if (a.type !== 'checklist' || !a.by || a.by !== myName || !a.at) return;
-        add(a.at, { type:'checklist', icon: a.icon||'☑', text:`${a.text}`, pid:p.id, tid:t.id, pname:p.name, pc });
+        add(a.at, { type:'checklist', icon: esc(a.icon)||'☑', text:esc(a.text), pid:p.id, tid:t.id, pname:p.name, pc });
       });
     });
   });
@@ -5793,8 +5939,8 @@ function _buildActivityEvents(myName) {
 // コメント投稿・工数記録は、投稿したコメントまでスクロールするためコメント番号を渡す。
 function _activityOpenCall(ev) {
   return ev.commentNo != null
-    ? `openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}',${ev.commentNo})`
-    : `openTaskPanelFromMyTasks('${ev.pid}','${ev.tid}')`;
+    ? `openTaskPanelFromMyTasks('${jsq(ev.pid)}','${jsq(ev.tid)}',${ev.commentNo})`
+    : `openTaskPanelFromMyTasks('${jsq(ev.pid)}','${jsq(ev.tid)}')`;
 }
 
 function _renderActivityTimelineView(sorted) {
@@ -5887,7 +6033,7 @@ function _renderActivityTimelineView(sorted) {
       const y = ys[i];
       if (r.type === 'group') {
         const first = _timeOf(r.items[0]), last = _timeOf(r.items[r.items.length-1]);
-        return `<div class="activity-timeline-node" style="position:absolute;left:0;right:0;top:${y-8}px;display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0" onclick="toggleActivityTimelineGroup('${r.key}')">
+        return `<div class="activity-timeline-node" style="position:absolute;left:0;right:0;top:${y-8}px;display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0" onclick="toggleActivityTimelineGroup('${jsq(r.key)}')">
           <span style="position:absolute;left:-50px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap">${first}</span>
           <span style="width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;margin-left:-8px">${r.items.length}</span>
           <span class="activity-timeline-card" style="font-weight:600;color:var(--accent)">
@@ -5900,7 +6046,7 @@ function _renderActivityTimelineView(sorted) {
 
     const allExpanded = multiGroupKeys.length > 0 && multiGroupKeys.every(k => !!_myActivityTimelineExpanded[k]);
     const toggleAllHtml = multiGroupKeys.length ? `<div style="margin-bottom:10px">
-      <button class="activity-view-btn" onclick='toggleAllActivityTimelineGroups(${JSON.stringify(multiGroupKeys)}, ${!allExpanded})'>${allExpanded ? '▲ すべて折りたたむ' : `▼ すべて展開 (${multiGroupKeys.length}件)`}</button>
+      <button class="activity-view-btn" onclick="toggleAllActivityTimelineGroups(${esc(JSON.stringify(multiGroupKeys))}, ${!allExpanded})">${allExpanded ? '▲ すべて折りたたむ' : `▼ すべて展開 (${multiGroupKeys.length}件)`}</button>
     </div>` : '';
 
     timelineHtml = `${toggleAllHtml}<div id="activity-timeline-track" style="position:relative;margin-left:76px;padding:6px 0;height:${trackH+20}px">
@@ -6059,7 +6205,7 @@ function _renderActivityTabContent(myName) {
       const isSel = day.ds === _myActivitySelDate;
       const strokeAttr = isSel ? ` stroke="var(--accent2)" stroke-width="1.5"` : '';
       if (day.count >= 0) {
-        inner += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${color}"${strokeAttr} style="cursor:pointer" onclick="selectActivityDate('${day.ds}')"><title>${day.ds} (${day.count}件)</title></rect>`;
+        inner += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${color}"${strokeAttr} style="cursor:pointer" onclick="selectActivityDate('${jsq(day.ds)}')"><title>${day.ds} (${day.count}件)</title></rect>`;
       } else {
         inner += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" fill="${color}"/>`;
       }
@@ -6159,7 +6305,7 @@ function _renderActivityTabContent(myName) {
         if (!mOpen) return;
         mn.tasks.forEach((tn, tid) => {
           perfRows += `
-            <tr class="activity-perf-row" style="cursor:pointer" onclick="openTaskPanelFromMyTasks('${p.id}','${tid}')">
+            <tr class="activity-perf-row" style="cursor:pointer" onclick="openTaskPanelFromMyTasks('${jsq(p.id)}','${jsq(tid)}')">
               <td style="${_td}"><div style="padding-left:56px;min-width:0"><span style="display:block;max-width:420px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(tn.title)}">${esc(tn.title || tid)}</span></div></td>${_cells(tn.sum)}
             </tr>`;
         });
@@ -6368,8 +6514,8 @@ function _renderLikesTabContent(myName) {
     const p = item.project, t = item.task, c = item.comment;
     const s = SMAP[t.status] || SMAP['todo'];
     const jump = c
-      ? `openTaskPanelFromMyTasks('${p.id}','${t.id}',${item.commentNo})`
-      : `openTaskPanelFromMyTasks('${p.id}','${t.id}')`;
+      ? `openTaskPanelFromMyTasks('${jsq(p.id)}','${jsq(t.id)}',${item.commentNo})`
+      : `openTaskPanelFromMyTasks('${jsq(p.id)}','${jsq(t.id)}')`;
     const targetBadge = c
       ? `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--surface3);color:var(--muted);padding:1px 6px;border-radius:3px">C${item.commentNo}</span>`
       : '';
@@ -6453,7 +6599,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.2';
+const APP_VERSION      = '1.2.3';
 const APP_VERSION_DATE = '2026-11-03';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
@@ -7220,10 +7366,10 @@ function renderProjectsList() {
       <div style="width:100%;height:3px;border-radius:3px 3px 0 0;background:${p.color||'#4f8eff'};position:absolute;top:0;left:0;right:0"></div>
       ${isArchived?'<div class="archive-badge">完了</div>':''}
       <div class="project-actions">
-        <button class="icon-btn" onclick="event.stopPropagation();openProjectModal('${p.id}')">✏️</button>
-        <button class="icon-btn" title="${isArchived?'未完了に戻す':'完了にする'}" onclick="event.stopPropagation();toggleArchiveProject('${p.id}')">${isArchived?'♻️':'📦'}</button>
-        <button class="icon-btn" title="プロジェクト設定" onclick="event.stopPropagation();openProjectSettings('${p.id}')">⚙️</button>
-        <button class="icon-btn del" onclick="event.stopPropagation();deleteProject('${p.id}')">🗑</button>
+        <button class="icon-btn" onclick="event.stopPropagation();openProjectModal('${jsq(p.id)}')">✏️</button>
+        <button class="icon-btn" title="${isArchived?'未完了に戻す':'完了にする'}" onclick="event.stopPropagation();toggleArchiveProject('${jsq(p.id)}')">${isArchived?'♻️':'📦'}</button>
+        <button class="icon-btn" title="プロジェクト設定" onclick="event.stopPropagation();openProjectSettings('${jsq(p.id)}')">⚙️</button>
+        <button class="icon-btn del" onclick="event.stopPropagation();deleteProject('${jsq(p.id)}')">🗑</button>
       </div>
       <div class="project-card-name" style="margin-top:${isArchived?'20px':'8px'};display:flex;align-items:center;gap:8px">${esc(p.name)}${pNumHtml}</div>
       <div class="project-card-desc">${esc(p.description||'')}</div>
@@ -7518,7 +7664,7 @@ function renderList() {
     const msTasks = grouped[ms.id]||[];
     if (!msTasks.length) return;
     const doneCount = msTasks.filter(t=>t.status==='done').length;
-    rows += `<tr class="list-ms-group-row" onclick="toggleMsGroup('mg-${ms.id}',this)"${ms.description?` data-ms-desc="${esc(ms.description)}"`:''}  ondragover="listMsDragOver(event,'${ms.id}')" ondragleave="listMsDragLeave(event)" ondrop="listMsDrop(event,'${ms.id}')">
+    rows += `<tr class="list-ms-group-row" onclick="toggleMsGroup('mg-${jsq(ms.id)}',this)"${ms.description?` data-ms-desc="${esc(ms.description)}"`:''}  ondragover="listMsDragOver(event,'${jsq(ms.id)}')" ondragleave="listMsDragLeave(event)" ondrop="listMsDrop(event,'${jsq(ms.id)}')">
       <td colspan="10">
         <span id="mg-arrow-${ms.id}" style="margin-right:6px;font-size:10px">▼</span>
         <span style="width:8px;height:8px;border-radius:50%;background:${ms.color||'#4f8eff'};display:inline-block;margin-right:6px;vertical-align:middle"></span>
@@ -7767,11 +7913,11 @@ function buildListRow(t) {
     </td>`;
   }
 
-  return `<tr draggable="true" data-task-id="${t.id}" onclick="openTaskPanel('${t.id}')"
-    ondragstart="listRowDragStart(event,'${t.id}')"
+  return `<tr draggable="true" data-task-id="${t.id}" onclick="openTaskPanel('${jsq(t.id)}')"
+    ondragstart="listRowDragStart(event,'${jsq(t.id)}')"
     ondragend="listRowDragEnd(event)"
-    ondragover="listRowDragOver(event,'${t.id}')"
-    ondrop="listRowDrop(event,'${t.id}')"
+    ondragover="listRowDragOver(event,'${jsq(t.id)}')"
+    ondrop="listRowDrop(event,'${jsq(t.id)}')"
     ondragleave="listRowDragLeave(event)">
     <td class="task-num-cell"><span class="list-drag-handle">⠿</span>#${t.number||'?'}</td>
     <td>
@@ -7967,7 +8113,7 @@ function renderBurndown() {
       </tr></thead>
       <tbody>${allRows.map(t => {
         const s = SMAP[t.status]||SMAP['todo'];
-        return `<tr style="cursor:pointer;border-bottom:1px solid var(--border)" onclick="openTaskPanel('${t.id}')" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+        return `<tr style="cursor:pointer;border-bottom:1px solid var(--border)" onclick="openTaskPanel('${jsq(t.id)}')" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
           <td style="padding:5px 8px;font-family:'JetBrains Mono',monospace;color:var(--muted)">#${t.number||'?'}</td>
           <td style="padding:5px 8px"><span style="display:inline-flex;align-items:center;gap:3px;background:${s.color}22;color:${s.color};border:1px solid ${s.color}44;border-radius:10px;font-size:10px;font-weight:600;padding:1px 7px;white-space:nowrap">${s.label}</span></td>
           <td style="padding:5px 8px">${esc(t.title)}</td>
@@ -8135,7 +8281,7 @@ function renderGantt() {
     leftEl.className='gantt-row milestone-row';
     leftEl.style.height=GANTT_ROW_H+'px';
     leftEl.innerHTML=`<div class="gantt-left-cell ms">
-      <span class="gantt-expand-btn" id="gexp-${m.id}" onclick="toggleGanttMs('${m.id}')">▼</span>
+      <span class="gantt-expand-btn" id="gexp-${m.id}" onclick="toggleGanttMs('${jsq(m.id)}')">▼</span>
       <div style="width:10px;height:10px;border-radius:50%;background:${m.color||'#4f8eff'};flex-shrink:0"></div>
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${esc(m.name)}">${esc(m.name)}</span>
       <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);flex-shrink:0">${mTasks.length}件</span>
@@ -8751,17 +8897,17 @@ function renderWikiPageList() {
     <div class="sidebar-item wiki-page-item${cur && pg.id===cur.id ? ' active' : ''}${editing ? ' wiki-page-locked' : ''}"
          data-wiki-page-id="${pg.id}"
          ${(orderLocked || editing) ? '' : `draggable="true"
-         ondragstart="wpDragStart(event,'${pg.id}')"
-         ondragover="wpDragOver(event,'${pg.id}')"
-         ondrop="wpDrop(event,'${pg.id}')"
+         ondragstart="wpDragStart(event,'${jsq(pg.id)}')"
+         ondragover="wpDragOver(event,'${jsq(pg.id)}')"
+         ondrop="wpDrop(event,'${jsq(pg.id)}')"
          ondragleave="wpDragLeave(event)"
          ondragend="wpDragEnd(event)"`}
-         onclick="switchWikiPage('${pg.id}')" title="${editing ? '編集中はページを切り替えられません（プレビューに戻ってから選択してください）' : esc(pg.title)}">
+         onclick="switchWikiPage('${jsq(pg.id)}')" title="${editing ? '編集中はページを切り替えられません（プレビューに戻ってから選択してください）' : esc(pg.title)}">
       ${orderLocked ? '' : `<span class="wiki-page-drag-handle" title="ドラッグで並び替え">⠿</span>`}
       <span class="proj-name">📄 ${esc(pg.title)}</span>
       <span class="wiki-page-item-actions">
-        <button class="wiki-page-item-action-btn" title="ページ名を変更" onclick="event.stopPropagation(); renameWikiPage('${pg.id}')">✏️</button>
-        <button class="wiki-page-item-action-btn" title="ページを削除" onclick="event.stopPropagation(); deleteWikiPage('${pg.id}')">🗑</button>
+        <button class="wiki-page-item-action-btn" title="ページ名を変更" onclick="event.stopPropagation(); renameWikiPage('${jsq(pg.id)}')">✏️</button>
+        <button class="wiki-page-item-action-btn" title="ページを削除" onclick="event.stopPropagation(); deleteWikiPage('${jsq(pg.id)}')">🗑</button>
       </span>
     </div>`;
   }).join('');
@@ -9055,7 +9201,7 @@ function buildWikiHtml(raw) {
   }
   try {
     // まず普通にパース（バージョン依存しない安全な方法）
-    let html = linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(raw))))));
+    let html = linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(mdParse(raw))))));
     // パース後のHTMLの見出しタグにアンカーIDを付与し、リンクコピー用アイコンを追加（正規表現で後処理）
     html = html.replace(/<h([1-4])>(.*?)<\/h\1>/gi, (match, level, text) => {
       // HTMLタグを除去してIDを生成
@@ -9248,8 +9394,8 @@ function renderMsList() {
         <div class="ms-list-date">${m.startDate?fmtFull(m.startDate):''} ${m.startDate&&m.endDate?'~':''} ${m.endDate?fmtFull(m.endDate):''} | タスク ${done}/${tasks.length}</div>
         ${m.description?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(m.description)}</div>`:''}
       </div>
-      <button class="btn btn-secondary btn-xs" onclick="editMilestone('${m.id}')">✏️ 編集</button>
-      <button class="btn btn-danger btn-xs" onclick="deleteMilestone('${m.id}')">🗑</button>`;
+      <button class="btn btn-secondary btn-xs" onclick="editMilestone('${jsq(m.id)}')">✏️ 編集</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteMilestone('${jsq(m.id)}')">🗑</button>`;
 
     // Drag events
     div.addEventListener('dragstart', msDragStart);
@@ -9717,7 +9863,7 @@ function _renderPsHolidays() {
   list.innerHTML = holidays.map(ds => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--surface2);border-radius:6px;font-size:12px">
       <span style="font-family:'JetBrains Mono',monospace">${esc(ds)}</span>
-      <button class="icon-btn" title="削除" onclick="removePsHoliday('${ds}')">🗑</button>
+      <button class="icon-btn" title="削除" onclick="removePsHoliday('${jsq(ds)}')">🗑</button>
     </div>`).join('');
 }
 
@@ -9750,8 +9896,8 @@ function _renderPsTemplates() {
     <div class="ps-item-row">
       <div class="ps-item-name">${esc(t.name)}</div>
       <div class="ps-item-meta">${clCount?`チェック${clCount}件`:'チェックリストなし'}</div>
-      <button class="btn btn-secondary btn-sm" onclick="openPsTemplateEditor('${t.id}')">編集</button>
-      <button class="btn btn-danger btn-sm"    onclick="deletePsTemplate('${t.id}')">削除</button>
+      <button class="btn btn-secondary btn-sm" onclick="openPsTemplateEditor('${jsq(t.id)}')">編集</button>
+      <button class="btn btn-danger btn-sm"    onclick="deletePsTemplate('${jsq(t.id)}')">削除</button>
     </div>`;
   }).join('');
 }
@@ -9801,8 +9947,8 @@ function _renderPsLabels() {
     <div class="ps-item-row">
       <div style="width:14px;height:14px;border-radius:50%;background:${esc(l.color)};flex-shrink:0"></div>
       <div class="ps-item-name">${esc(l.name)}</div>
-      <button class="btn btn-secondary btn-sm" onclick="openPsLabelEditor('${l.id}')">編集</button>
-      <button class="btn btn-danger btn-sm"    onclick="deletePsLabel('${l.id}')">削除</button>
+      <button class="btn btn-secondary btn-sm" onclick="openPsLabelEditor('${jsq(l.id)}')">編集</button>
+      <button class="btn btn-danger btn-sm"    onclick="deletePsLabel('${jsq(l.id)}')">削除</button>
     </div>`).join('');
 }
 
@@ -10711,7 +10857,8 @@ function linkifyTfz(html) {
   html = html.replace(/src="tfz:\/\/([^"]+)"/g, (_, key) => {
     const decodedKey = _decodeTfzKey(key);
     const url = tfzResolve(decodedKey);
-    return url ? `src="${url}" data-tfz="${decodedKey}"` : `src="" data-tfz-missing="${decodedKey}" alt="（ファイルが見つかりません: ${decodedKey}）"`;
+    const ek = escAttrKeep(decodedKey);   // v1.2.3: %22 等のデコード結果で属性を突き破れないようにする
+    return url ? `src="${url}" data-tfz="${ek}"` : `src="" data-tfz-missing="${ek}" alt="（ファイルが見つかりません: ${ek}）"`;
   });
   // <a href="tfz://..."> → ダウンロードリンク
   html = html.replace(/href="tfz:\/\/([^"]+)"/g, (_, key) => {
@@ -10719,9 +10866,10 @@ function linkifyTfz(html) {
     const url = tfzResolve(decodedKey);
     const rawFname = decodedKey.split('/').pop() || decodedKey;
     const fname = rawFname.replace(/^\d{17}_/, '');
+    const ek = escAttrKeep(decodedKey);
     return url
-      ? `href="${url}" download="${fname}" data-tfz="${decodedKey}"`
-      : `href="#" data-tfz-missing="${decodedKey}" onclick="return false"`;
+      ? `href="${url}" download="${escAttrKeep(fname)}" data-tfz="${ek}"`
+      : `href="#" data-tfz-missing="${ek}" onclick="return false"`;
   });
   // 添付ファイルへのリンクだと分かるよう、ファイル名の先頭にアイコンを付与
   // （画像は <img> になるため対象外。ダウンロードリンク/見つからない添付のみ対象）
@@ -11532,7 +11680,7 @@ function linkifyWikiLinks(html) {
     if (!page) {
       return `href="javascript:void(0)" class="wiki-ref-link wiki-ref-missing" title="Wikiページが見つかりません" onclick="return false"`;
     }
-    const safeRef = decoded.replace(/'/g, "\\'");
+    const safeRef = jsq(decoded);   // v1.2.3: \ や " を含む入力でも属性・文字列を抜けられないようにする
     const titleAttr = esc(proj.name + (headingId ? ' / ' + page.title : ' / ' + page.title + ' へのリンク'));
     return `href="javascript:void(0)" class="wiki-ref-link" title="${titleAttr}" onclick="navigateToWikiRef('${safeRef}');return false"`;
   });
@@ -11562,7 +11710,7 @@ function setMdMode(mode){
   const ta=document.getElementById('panel-desc');
   const pv=document.getElementById('panel-desc-preview');
   if(mode==='preview'){
-    pv.innerHTML=linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value||'*(内容なし)*'))))));
+    pv.innerHTML=linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(mdParse(ta.value||'*(内容なし)*'))))));
     pv.style.height='auto';
     pv.style.display='block'; ta.style.display='none';
     document.getElementById('md-edit-btn').classList.remove('active');
@@ -11981,17 +12129,22 @@ function _selfHighlight(raw, lang) {
   }).join('');
 }
 
-// デフォルトは自作ハイライター。CDN から hljs を 3 秒以内に取得できれば切り替え。
+// デフォルトは自作ハイライター。CDN から hljs を 3 秒以内に取得でき、かつ SHA-384 が一致したときだけ切り替え。
+// v1.2.3: バージョン固定＋ハッシュ検証（fetch したコードをそのまま実行しない）。
 window._hlFn = _selfHighlight;
 (function(){
-  const CDN = 'https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/highlight.min.js';
+  const CDN = 'https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.12.0/highlight.min.js';
+  const SRI_B64 = 'wjfDDhOPPdjtva8vWBhWeVprSpmxisEu5aYT3q1JyACqXpdKpo3PWZTMVq24MBix';
+  if (!(window.crypto && crypto.subtle && window.TextDecoder)) return;   // 検証できない環境では自作ハイライターのまま
   Promise.race([
-    fetch(CDN).then(function(r){ return r.ok ? r.text() : Promise.reject(new Error('HTTP '+r.status)); }),
+    fetch(CDN).then(function(r){ return r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP '+r.status)); }),
     new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('timeout')); }, 3000); })
-  ]).then(function(jsText){
-    try {
+  ]).then(function(buf){
+    return crypto.subtle.digest('SHA-384', buf).then(function(d){
+      const b64 = btoa(String.fromCharCode.apply(null, new Uint8Array(d)));
+      if (b64 !== SRI_B64) { console.warn('[TaskFlowZero] highlight.js のハッシュが一致しないため使用しません'); return; }
       const s = document.createElement('script');
-      s.textContent = jsText;
+      s.textContent = new TextDecoder('utf-8').decode(buf);
       document.head.appendChild(s);
       if (typeof hljs !== 'undefined') {
         window._hlFn = function(code, lang) {
@@ -12002,7 +12155,7 @@ window._hlFn = _selfHighlight;
           } catch(e) { return _selfHighlight(code, lang); }
         };
       }
-    } catch(e) {}
+    });
   }).catch(function(){ /* 自作ハイライターをそのまま使用 */ });
 })();
 
@@ -12193,7 +12346,7 @@ function setTmDescMode(mode) {
   const pBtn = document.getElementById('tm-desc-preview-btn');
   if (!ta || !pv) return;
   if (mode === 'preview') {
-    pv.innerHTML = linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*'))))));
+    pv.innerHTML = linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(mdParse(ta.value || '*(空)*'))))));
     pv.style.display = 'block';
     ta.style.display = 'none';
     eBtn.classList.remove('active');
@@ -12216,7 +12369,7 @@ function setPsTeDescMode(mode) {
   const pBtn = document.getElementById('ps-te-desc-preview-btn');
   if (!ta || !pv) return;
   if (mode === 'preview') {
-    pv.innerHTML = linkifyExternalLinks(marked.parse(ta.value || '*(空)*'));
+    pv.innerHTML = linkifyExternalLinks(mdParse(ta.value || '*(空)*'));
     pv.style.display = 'block';
     ta.style.display = 'none';
     eBtn.classList.remove('active');
@@ -12237,7 +12390,7 @@ function setCmtMode(mode) {
   const editBtn = document.getElementById('cmt-edit-btn');
   const prevBtn = document.getElementById('cmt-preview-btn');
   if (mode === 'preview') {
-    pv.innerHTML = linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(ta.value || '*(空)*'))))));
+    pv.innerHTML = linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(mdParse(ta.value || '*(空)*'))))));
     pv.style.display = 'block';
     ta.style.display = 'none';
     editBtn.classList.remove('active');
@@ -12312,7 +12465,7 @@ function renderTimeline(t) {
             <button onclick="startEditComment(${i})" title="編集" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">✏️</button>
             <button onclick="deleteComment(${i})" title="削除" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;border-radius:3px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">✕</button>
           </div>
-          <div class="md-preview" style="display:block;min-height:unset;border:none;padding:4px 8px;background:var(--surface2);border-radius:5px;font-size:12px">${linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(marked.parse(c.text||''))))))}</div>
+          <div class="md-preview" style="display:block;min-height:unset;border:none;padding:4px 8px;background:var(--surface2);border-radius:5px;font-size:12px">${linkifyWikiLinks(linkifyMentions(linkifyExternalLinks(linkifyTfz(linkifyTaskRefs(mdParse(c.text||''))))))}</div>
           ${effortBadge}
         </div>
       </div>`;

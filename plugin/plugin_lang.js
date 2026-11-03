@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.14',
+      version:     '1.3.15',
     });
   }
 
@@ -130,6 +130,7 @@
     '🔗 リンク切れ参照': '🔗 Broken References',
     '✅ 使用中のファイル': '✅ Files in Use',
     '♻️ ゴミ箱': '♻️ Trash',
+    'データに不正な形式のIDまたはキーが含まれていたため、無効化しました': 'Invalid IDs or keys found in the data were neutralized',
     'どこからも参照されていないファイルです。ゴミ箱へ移動しても、あとから元に戻せます。': 'Files that are not referenced anywhere. Even if moved to the trash, they can be restored later.',
     '本文に添付リンクがあるのに、ファイルが見つからないものです。参照元をクリックして、内容を修正してください。': 'Attachment links in the text whose file cannot be found. Click the source to fix its content.',
     'files/_trash フォルダに入っています。不要なら「ゴミ箱を空にする」で完全に削除します（エクスプローラーから _trash フォルダを削除してもかまいません）。': 'Stored in the files/_trash folder. If not needed, use "Empty Trash" to delete them permanently (you can also delete the _trash folder from your file explorer).',
