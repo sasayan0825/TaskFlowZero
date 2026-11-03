@@ -1073,6 +1073,34 @@ html.mobile-mode #wiki-page-link-btn{display:none}
 .sync-block{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;max-width:560px}
 .sync-block h4{margin:0 0 6px;font-size:14px;font-weight:600}
 .sync-block p{margin:0 0 12px;font-size:12px;color:var(--muted);line-height:1.7}
+/* 設定 → 添付ファイル */
+.att-sec{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;max-width:760px}
+.att-sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.att-sec-head h4{margin:0;font-size:14px;font-weight:600}
+.att-sec p{margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.7}
+.att-count{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.att-empty{font-size:12px;color:var(--muted);padding:6px 0}
+.att-scan-time{font-size:11px;color:var(--muted);margin-bottom:10px}
+.att-warn{font-size:12px;color:var(--text);background:rgba(255,170,0,.12);border:1px solid rgba(255,170,0,.4);border-radius:6px;padding:8px 10px;margin-bottom:12px;line-height:1.7;max-width:760px}
+.att-tools{margin-bottom:8px}
+.att-grp{margin-bottom:8px}
+.att-grp-head{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0;cursor:pointer}
+details.att-grp>summary.att-grp-head{list-style:revert}
+.att-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0 4px 18px;border-top:1px solid var(--border);flex-wrap:wrap}
+.att-row input[type=checkbox]{flex-shrink:0}
+.att-thumb{width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0;background:var(--surface3)}
+.att-thumb-none{display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+.att-name{color:var(--text);word-break:break-all;min-width:0}
+a.att-name{color:var(--accent2);text-decoration:none}
+a.att-name:hover{text-decoration:underline}
+.att-size{color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;margin-left:auto;padding-left:8px;white-space:nowrap}
+.att-refs{display:flex;flex-wrap:wrap;gap:4px 10px;flex-basis:100%;padding-left:36px}
+.att-row-broken .att-refs{flex-basis:auto;padding-left:0}
+.att-link{color:var(--accent2);cursor:pointer}
+.att-link:hover{text-decoration:underline}
+.att-more,.att-miss{color:var(--muted)}
+.att-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+html.mobile-mode #settings-nav-files{display:none !important}
 .settings-nav-item .sync-unsent{margin-left:8px}
 /* スマホの設定画面は縦積み。プラグインは使わない */
 html.mobile-mode #settings-view{padding:14px}
@@ -1252,6 +1280,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         <div id="settings-left" style="width:180px;flex-shrink:0;background:var(--surface2);border-right:1px solid var(--border);display:flex;flex-direction:column">
           <div id="settings-nav-version" class="settings-nav-item active" onclick="showSettingsPane('version')">📋 バージョン</div>
           <div id="settings-nav-sync"    class="settings-nav-item"        onclick="showSettingsPane('sync')">📱 スマホ連携<span id="sync-unsent" class="sync-unsent" style="display:none"></span></div>
+          <div id="settings-nav-files"   class="settings-nav-item"        onclick="showSettingsPane('files')">📎 添付ファイル</div>
           <div id="settings-nav-plugins" class="settings-nav-item"        onclick="showSettingsPane('plugins')">🔌 プラグイン</div>
         </div>
         <!-- 右ペイン -->
@@ -1301,6 +1330,14 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
                 </div>
               </div>
             </div>
+          </div>
+          <div id="settings-pane-files" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+              <div style="font-size:16px;font-weight:600;color:var(--text)">📎 添付ファイル</div>
+              <button class="btn btn-primary btn-sm" id="att-scan-btn" onclick="runAttScan()">🔍 スキャン</button>
+            </div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px">タスク・コメント・Wikiから参照されている添付ファイルと、どこからも参照されていないファイルを調べます。</div>
+            <div id="att-body"><div class="att-empty">スキャンすると結果が表示されます</div></div>
           </div>
           <div id="settings-pane-plugins" style="display:none">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
@@ -6416,8 +6453,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.1';
-const APP_VERSION_DATE = '2026-11-02';
+const APP_VERSION      = '1.2.2';
+const APP_VERSION_DATE = '2026-11-03';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -6444,12 +6481,13 @@ function showSettings() {
 }
 
 function showSettingsPane(pane) {
-  ['version','sync','plugins'].forEach(p => {
+  ['version','sync','files','plugins'].forEach(p => {
     document.getElementById('settings-pane-' + p).style.display = p === pane ? '' : 'none';
     const nav = document.getElementById('settings-nav-' + p);
     if (nav) nav.classList.toggle('active', p === pane);
   });
   if (pane === 'plugins') initPluginPane();
+  if (pane === 'files') renderAttPane();
   if (pane === 'sync') { renderSyncPane(); if (IS_MOBILE_MODE) refreshSyncBadge(); }
 }
 
@@ -10607,6 +10645,7 @@ async function initFileCache() {
     const filesDir = await state.rootDirHandle.getDirectoryHandle('files', { create: false });
     for await (const [pFolder, pHandle] of filesDir.entries()) {
       if (pHandle.kind !== 'directory') continue;
+      if (pFolder === '_trash') continue;   // 添付ファイル整理のゴミ箱（_ATT_TRASH）はキャッシュしない
       for await (const [fname, fHandle] of pHandle.entries()) {
         if (fHandle.kind !== 'file') continue;
         try {
@@ -10718,6 +10757,427 @@ function linkifyExternalLinks(html) {
 // 現在のプロジェクトIDを取得（コメント用：パネルが開いているタスクのプロジェクト）
 function _currentAttachProjectId() {
   return state.currentProjectId;
+}
+
+// ═══════════════════════════════════════
+// ATTACHMENT CLEANUP（設定 → 添付ファイル）
+// 使用中／孤立（どこからも参照されていない）／リンク切れ参照／ゴミ箱（files/_trash）
+// ═══════════════════════════════════════
+const _ATT_TRASH = '_trash';                       // files/ 直下のゴミ箱フォルダ名（initFileCache側はリテラルで除外）
+const _ATT_REF_RE = /tfz:\/\/(P\d+\/[^\s"'<>\\]+)/g;
+let _attScan = null;                               // 直近のスキャン結果
+let _attBusy = false;
+
+function _attNorm(s) { try { return String(s).normalize('NFC'); } catch (e) { return String(s); } }
+function _attFmtSize(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+}
+
+// 本文中の tfz:// 参照のキーを取り出す。末尾の「)」は Markdown の閉じ括弧として外す（ファイル名内の対の括弧は残す）
+function _attExtractKeys(text) {
+  const out = [];
+  if (typeof text !== 'string' || text.indexOf('tfz://') < 0) return out;
+  for (const m of text.matchAll(_ATT_REF_RE)) {
+    let k = m[1];
+    while (k.endsWith(')') && (k.split(')').length - 1) > (k.split('(').length - 1)) k = k.slice(0, -1);
+    out.push({ key: _attNorm(_decodeTfzKey(k)), index: m.index });
+  }
+  return out;
+}
+
+// プロジェクト内で添付リンクが入りうる文字列を集める（add(text, ctx)）。ctx はジャンプ先の情報
+function _attCollectStrings(p, add) {
+  (p.tasks || []).forEach(t => {
+    const ctx = { pid: p.id, kind: 'task', tid: t.id, label: `#P${p.number}-${t.number} ${t.title || ''}` };
+    add(t.title, ctx); add(t.description, ctx);
+    (t.comments || []).forEach(c => add(c.text, { ...ctx, kind: 'comment' }));
+    (t.checklist || []).forEach(cl => add(cl.text, ctx));
+  });
+  (p.wikiPages || []).forEach(w => add(w.content, { pid: p.id, kind: 'wiki', pageId: w.id, label: `Wiki: ${w.title || ''}` }));
+  const skip = new Set(['tasks', 'wikiPages']);
+  const walk = (v, ctx, depth) => {
+    if (depth > 6) return;
+    if (typeof v === 'string') add(v, ctx);
+    else if (Array.isArray(v)) v.forEach(x => walk(x, ctx, depth + 1));
+    else if (v && typeof v === 'object') Object.values(v).forEach(x => walk(x, ctx, depth + 1));
+  };
+  Object.keys(p).forEach(k => { if (!skip.has(k)) walk(p[k], { pid: p.id, kind: 'other', label: `P${p.number} ${k}` }, 0); });
+}
+
+// files/ を走査（_trash は別集計）
+async function _attListFiles() {
+  const files = new Map(), trash = [];
+  let filesDir;
+  try { filesDir = await state.rootDirHandle.getDirectoryHandle('files'); } catch (e) { return { files, trash }; }
+  for await (const [pName, pHandle] of filesDir.entries()) {
+    if (pHandle.kind !== 'directory') continue;
+    if (pName === _ATT_TRASH) {
+      for await (const [tp, tpHandle] of pHandle.entries()) {
+        if (tpHandle.kind !== 'directory') continue;
+        for await (const [fname, fh] of tpHandle.entries()) {
+          if (fh.kind !== 'file') continue;
+          try { const f = await fh.getFile(); trash.push({ key: `${tp}/${fname}`, pFolder: tp, fname, size: f.size }); } catch (e) {}
+        }
+      }
+      continue;
+    }
+    for await (const [fname, fh] of pHandle.entries()) {
+      if (fh.kind !== 'file') continue;
+      try {
+        const f = await fh.getFile();
+        const key = `${pName}/${fname}`;
+        files.set(_attNorm(key), { key, pFolder: pName, fname, size: f.size, used: false, refs: [] });
+      } catch (e) {}
+    }
+  }
+  return { files, trash };
+}
+
+// 他の人が保存したばかりの参照も見逃さないよう、ディスク上の project_P*.json（競合コピー含む）も走査する
+async function _attDiskSnippets() {
+  const snippets = [];
+  let partial = false;
+  for await (const [name, h] of state.rootDirHandle.entries()) {
+    if (h.kind !== 'file' || !/^project_P\d+.*\.json$/i.test(name)) continue;
+    try {
+      const text = await (await h.getFile()).text();
+      for (const m of text.matchAll(/tfz:\/\/[^"\\]{0,300}/g)) snippets.push(_attNorm(m[0]));
+    } catch (e) { partial = true; }
+  }
+  return { snippets, partial };
+}
+
+async function scanAttachments() {
+  if (!state.rootDirHandle) throw new Error('フォルダが開かれていません');
+  if (!state.data || !(state.data.projects || []).length) throw new Error('プロジェクトが読み込まれていません');
+  const { files, trash } = await _attListFiles();
+
+  // 参照スニペット（tfz:// から最大300文字）を集める。メモリ上のデータ＋ディスク上のJSON
+  const mem = [];          // { text, ctx }
+  const addStr = (text, ctx) => {
+    if (typeof text !== 'string' || text.indexOf('tfz://') < 0) return;
+    const nt = _attNorm(text);
+    for (const m of nt.matchAll(/tfz:\/\/[^\n\r"\\]{0,300}/g)) mem.push({ text: m[0], ctx });
+  };
+  state.data.projects.forEach(p => _attCollectStrings(p, addStr));
+  const disk = await _attDiskSnippets();
+  const allSnips = mem.map(x => x.text).concat(disk.snippets);
+
+  // 使用中判定：ファイルのキー（そのまま／空白を%20／encodeURI）が、いずれかのスニペットの先頭付近に現れるか
+  const jumps = [];
+  const jumpIdx = new Map();
+  const jumpOf = (ctx) => {
+    const id = [ctx.kind, ctx.pid, ctx.tid || ctx.pageId || ''].join('|');
+    if (!jumpIdx.has(id)) { jumpIdx.set(id, jumps.length); jumps.push(ctx); }
+    return jumpIdx.get(id);
+  };
+  const allVariants = [];
+  files.forEach((f, nk) => {
+    const variants = [...new Set(['tfz://' + nk, 'tfz://' + nk.replace(/ /g, '%20'), 'tfz://' + _attNorm(encodeURI(f.key))])];
+    f.variants = variants;
+    allVariants.push(...variants);
+    f.used = allSnips.some(s => variants.some(v => s.indexOf(v) >= 0));
+    if (f.used) {
+      const seen = new Set();
+      mem.forEach(x => {
+        if (!variants.some(v => x.text.indexOf(v) >= 0)) return;
+        const ji = jumpOf(x.ctx);
+        if (!seen.has(ji)) { seen.add(ji); f.refs.push(ji); }
+      });
+    }
+  });
+
+  // リンク切れ参照：メモリ上の本文にあるが、対応するファイルがないもの
+  const broken = [];
+  const brokenSeen = new Set();
+  mem.forEach(x => {
+    for (const k of _attExtractKeys(x.text)) {
+      if (files.has(k.key)) continue;
+      const rest = x.text.slice(k.index);
+      if (allVariants.some(v => rest.startsWith(v))) continue;   // ファイル名に括弧などを含み、キー抽出が食い違った場合は切れ扱いにしない
+      const ji = jumpOf(x.ctx);
+      const id = k.key + '|' + ji;
+      if (brokenSeen.has(id)) continue;
+      brokenSeen.add(id);
+      broken.push({ key: k.key, jump: ji });
+    }
+  });
+
+  const list = [...files.values()];
+  const byName = (a, b) => a.key.localeCompare(b.key, 'ja');
+  _attScan = {
+    ts: new Date(),
+    used: list.filter(f => f.used).sort(byName),
+    orphans: list.filter(f => !f.used).sort(byName),
+    broken,
+    trash: trash.sort(byName),
+    jumps,
+    partial: disk.partial,
+  };
+  return _attScan;
+}
+
+function _attProjLabel(pFolder) {
+  const m = /^P(\d+)$/.exec(pFolder);
+  const p = m && (state.data.projects || []).find(x => x.number === parseInt(m[1], 10));
+  return p ? `${pFolder} ${p.name}` : `${pFolder}（所属プロジェクト不明）`;
+}
+function _attGroup(items) {
+  const g = new Map();
+  items.forEach(f => { if (!g.has(f.pFolder)) g.set(f.pFolder, []); g.get(f.pFolder).push(f); });
+  return [...g.entries()].sort((a, b) => {
+    const na = parseInt(a[0].slice(1), 10), nb = parseInt(b[0].slice(1), 10);
+    return (isNaN(na) || isNaN(nb)) ? a[0].localeCompare(b[0]) : na - nb;
+  });
+}
+function _attCountText(items) { return `${items.length}件・${_attFmtSize(items.reduce((s, f) => s + f.size, 0))}`; }
+function _attFileCell(f) {
+  const url = _fileCache.get(f.key);
+  const name = esc(f.fname.replace(/^\d{17}_/, ''));
+  const thumb = (url && /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(f.fname))
+    ? `<img src="${url}" loading="lazy" class="att-thumb" alt="">` : '<span class="att-thumb att-thumb-none">📎</span>';
+  const nameEl = url ? `<a href="${url}" target="_blank" rel="noopener" class="att-name" title="${esc(f.key)}">${name}</a>`
+                     : `<span class="att-name" title="${esc(f.key)}">${name}</span>`;
+  return `${thumb}${nameEl}<span class="att-size">${_attFmtSize(f.size)}</span>`;
+}
+function _attRefLinks(refs) {
+  const icon = { task: '📋', comment: '💬', wiki: '📖', other: '⚙️' };
+  const shown = refs.slice(0, 4).map(i => {
+    const c = _attScan.jumps[i];
+    const label = esc((c.label || '').length > 40 ? c.label.slice(0, 40) + '…' : (c.label || ''));
+    return `<span class="att-link" onclick="attJump(${i})">${icon[c.kind] || ''} ${label}</span>`;
+  });
+  const more = refs.length > 4 ? `<span class="att-more">ほか${refs.length - 4}件</span>` : '';
+  return shown.join('') + more;
+}
+
+function renderAttPane() {
+  const box = document.getElementById('att-body');
+  if (!box) return;
+  const sc = _attScan;
+  if (!sc) { box.innerHTML = '<div class="att-empty">スキャンすると結果が表示されます</div>'; return; }
+  let h = `<div class="att-scan-time">最終スキャン：${sc.ts.toLocaleString()}</div>`;
+  if (sc.partial) h += '<div class="att-warn">⚠️ 一部のプロジェクトファイルを読み込めなかったため、孤立ファイルの判定が不確実です。もう一度スキャンしてください。（この状態ではゴミ箱へ移動できません）</div>';
+
+  // 孤立ファイル
+  h += `<div class="att-sec"><div class="att-sec-head"><h4>🗑 孤立ファイル</h4><span class="att-count">${_attCountText(sc.orphans)}</span></div>`;
+  h += '<p>どこからも参照されていないファイルです。ゴミ箱へ移動しても、あとから元に戻せます。</p>';
+  if (!sc.orphans.length) h += '<div class="att-empty">孤立ファイルはありません</div>';
+  else {
+    h += '<div class="att-tools"><button class="btn btn-secondary btn-sm" onclick="attToggleAll(\'att-orph\',true)">すべて選択</button> <button class="btn btn-secondary btn-sm" onclick="attToggleAll(\'att-orph\',false)">すべて解除</button></div>';
+    _attGroup(sc.orphans).forEach(([pf, items]) => {
+      h += `<div class="att-grp"><label class="att-grp-head"><input type="checkbox" class="att-grp-cb" data-grp="${esc(pf)}" checked onchange="attToggleGroup(this,'att-orph')"><b>${esc(_attProjLabel(pf))}</b><span class="att-count">${_attCountText(items)}</span></label>`;
+      items.forEach(f => {
+        h += `<label class="att-row"><input type="checkbox" class="att-orph" data-key="${esc(f.key)}" data-grp="${esc(pf)}" data-size="${f.size}" checked onchange="attUpdateSel()">${_attFileCell(f)}</label>`;
+      });
+      h += '</div>';
+    });
+    h += '<div class="att-actions"><button class="btn btn-primary" id="att-move-btn" onclick="attMoveSelected()"></button></div>';
+  }
+  h += '</div>';
+
+  // リンク切れ参照
+  h += `<div class="att-sec"><div class="att-sec-head"><h4>🔗 リンク切れ参照</h4><span class="att-count">${sc.broken.length}件</span></div>`;
+  h += '<p>本文に添付リンクがあるのに、ファイルが見つからないものです。参照元をクリックして、内容を修正してください。</p>';
+  if (!sc.broken.length) h += '<div class="att-empty">リンク切れ参照はありません</div>';
+  else sc.broken.forEach(b => {
+    h += `<div class="att-row att-row-broken"><span class="att-refs">${_attRefLinks([b.jump])}</span><span class="att-miss">参照先ファイル：</span><span class="att-name">${esc(b.key.replace(/^(P\d+\/)\d{17}_/, '$1'))}</span></div>`;
+  });
+  h += '</div>';
+
+  // 使用中ファイル
+  h += `<div class="att-sec"><div class="att-sec-head"><h4>✅ 使用中のファイル</h4><span class="att-count">${_attCountText(sc.used)}</span></div>`;
+  if (!sc.used.length) h += '<div class="att-empty">使用中の添付ファイルはありません</div>';
+  else _attGroup(sc.used).forEach(([pf, items]) => {
+    h += `<details class="att-grp"><summary class="att-grp-head"><b>${esc(_attProjLabel(pf))}</b><span class="att-count">${_attCountText(items)}</span></summary>`;
+    items.forEach(f => { h += `<div class="att-row">${_attFileCell(f)}<span class="att-refs">${_attRefLinks(f.refs)}</span></div>`; });
+    h += '</details>';
+  });
+  h += '</div>';
+
+  // ゴミ箱
+  h += `<div class="att-sec"><div class="att-sec-head"><h4>♻️ ゴミ箱</h4><span class="att-count">${_attCountText(sc.trash)}</span></div>`;
+  h += '<p>files/_trash フォルダに入っています。不要なら「ゴミ箱を空にする」で完全に削除します（エクスプローラーから _trash フォルダを削除してもかまいません）。</p>';
+  if (!sc.trash.length) h += '<div class="att-empty">ゴミ箱は空です</div>';
+  else {
+    h += '<div class="att-tools"><button class="btn btn-secondary btn-sm" onclick="attToggleAll(\'att-trash\',true)">すべて選択</button> <button class="btn btn-secondary btn-sm" onclick="attToggleAll(\'att-trash\',false)">すべて解除</button></div>';
+    _attGroup(sc.trash).forEach(([pf, items]) => {
+      h += `<div class="att-grp"><label class="att-grp-head"><input type="checkbox" class="att-grp-cb-t" data-grp="${esc(pf)}" onchange="attToggleGroup(this,'att-trash')"><b>${esc(_attProjLabel(pf))}</b><span class="att-count">${_attCountText(items)}</span></label>`;
+      items.forEach(f => {
+        h += `<label class="att-row"><input type="checkbox" class="att-trash" data-key="${esc(f.key)}" data-grp="${esc(pf)}" data-size="${f.size}" onchange="attUpdateSel()"><span class="att-thumb att-thumb-none">📎</span><span class="att-name" title="${esc(f.key)}">${esc(f.fname.replace(/^\d{17}_/, ''))}</span><span class="att-size">${_attFmtSize(f.size)}</span></label>`;
+      });
+      h += '</div>';
+    });
+    h += '<div class="att-actions"><button class="btn btn-secondary" id="att-restore-btn" onclick="attRestoreSelected()"></button> <button class="btn btn-danger" onclick="attEmptyTrash()">🧹 ゴミ箱を空にする</button></div>';
+  }
+  h += '</div>';
+  box.innerHTML = h;
+  attUpdateSel();
+}
+
+// 選択状態に応じてボタンの件数・グループのチェック状態を更新
+function attUpdateSel() {
+  const refresh = (cls, grpCls, btnId, fmt) => {
+    const all = [...document.querySelectorAll('#att-body .' + cls)];
+    const sel = all.filter(c => c.checked);
+    const bytes = sel.reduce((s, c) => s + (+c.dataset.size || 0), 0);
+    const btn = document.getElementById(btnId);
+    if (btn) { btn.textContent = fmt(sel.length, _attFmtSize(bytes)); btn.disabled = !sel.length || (btnId === 'att-move-btn' && !!(_attScan && _attScan.partial)); }
+    document.querySelectorAll('#att-body .' + grpCls).forEach(g => {
+      const rows = all.filter(c => c.dataset.grp === g.dataset.grp);
+      const n = rows.filter(c => c.checked).length;
+      g.checked = rows.length > 0 && n === rows.length;
+      g.indeterminate = n > 0 && n < rows.length;
+    });
+  };
+  refresh('att-orph', 'att-grp-cb', 'att-move-btn', (n, sz) => `🗑 選択した${n}件（${sz}）をゴミ箱へ移動`);
+  refresh('att-trash', 'att-grp-cb-t', 'att-restore-btn', (n, sz) => `♻️ 選択した${n}件（${sz}）を元に戻す`);
+}
+function attToggleGroup(cb, cls) {
+  document.querySelectorAll('#att-body .' + cls).forEach(c => { if (c.dataset.grp === cb.dataset.grp) c.checked = cb.checked; });
+  attUpdateSel();
+}
+function attToggleAll(cls, on) {
+  document.querySelectorAll('#att-body .' + cls).forEach(c => { c.checked = on; });
+  attUpdateSel();
+}
+
+async function runAttScan() {
+  if (_attBusy) return;
+  _attBusy = true;
+  const btn = document.getElementById('att-scan-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'スキャン中…'; }
+  try { await scanAttachments(); }
+  catch (e) { toast('スキャンに失敗しました: ' + e.message, 'error'); }
+  finally { _attBusy = false; if (btn) { btn.disabled = false; btn.textContent = '🔍 スキャン'; } }
+  renderAttPane();
+}
+
+// 参照元（タスク／Wiki／プロジェクト）へジャンプ
+function attJump(i) {
+  const ctx = _attScan && _attScan.jumps[i];
+  if (!ctx) return;
+  const p = getProject(ctx.pid);
+  if (!p) return;
+  if (ctx.kind === 'wiki') { navigateToWikiRef(`P${p.number}-${ctx.pageId}`); return; }
+  openProject(ctx.pid);
+  if (ctx.tid) setTimeout(() => openTaskPanel(ctx.tid), 150);
+}
+
+// srcRoot/{pFolder}/{fname} → dstRoot/{pFolder}/{fname} にコピーし、サイズを確認してから元を削除
+async function _attMoveFile(srcRoot, dstRoot, pFolder, fname) {
+  const srcDir = await srcRoot.getDirectoryHandle(pFolder);
+  const file = await (await srcDir.getFileHandle(fname)).getFile();
+  const dstDir = await dstRoot.getDirectoryHandle(pFolder, { create: true });
+  const dfh = await dstDir.getFileHandle(fname, { create: true });
+  const w = await dfh.createWritable();
+  await w.write(file);
+  await w.close();
+  if ((await dfh.getFile()).size !== file.size) throw new Error('コピーの検証に失敗しました: ' + fname);
+  await srcDir.removeEntry(fname);   // fileHandle.remove() は不安定なので親フォルダから削除する
+}
+async function _attPruneEmptyDir(root, name) {
+  try {
+    const d = await root.getDirectoryHandle(name);
+    for await (const _e of d.entries()) return;   // 空でなければ何もしない
+    await root.removeEntry(name);
+  } catch (e) {}
+}
+function _attSplitKey(key) { const i = key.indexOf('/'); return [key.slice(0, i), key.slice(i + 1)]; }
+
+async function attMoveSelected() {
+  if (_attBusy) return;
+  const keys = [...document.querySelectorAll('#att-body .att-orph:checked')].map(c => c.dataset.key);
+  if (!keys.length) return;
+  const bytes = [...document.querySelectorAll('#att-body .att-orph:checked')].reduce((s, c) => s + (+c.dataset.size || 0), 0);
+  if (!confirm(`${keys.length}件（${_attFmtSize(bytes)}）をゴミ箱へ移動します。\nファイルは files/_trash に残るので、あとから元に戻せます。`)) return;
+  _attBusy = true;
+  let moved = 0, skipped = 0, failed = 0;
+  try {
+    // 直前に再スキャンし、いまも孤立しているものだけ移す（他の人が参照を追加した場合に備える）
+    const fresh = await scanAttachments();
+    if (fresh.partial) { toast('プロジェクトファイルを読み込めなかったため、移動を中止しました。もう一度スキャンしてください', 'error'); return; }
+    const still = new Set(fresh.orphans.map(o => o.key));
+    const filesDir = await state.rootDirHandle.getDirectoryHandle('files');
+    const trashDir = await filesDir.getDirectoryHandle(_ATT_TRASH, { create: true });
+    const touched = new Set();
+    for (const key of keys) {
+      if (!still.has(key)) { skipped++; continue; }
+      const [pf, fname] = _attSplitKey(key);
+      try {
+        await _attMoveFile(filesDir, trashDir, pf, fname);
+        const url = _fileCache.get(key);
+        if (url) { try { URL.revokeObjectURL(url); } catch (e) {} _fileCache.delete(key); }
+        touched.add(pf); moved++;
+      } catch (e) { console.warn('attMove:', key, e); failed++; }
+    }
+    for (const pf of touched) await _attPruneEmptyDir(filesDir, pf);
+  } catch (e) {
+    toast('ゴミ箱への移動に失敗しました: ' + e.message, 'error');
+  } finally { _attBusy = false; }
+  let msg = `${moved}件をゴミ箱へ移動しました`;
+  if (skipped) msg += `（${skipped}件は直前の確認で参照が見つかったため移動していません）`;
+  if (failed) msg += `（${failed}件は失敗しました）`;
+  toast(msg, failed ? 'warn' : 'success', skipped || failed ? 6000 : 2800);
+  try { await scanAttachments(); } catch (e) {}
+  renderAttPane();
+}
+
+async function attRestoreSelected() {
+  if (_attBusy) return;
+  const keys = [...document.querySelectorAll('#att-body .att-trash:checked')].map(c => c.dataset.key);
+  if (!keys.length) return;
+  _attBusy = true;
+  let ok = 0, exists = 0, failed = 0;
+  try {
+    const filesDir = await state.rootDirHandle.getDirectoryHandle('files', { create: true });
+    const trashDir = await filesDir.getDirectoryHandle(_ATT_TRASH);
+    const touched = new Set();
+    for (const key of keys) {
+      const [pf, fname] = _attSplitKey(key);
+      try {
+        let dup = false;
+        try { const d = await filesDir.getDirectoryHandle(pf); await d.getFileHandle(fname); dup = true; } catch (e) {}
+        if (dup) { exists++; continue; }   // 同名のファイルが元の場所にある場合は上書きしない
+        await _attMoveFile(trashDir, filesDir, pf, fname);
+        try {
+          const f = await (await (await filesDir.getDirectoryHandle(pf)).getFileHandle(fname)).getFile();
+          _fileCache.set(key, URL.createObjectURL(f));
+        } catch (e) {}
+        touched.add(pf); ok++;
+      } catch (e) { console.warn('attRestore:', key, e); failed++; }
+    }
+    for (const pf of touched) await _attPruneEmptyDir(trashDir, pf);
+  } catch (e) {
+    toast('元に戻せませんでした: ' + e.message, 'error');
+  } finally { _attBusy = false; }
+  let msg = `${ok}件を元に戻しました`;
+  if (exists) msg += `（${exists}件は同名のファイルが元の場所にあるため戻していません）`;
+  if (failed) msg += `（${failed}件は失敗しました）`;
+  toast(msg, (exists || failed) ? 'warn' : 'success', (exists || failed) ? 6000 : 2800);
+  // 戻したファイルを本文のリンクに反映するため、表示中のビューを再描画
+  try { renderCurrentView(); } catch (e) {}
+  try { await scanAttachments(); } catch (e) {}
+  renderAttPane();
+}
+
+async function attEmptyTrash() {
+  if (_attBusy || !_attScan || !_attScan.trash.length) return;
+  const n = _attScan.trash.length, sz = _attFmtSize(_attScan.trash.reduce((s, f) => s + f.size, 0));
+  if (!confirm(`ゴミ箱の${n}件（${sz}）を完全に削除します。\nこの操作は元に戻せません。`)) return;
+  _attBusy = true;
+  try {
+    const filesDir = await state.rootDirHandle.getDirectoryHandle('files');
+    await filesDir.removeEntry(_ATT_TRASH, { recursive: true });
+    toast('ゴミ箱を空にしました', 'success');
+  } catch (e) {
+    toast('ゴミ箱を空にできませんでした: ' + e.message, 'error');
+  } finally { _attBusy = false; }
+  try { await scanAttachments(); } catch (e) {}
+  renderAttPane();
 }
 
 // ファイルを添付してカーソル位置に挿入

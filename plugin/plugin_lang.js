@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.13',
+      version:     '1.3.14',
     });
   }
 
@@ -120,6 +120,31 @@
     '今日より先には進めません':           'Cannot go past today',
     'スマホ連携': 'Mobile Sync',
     '📱 スマホ連携': '📱 Mobile Sync',
+    // ── 設定 → 添付ファイル（v1.2.2）──
+    '📎 添付ファイル': '📎 Attachments',
+    '🔍 スキャン': '🔍 Scan',
+    'スキャン中…': 'Scanning…',
+    'タスク・コメント・Wikiから参照されている添付ファイルと、どこからも参照されていないファイルを調べます。': 'Checks which attachments are referenced from tasks, comments and the Wiki, and which are not referenced anywhere.',
+    'スキャンすると結果が表示されます': 'Run a scan to see the results',
+    '🗑 孤立ファイル': '🗑 Unreferenced Files',
+    '🔗 リンク切れ参照': '🔗 Broken References',
+    '✅ 使用中のファイル': '✅ Files in Use',
+    '♻️ ゴミ箱': '♻️ Trash',
+    'どこからも参照されていないファイルです。ゴミ箱へ移動しても、あとから元に戻せます。': 'Files that are not referenced anywhere. Even if moved to the trash, they can be restored later.',
+    '本文に添付リンクがあるのに、ファイルが見つからないものです。参照元をクリックして、内容を修正してください。': 'Attachment links in the text whose file cannot be found. Click the source to fix its content.',
+    'files/_trash フォルダに入っています。不要なら「ゴミ箱を空にする」で完全に削除します（エクスプローラーから _trash フォルダを削除してもかまいません）。': 'Stored in the files/_trash folder. If not needed, use "Empty Trash" to delete them permanently (you can also delete the _trash folder from your file explorer).',
+    '孤立ファイルはありません': 'No unreferenced files',
+    'リンク切れ参照はありません': 'No broken references',
+    '使用中の添付ファイルはありません': 'No attachments in use',
+    'ゴミ箱は空です': 'The trash is empty',
+    'すべて選択': 'Select All',
+    'すべて解除': 'Deselect All',
+    '🧹 ゴミ箱を空にする': '🧹 Empty Trash',
+    '参照先ファイル：': 'Missing file:',
+    '⚠️ 一部のプロジェクトファイルを読み込めなかったため、孤立ファイルの判定が不確実です。もう一度スキャンしてください。（この状態ではゴミ箱へ移動できません）': '⚠️ Some project files could not be read, so the unreferenced-file check is unreliable. Please scan again. (Moving to the trash is disabled in this state.)',
+    'ゴミ箱を空にしました': 'Trash emptied',
+    'プロジェクトファイルを読み込めなかったため、移動を中止しました。もう一度スキャンしてください': 'Move cancelled because project files could not be read. Please scan again',
+    'プロジェクトが読み込まれていません': 'No projects are loaded',
     'スマホのブラウザとデータをやり取りします。フォルダの共有は不要で、Teamsなどでファイルを送り合います。': 'Exchange data with the mobile browser. No shared folder is needed — just send files back and forth, e.g. via Teams.',
     '選んだプロジェクトを1つのファイルにまとめます。スマホ版の「パッケージを取り込む」で開いてください。': 'Bundles the selected projects into one file. Open it with "Import package" on the mobile version.',
     'スマホの「変更を書き出し」で作ったファイルを開きます。PC側の変更と食い違う項目だけ、競合として確認します。': 'Opens the file created with "Export changes" on the phone. Only items that differ from changes made on the PC are shown as conflicts.',
@@ -775,6 +800,23 @@
     s = s.replace(/^リンク先のタスクを表示するには、<br><strong style="color:var\(--accent2\)">(.+)<\/strong> フォルダを選択する必要があります。$/, 'To view the linked task, you need to select the <br><strong style="color:var(--accent2)">$1</strong> folder.');
     s = s.replace(/見積 ([\d.]+)h/g, 'Est $1h').replace(/実績 ([\d.]+)h/g, 'Act $1h');
     s = s.replace(/^(\d+) × (\d+) の表$/, '$1 × $2 Table');
+    // 設定 → 添付ファイル（v1.2.2）
+    s = s.replace(/^(\d+)件・(.+)$/, '$1 file(s) · $2');
+    s = s.replace(/^最終スキャン：(.+)$/, 'Last scan: $1');
+    s = s.replace(/^P(\d+)（所属プロジェクト不明）$/, 'P$1 (unknown project)');
+    s = s.replace(/^ほか(\d+)件$/, '+$1 more');
+    s = s.replace(/^🗑 選択した(\d+)件（(.+)）をゴミ箱へ移動$/, '🗑 Move $1 selected ($2) to Trash');
+    s = s.replace(/^♻️ 選択した(\d+)件（(.+)）を元に戻す$/, '♻️ Restore $1 selected ($2)');
+    s = s.replace(/^スキャンに失敗しました: (.+)$/, 'Scan failed: $1');
+    s = s.replace(/^ゴミ箱への移動に失敗しました: (.+)$/, 'Failed to move to Trash: $1');
+    s = s.replace(/^元に戻せませんでした: (.+)$/, 'Could not restore: $1');
+    s = s.replace(/^ゴミ箱を空にできませんでした: (.+)$/, 'Could not empty the Trash: $1');
+    s = s.replace(/^(\d+)件をゴミ箱へ移動しました(?:（(\d+)件は直前の確認で参照が見つかったため移動していません）)?(?:（(\d+)件は失敗しました）)?$/,
+      (m, n, sk, fl) => n + ' file(s) moved to Trash' + (sk ? ' (' + sk + ' not moved: a reference was found in the last check)' : '') + (fl ? ' (' + fl + ' failed)' : ''));
+    s = s.replace(/^(\d+)件を元に戻しました(?:（(\d+)件は同名のファイルが元の場所にあるため戻していません）)?(?:（(\d+)件は失敗しました）)?$/,
+      (m, n, ex, fl) => n + ' file(s) restored' + (ex ? ' (' + ex + ' not restored: a file with the same name exists)' : '') + (fl ? ' (' + fl + ' failed)' : ''));
+    s = s.replace(/^(\d+)件（(.+)）をゴミ箱へ移動します。\nファイルは files\/_trash に残るので、あとから元に戻せます。$/, 'Move $1 file(s) ($2) to the Trash.\nThe files stay in files/_trash, so you can restore them later.');
+    s = s.replace(/^ゴミ箱の(\d+)件（(.+)）を完全に削除します。\nこの操作は元に戻せません。$/, 'Permanently delete $1 file(s) ($2) in the Trash.\nThis cannot be undone.');
 
     // アカウント切替トースト（v1.1.25）
     s = s.replace(/^「(.+)」に切り替えました$/, 'Switched to "$1"');
