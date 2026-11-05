@@ -2,8 +2,20 @@
   TaskFlowZero プラグイン開発者ガイド
 ================================================================================
 
-  対象バージョン: TaskFlowZero v1.1.17
-  本ガイド最終更新: 2026-09-10
+  対象バージョン: TaskFlowZero v1.2.3
+  本ガイド最終更新: 2026-11-05
+    - 対象バージョンを v1.1.17 → v1.2.3 に更新。v1.1.18〜v1.2.3 の変更のうち、
+      プラグイン開発に影響する次の点を反映（実装コードと突き合わせて確認）
+      - 5-3章 Task に completedBy（完了にした人。v1.1.29〜）を追加
+      - 5-4章 Comment に reads（メンション既読。v1.2.1〜）を追加
+      - 5-5章 Activity に by（操作者名。v1.1.29〜）を追加
+      - 4-3章 createTask / updateTask の completedBy の自動設定を追記
+      - 6章 ヘッダー右端にアカウントボタン（v1.1.25〜）が固定される旨を追記
+      - 9章に制約6〜8を追加
+        （スマホモードではプラグインを読み込まない / CSP（v1.2.3〜）/
+          Markdownのサニタイズと読み込み時のID検証（v1.2.3〜））
+
+  2026-09-10（v1.1.17 時点）
     - 【重要】4-5章・9章制約1「addProjectSettingTab」の説明を修正
       - API名から連想される「プロジェクト設定」画面（歯車⚙️、
         id="project-settings-modal"、タブ付き）には一切連携しておらず、
@@ -411,6 +423,9 @@ TaskFlow.createTask(projectId, fields)
   戻り値: Task | null
   説明: タスクを作成してプロジェクトに追加します。
         id / number / createdAt は自動設定されます。
+        status が 'done' のときは completedAt / completedAtTime が自動設定され、
+        completedBy には自分の名前（未設定なら null）が入ります（v1.1.29〜。
+        fields で completedBy を指定した場合はその値を優先）。
         autoSave() / renderCurrentView() は呼び出し元で実行してください。
 
   例）
@@ -430,7 +445,11 @@ TaskFlow.updateTask(projectId, taskId, changes)
         changes (object) - 変更するフィールドのみ指定
   戻り値: Task | null
   説明: タスクのフィールドを更新します。
-        status='done' を指定すると completedAt が自動セットされます。
+        status='done' を指定すると completedAt / completedAtTime が自動セットされ、
+        completedBy に自分の名前（未設定なら null）が入ります（v1.1.29〜。
+        changes で completedBy を指定した場合はその値を優先）。
+        'done' 以外に戻すと completedAt / completedAtTime / completedBy は null になります。
+        ※ ステータス変更のアクティビティログ（5-5章）はこのAPIでは記録されません。
         autoSave() / renderCurrentView() は呼び出し元で実行してください。
 
   例）
@@ -865,6 +884,7 @@ TaskFlow.getPluginConfig(pluginId)
     dueDate:           string,          // 期限 'YYYY-MM-DD' | ''
     completedAt:       string|null,     // 完了日 'YYYY-MM-DD' | null
     completedAtTime:   string|null,     // 完了日時 ISO 8601 | null
+    completedBy:       string|null,     // 完了にした人の名前 | null（v1.1.29〜。下記参照）
     storyPoints:       number,          // ストーリーポイント（0=未設定）
     milestoneId:       string|null,     // マイルストーンID | null
     labels:            string[],        // ラベル名の配列
@@ -902,9 +922,19 @@ TaskFlow.getPluginConfig(pluginId)
     nextCommentNo: 1, estimatedHours: 0, actualHours: 0, baseEstimatedHours: 0,
     creator: '', createdAtTime: null
 
+  【completedBy について（v1.1.29〜）】
+    ステータスを「完了」にした人の名前です。タスク詳細パネルの保存・
+    カンバンのドラッグ＆ドロップ・TaskFlow.createTask() / updateTask()
+    で完了にしたときに、右上のアカウントに設定している自分の名前
+    （未設定なら null）が自動で記録されます。完了を戻すと null に戻ります。
+    マイタスクの「タスクを完了しました」は、この値の人に集計されます。
+    completedBy が無い（過去の）完了タスクは、担当者が完了したものとして
+    扱われます。省略可能なフィールドです。
+
   【LikeEntry（いいね/ブックマークの1件）】
     { id: string /* ユーザー名 */ }
     ※ task.likes / task.bookmarks / comment.likes / comment.bookmarks 共通の形式です。
+    ※ comment.reads（5-4章）も id にユーザー名を持つ同系統の形式です。
 
 ────────────────────────────────────────
 5-4. コメント (Comment)
@@ -920,7 +950,16 @@ TaskFlow.getPluginConfig(pluginId)
     createdAt: string,  // ISO 8601形式 例: "2026-03-14T10:23:45.000Z"
     likes:     LikeEntry[],     // このコメントへの「いいね」一覧
     bookmarks: LikeEntry[],     // このコメントの「ブックマーク」一覧
+    reads:     ReadEntry[],     // メンションの既読・未読の記録（任意。v1.2.1〜）
   }
+
+  【ReadEntry（メンション既読の1件。v1.2.1〜）】
+    { id: string /* ユーザー名 */, at: string /* 操作日時 ISO 8601 */, read: boolean }
+    マイタスクの「メンション」で、ユーザーごとの既読（read: true）・
+    未読（read: false）を記録します。いいね・ブックマークと同様に自分の分だけを
+    持ち、3-wayマージでもコメント本文の編集とは独立して扱われます。
+    記録が無いメンションの既定は、2026-11-02 より前に投稿されたものは既読、
+    それ以降は未読です。プラグインが新規にコメントを作る場合は省略してください。
 
   【no フィールドについて（重要）】
     no は配列インデックスではなく、タスクごとの連番カウンタ
@@ -945,6 +984,7 @@ TaskFlow.getPluginConfig(pluginId)
     icon: string,  // 表示用絵文字 例: '🔄'
     text: string,  // 説明文（HTMLタグを含む場合あり）
     at:   string,  // ISO 8601形式 タイムスタンプ
+    by:   string,  // 操作した人の名前（任意。v1.1.29〜。自分の名前が未設定のときは記録されない）
   }
 
   【type一覧】
@@ -1075,6 +1115,11 @@ TaskFlow のデザイントークン（CSS変数）をプラグインのUIに使
 
     例）
       btn.setAttribute('data-no-collapse', '');
+
+  ※ v1.1.25 以降、ヘッダーの右端には自分のアイコンと名前を表示する
+    アカウントボタンがあり、プラグインが追加したボタンはその左側に並びます
+    （アカウントボタンは常に右端に固定されます）。幅900px以下では
+    アカウントボタンも名前を隠してアイコンのみの表示になります。
 
 ================================================================================
 7. プラグインのインストール方法
@@ -1281,6 +1326,57 @@ autoSave(p.id) と renderCurrentView() を呼んでください。
 ただし直接配列操作は将来のバージョンで内部データ構造が変わった場合に
 追従できなくなるリスクがあるため、削除頻度が高いプラグインを作る場合は
 本体側への機能要望として起票することを推奨します。
+
+────────────────────────────────────────
+制約6: スマホモードではプラグインが読み込まれない ★新規（v1.2.0〜）
+────────────────────────────────────────
+
+フォルダを選べない端末（File System Access API が無い iPhone / iPad の
+Safari、Android の Chrome など）で開いた場合、またはURLに ?mobile=1 を付けた
+場合は「スマホモード」で起動し、plugin/ フォルダのプラグインは読み込まれません
+（?mobile=0 を付けると PC モードで起動します）。そのため、プラグインは
+PC モード（Chrome / Edge）でのみ動く前提で作ってください。
+PC の Chrome / Edge で ?mobile=1 を付けて開けば、スマホモードでプラグインが
+動かないことを確認できます。
+
+────────────────────────────────────────
+制約7: CSP（Content-Security-Policy）により外部通信・外部リソースが制限される ★新規（v1.2.3〜）
+────────────────────────────────────────
+
+taskflowzero.html の <meta http-equiv="Content-Security-Policy"> により、
+次の制限がかかっています。プラグインも同じ制限を受けます。
+
+  - 外部への通信（fetch / XMLHttpRequest / WebSocket）は、同じ場所のファイル・
+    blob: / data: ・cdn.jsdelivr.net だけが許可されています（connect-src）。
+    外部のAPIへ通信するプラグインは、taskflowzero.html の CSP の
+    connect-src にそのオリジンを追加する必要があります。
+    同梱のプラグイン（plugin_lang.js など）は外部通信をしないため影響しません。
+  - 外部スクリプトは cdn.jsdelivr.net だけ許可されています（script-src）。
+    <script> や <style> のインライン記述は許可されています。
+  - 外部の画像は https のものだけ表示されます（img-src。http の画像は表示されません）。
+    社内サーバーの http 画像などは、添付ファイルにするか、CSP の img-src に追加します。
+  - <iframe>・<object>・<base> は使えません。<form> の送信もできません。
+
+────────────────────────────────────────
+制約8: Markdown の描画結果のサニタイズと、読み込み時のID検証 ★新規（v1.2.3〜）
+────────────────────────────────────────
+
+(a) Markdown の描画結果は、表示の前にサニタイズされます（コメント・タスク詳細・
+    Wiki・テンプレートが対象）。<script> / <iframe> / <svg> / <form>、on… 属性、
+    id / name / data-* 属性、javascript: などのリンクは取り除かれます。
+    プラグインが Markdown の描画結果（HTML）を自前で組み立てる場合は、
+    本体と同じ制限で表示される前提にしてください。プラグイン自身が
+    innerHTML に代入するHTMLはこのサニタイズの対象外ですが、データ由来の文字列
+    （タスク名・コメント・ラベル名など）を埋め込むときは、必ずエスケープして
+    ください（本体の esc() 相当の処理）。onclick="…" のような属性に文字列を
+    埋め込むと、引用符でスクリプトを注入されるおそれがあるため、
+    addEventListener を使うことを推奨します。
+
+(b) プロジェクトJSONを読み込む・取り込むとき、ID を持つフィールド（id / milestoneId
+    など）の値に ' " < > \ や制御文字が含まれていると、別の安全なID
+    （x_ + 8桁の16進数）に自動で置き換えられます。プラグインが新しいIDを
+    作るときも、これらの文字を含めないでください。TaskFlow.createTask() の
+    id は自動採番されるため、通常は気にする必要はありません。
 
 ================================================================================
 10. プラグイン開発チェックリスト
