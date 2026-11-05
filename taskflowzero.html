@@ -5145,9 +5145,7 @@ function initials(n){ if(!n)return'?'; const p=n.trim().split(/\s+/); return p.l
 // className: 適用するCSSクラス（member-avatar / comment-avatar / assignee-avatar / mention-avatar）
 // extraStyle: 追加インラインスタイル文字列
 function avatarHtml(name, className='member-avatar', extraStyle='') {
-  let dataUrl = name && state.avatars && state.avatars[name];
-  // v1.2.3: avatars.json は共有フォルダ上のデータなので、画像のdata URL以外は使わない
-  if (dataUrl && !/^data:image\/(?:png|jpe?g|gif|webp);base64,[A-Za-z0-9+\/=]+$/.test(dataUrl)) dataUrl = null;
+  const dataUrl = name && state.avatars && _avSafe(state.avatars[name]);
   if (dataUrl) {
     return `<img class="${className}" src="${dataUrl}" title="${esc(name)}" style="object-fit:cover;${extraStyle}" alt="${esc(initials(name))}">`;
   }
@@ -5205,17 +5203,28 @@ function jsq(s){
     c => '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4));
 }
 // HTML属性値（"..."）用。esc() と違い & は変換しない（marked が出力した &amp; を二重にエスケープしないため）
+// avatars.json は共有フォルダ上のデータ。画像のdata URL以外は使わない（データ自体は書き換えない）
+const _AVATAR_RE = /^data:image\/(?:png|jpe?g|gif|webp);base64,[A-Za-z0-9+\/=]+$/;
+function _avSafe(u){ return (typeof u === 'string' && _AVATAR_RE.test(u)) ? u : null; }
 function escAttrKeep(s){ return String(s == null ? '' : s).replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;'); }
 
 // Markdown → HTML 変換結果のサニタイズ（ホワイトリスト方式）。
 // marked は生HTMLをそのまま通すため、そのまま innerHTML へ入れると <img onerror=…> や javascript: リンクが実行される。
-const _SAN_TAGS = new Set(('a abbr b blockquote br caption code col colgroup dd del details div dl dt em h1 h2 h3 h4 h5 h6 hr i img input ins kbd li mark ol p pre q s samp small span strike strong sub summary sup table tbody td tfoot th thead tr u ul var').split(' '));
+const _SAN_TAGS = new Set(('a abbr b blockquote br caption center code col colgroup dd del details div dl dt em font h1 h2 h3 h4 h5 h6 hr i img input ins kbd li mark ol p pre q s samp small span strike strong sub summary sup table tbody td tfoot th thead tr u ul var').split(' '));
 const _SAN_DROP = new Set(('script style iframe frame frameset object embed applet link meta base form svg math template noscript title head textarea select option button audio video source track canvas dialog xmp plaintext listing noembed noframes portal').split(' '));
 const _SAN_ATTR = {
-  a: ['href'], img: ['src','alt','width','height'], td: ['colspan','rowspan','align'], th: ['colspan','rowspan','align','scope'],
+  a: ['href'], img: ['src','alt','width','height','align'], font: ['color','size'],
+  table: ['border','cellpadding','cellspacing','width','align','bgcolor'], tr: ['align','valign','bgcolor'],
+  td: ['colspan','rowspan','align','valign','width','height','bgcolor'], th: ['colspan','rowspan','align','valign','width','height','bgcolor','scope'],
+  div: ['align'], p: ['align'], h1: ['align'], h2: ['align'], h3: ['align'], h4: ['align'], h5: ['align'], h6: ['align'],
   ol: ['start','type'], ul: ['type'], li: ['value'], details: ['open'], input: ['type','checked','disabled'],
   col: ['span'], colgroup: ['span']
 };
+// 値の形式チェック（引用符・括弧内のURL等が入り込まない形に限定）
+const _SAN_V_COLOR = /^[#\w(),.\s%-]{1,40}$/, _SAN_V_NUM = /^[\w.%+-]{1,10}$/, _SAN_V_ALIGN = /^(?:left|right|center|justify|top|middle|bottom|baseline)$/i;
+const _SAN_VAL = { color:_SAN_V_COLOR, bgcolor:_SAN_V_COLOR, size:_SAN_V_NUM, width:_SAN_V_NUM, height:_SAN_V_NUM, border:_SAN_V_NUM,
+  cellpadding:_SAN_V_NUM, cellspacing:_SAN_V_NUM, colspan:_SAN_V_NUM, rowspan:_SAN_V_NUM, span:_SAN_V_NUM, start:_SAN_V_NUM, value:_SAN_V_NUM,
+  align:_SAN_V_ALIGN, valign:_SAN_V_ALIGN };
 const _SAN_GLOBAL_ATTR = ['class','title','lang','dir','style'];
 const _SAN_SCHEMES_LINK = ['http','https','mailto','tel','tfz','wiki','file','ftp','msteams'];
 const _SAN_SCHEMES_IMG  = ['http','https','tfz','blob','file'];
@@ -5260,6 +5269,7 @@ function _sanOnce(html){
       else if (n === 'src') { if (!_sanUrlOk(a.value, _SAN_SCHEMES_IMG, true)) el.removeAttribute(a.name); }
       else if (n === 'style') { if (!_sanStyleOk(a.value)) el.removeAttribute(a.name); }
       else if (n === 'class') { const c = _sanClass(a.value); if (c) el.setAttribute('class', c); else el.removeAttribute('class'); }
+      else if (_SAN_VAL[n] && !_SAN_VAL[n].test(a.value)) el.removeAttribute(a.name);
     }
     if (tag === 'input') {
       if ((el.getAttribute('type') || '').toLowerCase() !== 'checkbox') { el.parentNode.removeChild(el); continue; }
@@ -5274,54 +5284,49 @@ function sanitizeMdHtml(html){
 }
 function mdParse(raw){ return sanitizeMdHtml(marked.parse(raw)); }
 
-// 読み込んだプロジェクトJSON内の不正なID・キーを無効化する。
-// IDは多数の onclick / data-* 属性へ埋め込まれるため、形式を限定する。
-// 安全でないIDは、そのIDを参照している箇所も含めて決定的に別の安全なIDへ置き換える（参照関係は保たれる）。
-const _TFZ_SAFE_ID_RE = /^[A-Za-z0-9_.:\-]{1,128}$/;
+// 読み込んだプロジェクトJSON内の、HTML/JS を壊しうる文字を含むIDを無効化する。
+// ・IDは AI が作るJSONなどで自由な文字列になりうるため（空白・日本語・& なども正常）、形式は限定しない。
+//   HTML/JS の引用符を壊せる文字（' " < > \ と制御文字）を含む場合だけを不正とみなす。
+// ・「いいね」「ブックマーク」「既読」は { id: 自分の名前 } の形で、id キーに“人の名前”が入るため、これらの配下には触れない。
+// ・置き換えるのは ID を持つフィールドの値だけ。同じ文字列が名前・本文などに現れても書き換えない。
+const _TFZ_UNSAFE_ID_RE = /['"<>\\\u0000-\u001f\u007f\u2028\u2029]/;
 const _TFZ_ID_KEY_RE  = /^(?:id|[A-Za-z0-9_]*Ids?|[A-Za-z0-9_]*_ids?)$/;
+const _TFZ_NAME_ID_KEYS = ['likes', 'bookmarks', 'reads'];
 const _TFZ_DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
 function _tfzHash8(s){ let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); }
 function _tfzNeutralizeUnsafeIds(projects){
   if (!Array.isArray(projects)) return;
-  const bad = new Map();
-  let dangerous = 0;
-  const collect = (v, key, depth) => {
-    if (depth > 40) return;
-    if (Array.isArray(v)) { for (const x of v) collect(x, key, depth + 1); return; }
-    if (v && typeof v === 'object') { for (const k of Object.keys(v)) collect(v[k], k, depth + 1); return; }
-    if (typeof v === 'string' && v !== '' && !_TFZ_SAFE_ID_RE.test(v) && _TFZ_ID_KEY_RE.test(key || '')) bad.set(v, 'x_' + _tfzHash8(v));
-  };
-  const fix = (v, depth) => {
-    if (depth > 40) return v;
-    if (typeof v === 'string') return bad.has(v) ? bad.get(v) : v;
-    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = fix(v[i], depth + 1); return v; }
-    if (v && typeof v === 'object') {
+  let fixedIds = 0, dangerous = 0;
+  const walk = (v, key, depth) => {
+    if (v == null || depth > 40) return v;
+    if (typeof v === 'string') {
+      if (v !== '' && _TFZ_ID_KEY_RE.test(key || '') && _TFZ_UNSAFE_ID_RE.test(v)) { fixedIds++; return 'x_' + _tfzHash8(v); }
+      return v;
+    }
+    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = walk(v[i], key, depth + 1); return v; }
+    if (typeof v === 'object') {
       for (const k of Object.keys(v)) {
         if (_TFZ_DANGEROUS_KEYS.includes(k)) { delete v[k]; dangerous++; continue; }
-        const nk = bad.has(k) ? bad.get(k) : k;
-        const nv = fix(v[k], depth + 1);
-        if (nk !== k) delete v[k];
-        v[nk] = nv;
+        if (_TFZ_NAME_ID_KEYS.includes(k)) continue;
+        v[k] = walk(v[k], k, depth + 1);
       }
     }
     return v;
   };
-  projects.forEach(p => collect(p, '', 0));
-  projects.forEach(p => fix(p, 0));
-  // 番号は数値に限定（"P${number}-…" 形式の参照・ファイルキーで文字列連結されるため）
+  projects.forEach(p => walk(p, '', 0));
+  // 番号は、数字以外の文字列が入っていた場合だけ数値に直す（数字の文字列は従来どおり変更しない）
+  const fixNum = (o, k) => { if (o && o[k] != null && typeof o[k] === 'string' && !/^-?\d+$/.test(o[k])) o[k] = parseInt(o[k], 10) || 0; };
   for (const p of projects) {
     if (!p || typeof p !== 'object') continue;
-    if (p.number != null && typeof p.number !== 'number') p.number = parseInt(p.number, 10) || 0;
+    fixNum(p, 'number');
     for (const t of (Array.isArray(p.tasks) ? p.tasks : [])) {
       if (!t || typeof t !== 'object') continue;
-      if (t.number != null && typeof t.number !== 'number') t.number = parseInt(t.number, 10) || 0;
-      for (const c of (Array.isArray(t.comments) ? t.comments : [])) {
-        if (c && typeof c === 'object' && c.no != null && typeof c.no !== 'number') c.no = parseInt(c.no, 10) || 0;
-      }
+      fixNum(t, 'number');
+      for (const c of (Array.isArray(t.comments) ? t.comments : [])) fixNum(c, 'no');
     }
   }
-  if (bad.size || dangerous) {
-    console.warn('[TaskFlowZero] 不正な形式のID/キーを無効化しました:', bad.size, '件のID,', dangerous, '件のキー');
+  if (fixedIds || dangerous) {
+    console.warn('[TaskFlowZero] 不正な形式のID/キーを無効化しました:', fixedIds, '件のID,', dangerous, '件のキー');
     if (!window._tfzIdWarned) {
       window._tfzIdWarned = true;
       try { toast('データに不正な形式のIDまたはキーが含まれていたため、無効化しました', 'warn', 6000); } catch (e) {}
@@ -5438,7 +5443,7 @@ function renderSidebar() {
   const myTasksIcon = document.getElementById('my-tasks-icon');
   if (myTasksIcon) {
     if (myName) {
-      const dataUrl = state.avatars && state.avatars[myName];
+      const dataUrl = state.avatars && _avSafe(state.avatars[myName]);
       if (dataUrl) {
         myTasksIcon.outerHTML = `<img id="my-tasks-icon" src="${dataUrl}" class="member-avatar" style="width:18px;height:18px;margin:0;flex-shrink:0;border:none;object-fit:cover;cursor:pointer" onclick="showMyTasks()" alt="${esc(initials(myName))}">`;
       } else {
@@ -5601,7 +5606,7 @@ function renderMyTasks() {
   const headerIcon = document.getElementById('my-tasks-header-icon');
   if (headerIcon) {
     if (myName) {
-      const dataUrl = state.avatars && state.avatars[myName];
+      const dataUrl = state.avatars && _avSafe(state.avatars[myName]);
       if (dataUrl) {
         headerIcon.outerHTML = `<img id="my-tasks-header-icon" src="${dataUrl}" class="member-avatar" style="width:28px;height:28px;font-size:12px;margin:0;flex-shrink:0;border:none;object-fit:cover" alt="${esc(initials(myName))}">`;
       } else {
@@ -5925,7 +5930,7 @@ function _buildActivityEvents(myName) {
       // チェックリスト操作（自分が行ったもの）
       (t.activity || []).forEach(a => {
         if (a.type !== 'checklist' || !a.by || a.by !== myName || !a.at) return;
-        add(a.at, { type:'checklist', icon: esc(a.icon)||'☑', text:esc(a.text), pid:p.id, tid:t.id, pname:p.name, pc });
+        add(a.at, { type:'checklist', icon: a.icon||'☑', text:`${a.text}`, pid:p.id, tid:t.id, pname:p.name, pc });
       });
     });
   });
@@ -5958,13 +5963,13 @@ function _renderActivityTimelineView(sorted) {
     const taskLabel = _taskLabelFor(ev);
     return `<div class="activity-timeline-node" style="position:absolute;left:${indent}px;right:0;top:${y-8}px;display:flex;align-items:center;gap:8px;min-width:0" onclick="${_activityOpenCall(ev)}">
       <span style="position:absolute;left:${-50-indent}px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap">${_timeOf(ev)}</span>
-      <span style="width:16px;height:16px;border-radius:50%;background:var(--surface);border:2px solid ${ev.pc};display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;margin-left:-8px">${ev.icon}</span>
+      <span style="width:16px;height:16px;border-radius:50%;background:var(--surface);border:2px solid ${ev.pc};display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;margin-left:-8px">${esc(ev.icon)}</span>
       <span class="activity-timeline-card">
         <span class="activity-timeline-meta">
           <span class="my-mention-proj" style="background:${ev.pc}22;color:${ev.pc};flex-shrink:0">${esc(ev.pname)}</span>
           ${taskLabel ? `<span class="my-mention-task" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${taskLabel}</span>` : ''}
         </span>
-        <span class="activity-timeline-text">${ev.text}</span>
+        <span class="activity-timeline-text">${sanitizeMdHtml(ev.text)}</span>
       </span>
     </div>`;
   };
@@ -6059,10 +6064,10 @@ function _renderActivityTimelineView(sorted) {
     <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">時刻不明のアクティビティ</div>
     ${untimed.map(ev => `
       <div class="activity-timeline-untimed-item" onclick="${_activityOpenCall(ev)}">
-        <span style="font-size:14px;flex-shrink:0">${ev.icon}</span>
+        <span style="font-size:14px;flex-shrink:0">${esc(ev.icon)}</span>
         <span class="my-mention-proj" style="background:${ev.pc}22;color:${ev.pc}">${esc(ev.pname)}</span>
         ${_taskLabelFor(ev) ? `<span class="my-mention-task">${_taskLabelFor(ev)}</span>` : ''}
-        <span style="font-size:12px;color:var(--text)">${ev.text}</span>
+        <span style="font-size:12px;color:var(--text)">${sanitizeMdHtml(ev.text)}</span>
       </div>`).join('')}
   </div>` : '';
 
@@ -10516,7 +10521,7 @@ function renderBacklinks(t, p) {
     return `<div style="display:flex;align-items:center;gap:4px;padding:5px 0;border-bottom:1px solid var(--border)">
       ${statusDot}
       <a href="javascript:void(0)"
-         onclick="navigateToHash('${hash.replace(/'/g, "\\'")}')"
+         onclick="navigateToHash('${jsq(hash)}')"
          style="font-family:'JetBrains Mono',monospace;font-size:.85em;color:var(--accent);background:rgba(79,142,255,.1);border:1px solid rgba(79,142,255,.25);border-radius:3px;padding:0 4px;text-decoration:none;flex-shrink:0"
       >${hash}</a>
       <span style="flex:1;min-width:0;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(bt.title)}</span>
@@ -10588,10 +10593,10 @@ function _renderPanelMetaCollapsedLabels(labels){
   const _msId = document.getElementById('panel-milestone')?.value || '';
   const _ms = _msId ? getMilestone(getProject(state.currentProjectId), _msId) : null;
   const _msHtml = _ms
-    ? `<span class="label-chip" style="background:${_ms.color||'#4f8eff'}22;color:${_ms.color||'#4f8eff'};border:1px solid ${_ms.color||'#4f8eff'}44;cursor:pointer" title="このマイルストーンで絞り込み" onclick="filterByPanelMilestone('${esc(_ms.id).replace(/'/g,"\\'")}')">🏁 ${esc(_ms.name)}</span>`
+    ? `<span class="label-chip" style="background:${_ms.color||'#4f8eff'}22;color:${_ms.color||'#4f8eff'};border:1px solid ${_ms.color||'#4f8eff'}44;cursor:pointer" title="このマイルストーンで絞り込み" onclick="filterByPanelMilestone('${jsq(_ms.id)}')">🏁 ${esc(_ms.name)}</span>`
     : '';
   el.innerHTML = _msHtml + (labels||[]).map(l=>
-    `<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44;cursor:pointer" title="このラベルで絞り込み" onclick="filterByPanelLabel('${esc(l).replace(/'/g,"\\'")}')">${esc(l)}</span>`
+    `<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44;cursor:pointer" title="このラベルで絞り込み" onclick="filterByPanelLabel('${jsq(l)}')">${esc(l)}</span>`
   ).join('');
   el.classList.toggle('visible', _panelMetaCollapsed && (!!_ms || (labels||[]).length>0));
 }
@@ -11461,7 +11466,7 @@ function _updateMentionActive(items) {
 function showMentionPopup(ta, candidates) {
   const popup = document.getElementById('mention-popup');
   popup.innerHTML = candidates.map((name, i) =>
-    `<div class="mention-item${i===0?' active':''}" data-name="${esc(name)}" onmousedown="insertMention('${esc(name).replace(/'/g,"\\'")}')">
+    `<div class="mention-item${i===0?' active':''}" data-name="${esc(name)}" onmousedown="insertMention('${jsq(name)}')">
       ${avatarHtml(name,'mention-avatar')}
       ${esc(name)}
     </div>`
@@ -12473,9 +12478,9 @@ function renderTimeline(t) {
       const a = item.data;
       const byBadge = a.by ? `<span style="font-size:11px;font-weight:600;color:var(--text);margin-left:4px">${esc(a.by)}</span>` : '';
       return `<div class="activity-item">
-        <div class="activity-icon-col"><div class="activity-dot" style="font-size:10px">${a.icon||'•'}</div></div>
+        <div class="activity-icon-col"><div class="activity-dot" style="font-size:10px">${esc(a.icon)||'•'}</div></div>
         <div class="activity-body">
-          <div class="activity-text">${a.text}${byBadge}</div>
+          <div class="activity-text">${sanitizeMdHtml(a.text)}${byBadge}</div>
           <div class="activity-date">${fmtDatetime(a.at)}</div>
         </div>
       </div>`;
