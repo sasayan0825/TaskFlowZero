@@ -494,6 +494,25 @@ html.light .gantt-day-cell.holiday{background:rgba(239,68,68,.16);color:#b91c1c}
 .inazuma-svg{position:absolute;top:0;left:0;pointer-events:none;z-index:14}
 .gantt-grid-line{position:absolute;top:0;bottom:0;width:1px;background:rgba(42,53,80,.3);pointer-events:none}
 .gantt-col-stripe{position:absolute;top:0;bottom:0;pointer-events:none;z-index:0}
+/* v1.2.4: 日付不整合（期限が開始日より前）の赤枠表示 */
+.date-invalid-field{border-color:var(--red)!important;box-shadow:0 0 0 2px rgba(239,68,68,.28);color:var(--red)!important}
+.date-invalid-msg{display:none;font-size:11px;color:var(--red);margin-top:4px;line-height:1.4}
+.date-invalid-msg.show{display:block}
+td.date-invalid-cell{color:var(--red)!important;box-shadow:inset 0 0 0 1px var(--red)}
+.task-due.date-invalid-chip{color:var(--red);border:1px solid var(--red);border-radius:4px;padding:0 4px}
+.panel-due-badge.date-invalid{color:var(--red);border:1px solid var(--red);border-radius:4px;padding:0 6px;font-weight:600}
+.gantt-bar.date-invalid-bar{background:rgba(239,68,68,.12)!important;border:2px dashed var(--red);color:var(--red);box-shadow:none;cursor:pointer;opacity:1!important}
+/* v1.2.4: ガントのイベント行（日付ヘッダーの下に固定表示） */
+.gantt-event-row{position:relative;height:30px;border-bottom:1px solid var(--border);background:var(--surface2);overflow:hidden;cursor:cell}
+.gantt-event-row.readonly{cursor:default}
+.gantt-event-today{position:absolute;top:0;bottom:0;width:2px;background:rgba(79,142,255,.7);pointer-events:none}
+.gantt-event-mk{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;transform:rotate(45deg);border:1px solid rgba(0,0,0,.35);box-sizing:border-box;cursor:pointer;z-index:2}
+.gantt-event-mk:hover{outline:2px solid var(--accent);z-index:3}
+.gantt-event-lbl{position:absolute;top:50%;transform:translateY(-50%);font-size:10px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;z-index:1}
+#gantt-left-event-label{height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);background:var(--surface2);font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.6px}
+.ev-add-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:14px;line-height:1;cursor:pointer;padding:0}
+.ev-add-btn:hover{color:var(--accent);border-color:var(--accent)}
+html.mobile-mode .ev-add-btn{display:none}
 .gantt-col-stripe.saturday{background:rgba(59,130,246,.08)}
 .gantt-col-stripe.holiday{background:rgba(239,68,68,.08)}
 html.light .gantt-col-stripe.saturday{background:rgba(59,130,246,.12)}
@@ -1314,6 +1333,11 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
                   </svg>
                   GitHub: sasayan0825/TaskFlowZero
                 </a>
+                <a href="https://github.com/sasayan0825/TaskFlowZero/wiki" target="_blank" rel="noopener noreferrer"
+                  style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent2);text-decoration:none">
+                  <span style="flex-shrink:0">📚</span>
+                  Wiki（使い方ガイド）
+                </a>
                 <a href="https://github.com/sasayan0825/TaskFlowZero/blob/main/docs/PLUGIN_DEVELOPER_GUIDE.txt" target="_blank" rel="noopener"
                   style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--accent2);text-decoration:none">
                   <span style="flex-shrink:0">📖</span>
@@ -1572,6 +1596,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         <div id="gantt-container">
           <div id="gantt-left">
             <div id="gantt-left-header-placeholder" style="height:52px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;padding:0 16px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">マイルストーン / タスク</div>
+            <div id="gantt-left-event-label"><span>◆ イベント</span><button class="ev-add-btn" onclick="openEventModal(null)" title="イベントを追加">＋</button></div>
             <div id="gantt-left-rows" style="overflow-y:hidden;flex:1"></div>
           </div>
           <div id="gantt-right">
@@ -1583,6 +1608,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           <div class="legend-item"><div class="legend-dot" style="height:8px;border-radius:2px;background:rgba(79,142,255,.7)"></div> マイルストーン</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(79,142,255,.4)"></div> タスクバー</div>
           <div class="legend-item"><div class="legend-dot" style="background:var(--accent);height:2px"></div> 今日線</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;width:8px;height:8px;border-radius:1px;transform:rotate(45deg)"></div> イベント</div>
           <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;height:2px"></div> イナズマ線（マイルストーン）</div>
           <div class="legend-item"><div class="legend-dot" style="background:#fb923c;height:2px"></div> イナズマ線（タスク）</div>
           <div class="legend-item"><div class="legend-dot" style="background:var(--green);opacity:.5"></div> 完了塗り</div>
@@ -1700,11 +1726,12 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
       </div>
       <div class="meta-field">
         <div class="meta-label">開始日</div>
-        <input class="meta-input" type="date" id="panel-start" oninput="panelDirty=true">
+        <input class="meta-input" type="date" id="panel-start" oninput="panelDirty=true;_updatePanelDateInvalid()">
       </div>
       <div class="meta-field">
         <div class="meta-label">期限</div>
-        <input class="meta-input" type="date" id="panel-due" oninput="panelDirty=true;_updatePanelDueBadge(this.value)">
+        <input class="meta-input" type="date" id="panel-due" oninput="panelDirty=true;_updatePanelDateInvalid()">
+        <div class="date-invalid-msg" id="panel-date-msg">⚠ 期限が開始日より前です</div>
       </div>
       <div class="meta-field" id="panel-completed-field" style="display:none">
         <div class="meta-label" style="color:var(--green)">✓ 完了日</div>
@@ -1909,6 +1936,23 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
   </div>
 </div>
 
+<!-- EVENT MODAL (v1.2.4: ガントのイベント行) -->
+<div class="modal-overlay" id="event-modal">
+  <div class="modal" style="width:420px">
+    <div class="modal-title" id="ev-modal-title">イベントを追加</div>
+    <div class="form-group"><label class="form-label">タイトル *</label><input class="form-input" id="ev-title" maxlength="80" placeholder="例: 客先レビュー" onkeydown="if(event.key==='Enter'){event.preventDefault();saveEvent();}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">日付 *</label><input class="form-input" type="date" id="ev-date"></div>
+      <div class="form-group"><label class="form-label">カラー</label><div class="color-picker-row" id="ev-colors"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="ev-del-btn" onclick="deleteEvent()" style="margin-right:auto">削除</button>
+      <button class="btn btn-secondary" onclick="closeEventModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveEvent()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- TASK MODAL (quick add) -->
 <div class="modal-overlay" id="task-modal">
   <div class="modal" style="width:520px;max-height:90vh;overflow-y:auto">
@@ -1940,8 +1984,8 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
       <div class="form-group"><label class="form-label">担当者</label><input class="form-input" id="tm-assignee" placeholder="担当者名" list="tm-assignee-dl"><datalist id="tm-assignee-dl"></datalist></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">開始日</label><input class="form-input" type="date" id="tm-start"></div>
-      <div class="form-group"><label class="form-label">期限</label><input class="form-input" type="date" id="tm-due"></div>
+      <div class="form-group"><label class="form-label">開始日</label><input class="form-input" type="date" id="tm-start" oninput="_updateTmDateInvalid()"></div>
+      <div class="form-group"><label class="form-label">期限</label><input class="form-input" type="date" id="tm-due" oninput="_updateTmDateInvalid()"><div class="date-invalid-msg" id="tm-date-msg">⚠ 期限が開始日より前です</div></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">ストーリーポイント</label>
@@ -3502,6 +3546,8 @@ function _migrateProjectFields(projects) {
   _tfzNeutralizeUnsafeIds(projects);   // v1.2.3: 不正なID・危険なキーを無効化（全ての読み込み・取り込み経路が通る）
   projects.forEach(p => {
     if (!p.milestones) p.milestones = [];
+    // v1.2.4〜: ガントのイベント行用。{id, title, date, color, updatedAt}
+    p.events = Array.isArray(p.events) ? p.events.filter(e => e && typeof e === 'object' && typeof e.id === 'string' && e.id) : [];
     // v1.1.6〜: Wikiを複数ページ化。既存の単一ページ文字列(p.wiki)はHomeページへ移行
     if (!p.wikiPages) {
       p.wikiPages = [];
@@ -4039,7 +4085,7 @@ function _tryTextMergeFields(res, b, m, d, target) {
   });
   return n;
 }
-const _PROJ_HANDLED = new Set(['id','number','deleted','tasks','milestones','wikiPages','weeklyNotes','nextTaskNum','wiki','name','description','startDate','endDate','members','color','archived','projectSettings']);
+const _PROJ_HANDLED = new Set(['id','number','deleted','tasks','milestones','events','wikiPages','weeklyNotes','nextTaskNum','wiki','name','description','startDate','endDate','members','color','archived','projectSettings']);
 const _TASK_HANDLED = new Set(['id','comments','checklist','activity','likes','bookmarks','_deletedCommentIds','nextCommentNo','estimatedHours','actualHours','creator','createdAtTime','title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime','completedBy']);
 const _MS_HANDLED = new Set(['id','name','description','startDate','endDate','color']);
 const _WP_HANDLED = new Set(['id','title','content','order','updatedAt']);
@@ -4192,6 +4238,9 @@ function threeWayMerge(base, mine, disk) {
       });
       mergedP.milestones = mergedMs;
     }
+
+    // Merge events (v1.2.4): ID単位。同じ項目を両者が別々に変更した場合は updatedAt の新しい方を採用（同時刻は mine）
+    mergedP.events = mergeProjectEvents(b?.events || [], m?.events || [], d?.events || []);
 
     // Merge wikiPages: フィールド単位マージ + 順序（マイルストーンと同じパターン）
     {
@@ -4558,6 +4607,37 @@ function mergeMentionReads(base, mine, disk) {
     if (mc && !dc) out.push(deepCopy(m));
     else if (dc && !mc) out.push(deepCopy(d));
     else out.push(deepCopy((m.at || '') > (d.at || '') ? m : d));
+  });
+  return out;
+}
+
+// イベント行（p.events）の3-wayマージ。ID単位で、削除・追加・フィールド変更を取り込む
+function mergeProjectEvents(base, mine, disk) {
+  const bi = indexBy(base, 'id'), mi = indexBy(mine, 'id'), di = indexBy(disk, 'id');
+  const FIELDS = ['title', 'date', 'color'];
+  const out = [], seen = new Set();
+  const pick = id => {
+    const b = bi[id], m = mi[id], d = di[id];
+    if (b && (!m || !d)) return null;                       // どちらかが削除
+    if (!b && m && !d) return deepCopy(m);                  // mineが追加
+    if (!b && !m && d) return deepCopy(d);                  // diskが追加
+    if (!b && m && d)  return deepCopy(m);                  // 両方が追加（同ID）はmine優先
+    if (!m || !d) return null;
+    const r = deepCopy(d);
+    const mineWins = (m.updatedAt || '') >= (d.updatedAt || '');
+    FIELDS.forEach(f => {
+      const bv = JSON.stringify(b[f]), mv = JSON.stringify(m[f]), dv = JSON.stringify(d[f]);
+      if (mv === bv) return;                                // mine未変更 → disk採用
+      if (dv === bv || mv === dv || mineWins) r[f] = m[f];  // mineのみ変更／同じ変更／競合はupdatedAtの新しい方
+    });
+    r.updatedAt = (m.updatedAt || '') > (d.updatedAt || '') ? m.updatedAt : d.updatedAt;
+    return r;
+  };
+  [...disk, ...mine].forEach(x => {
+    if (!x || !x.id || seen.has(x.id)) return;
+    seen.add(x.id);
+    const r = pick(x.id);
+    if (r) out.push(r);
   });
   return out;
 }
@@ -4945,13 +5025,14 @@ function initApp() {
   _initNavTooltips();
 
   // Color pickers
-  ['pm-colors','msf-colors'].forEach(id => {
+  ['pm-colors','msf-colors','ev-colors'].forEach(id => {
     const el = document.getElementById(id);
     el.innerHTML = '';
     PROJECT_COLORS.forEach(c => {
       const s = document.createElement('div');
       s.className='color-swatch'; s.style.background=c; s.dataset.color=c;
       if (id==='pm-colors') s.onclick=()=>selectColor(c,id);
+      else if (id==='ev-colors') s.onclick=()=>{ _evColor=c; _updateEvColorSwatches(); };
       else s.onclick=()=>selectMsColor(c);
       el.appendChild(s);
     });
@@ -6604,8 +6685,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.3';
-const APP_VERSION_DATE = '2026-11-03';
+const APP_VERSION      = '1.2.4';
+const APP_VERSION_DATE = '2026-11-07';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -7941,8 +8022,8 @@ function buildListRow(t) {
     <td class="sp-cell" data-col="storyPoints">${t.storyPoints>0?`<span style="background:rgba(79,142,255,.15);color:var(--accent);padding:1px 7px;border-radius:4px">${t.storyPoints}</span>`:'—'}</td>
     <td data-col="estimatedHours" style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)">${t.estimatedHours>0?t.estimatedHours:'—'}</td>
     <td data-col="actualHours" style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;${t.actualHours>0&&t.estimatedHours>0?(t.actualHours>t.estimatedHours?'color:var(--red)':'color:var(--green)'):'color:var(--muted)'}">${t.actualHours>0?t.actualHours:'—'}</td>
-    <td class="due-cell" data-col="startDate">${t.startDate?fmtFull(t.startDate):'—'}</td>
-    <td class="due-cell ${dueCls}" data-col="dueDate">${t.dueDate?fmtFull(t.dueDate):'—'}</td>
+    <td class="due-cell${_taskDatesInvalid(t)?' date-invalid-cell':''}" data-col="startDate"${_taskDatesInvalid(t)?' title="期限が開始日より前です"':''}>${t.startDate?fmtFull(t.startDate):'—'}</td>
+    <td class="due-cell ${dueCls}${_taskDatesInvalid(t)?' date-invalid-cell':''}" data-col="dueDate"${_taskDatesInvalid(t)?' title="期限が開始日より前です"':''}>${t.dueDate?fmtFull(t.dueDate):'—'}</td>
   </tr>`;
 }
 
@@ -7997,7 +8078,7 @@ function createTaskCard(t, msMap) {
     </div>
     <div class="task-card-meta">
       ${t.storyPoints>0?`<span class="task-points">${t.storyPoints}pt</span>`:''}
-      ${t.dueDate?`<span class="task-due ${dueCls}">📅 ${fmt(t.dueDate)}</span>`:''}
+      ${t.dueDate?`<span class="task-due ${dueCls}${_taskDatesInvalid(t)?' date-invalid-chip':''}"${_taskDatesInvalid(t)?' title="期限が開始日より前です"':''}>📅 ${fmt(t.dueDate)}</span>`:''}
       ${ms?`<span class="task-ms-tag" style="background:${ms.color||'#4f8eff'}22;color:${ms.color||'#4f8eff'};border:1px solid ${ms.color||'#4f8eff'}44">🏁 ${esc(ms.name)}</span>`:''}
       ${labels}
       ${(t.comments||[]).length>0?`<span style="font-size:10px;color:var(--muted);margin-left:auto">💬 ${t.comments.length}</span>`:''}
@@ -8175,8 +8256,9 @@ function _ganttTaskTooltip(t) {
 
 
 // プロジェクト内のタスク・マイルストーンから最小開始日・最大終了日を算出
-function getProjectDateRange(p) {
+function getProjectDateRange(p, withEvents) {
   const dates = [];
+  if (withEvents) (p.events||[]).forEach(e => { if (e && /^\d{4}-\d{2}-\d{2}$/.test(e.date||'')) dates.push(e.date); });
   (p.milestones||[]).forEach(m => {
     if (m.startDate) dates.push(m.startDate);
     if (m.endDate)   dates.push(m.endDate);
@@ -8208,7 +8290,7 @@ function renderGantt() {
   let rangeDays;
   if (_ganttRangeVal === 'auto') {
     // プロジェクト内のタスク・MSから最大終了日を求め、その月末まで表示
-    const _autoRange = getProjectDateRange(p);
+    const _autoRange = getProjectDateRange(p, true);
     const _autoStart = startMode === 'today' ? today() : _autoRange.startDate;
     // プロジェクト終了日も候補に加え、より未来の日付を採用
     const _endCandidates = [_autoRange.endDate];
@@ -8234,7 +8316,7 @@ function renderGantt() {
     ganttStart = today();
   } else {
     // タスク・マイルストーンの最小開始日から算出（p.startDateは使わない）
-    ganttStart = getProjectDateRange(p).startDate;
+    ganttStart = getProjectDateRange(p, true).startDate;
   }
   const ganttEnd = addDays(ganttStart, rangeDays-1);
   const gStartMs = dateToNum(ganttStart);
@@ -8367,7 +8449,10 @@ function renderGantt() {
         if (!taskStart && !taskEnd) {
           _attachGanttCreateDrag(tRight, t);
         }
-        if (taskStart && taskEnd) {
+        if (_taskDatesInvalid(t)) {
+          const _ib = _ganttInvalidTaskBar(t, s, gStartMs, totalW);
+          if (_ib) tRight.appendChild(_ib);
+        } else if (taskStart && taskEnd) {
           const bS = dateToNum(taskStart), bE = dateToNum(taskEnd);
           const tx1 = Math.max(0,(bS-gStartMs)/86400000*DAY_W);
           const tx2 = Math.min(totalW,(bE-gStartMs)/86400000*DAY_W+DAY_W);
@@ -8450,7 +8535,10 @@ function renderGantt() {
         if (!t.startDate && !t.dueDate) {
           _attachGanttCreateDrag(tRight, t);
         }
-        if(t.dueDate){
+        if (_taskDatesInvalid(t)) {
+          const _ib = _ganttInvalidTaskBar(t, s, gStartMs, totalW);
+          if (_ib) tRight.appendChild(_ib);
+        } else if(t.dueDate){
           const bE=dateToNum(t.dueDate),bS=dateToNum(t.startDate||addDays(t.dueDate,-3));
           const tx1=Math.max(0,(bS-gStartMs)/86400000*DAY_W);
           const tx2=Math.min(totalW,(bE-gStartMs)/86400000*DAY_W+DAY_W);
@@ -8598,6 +8686,7 @@ function buildDateHeader(ganttStart, rangeDays, gStartMs) {
   }
   header.appendChild(monthsRow);
   header.appendChild(daysRow);
+  header.appendChild(_buildGanttEventRow(ganttStart, rangeDays, gStartMs, totalW));
 }
 function buildGridLines(container, ganttStart, rangeDays, gStartMs, totalW) {
   const todayStr = today();
@@ -9540,6 +9629,160 @@ function deleteMilestone(id) {
 }
 
 // ═══════════════════════════════════════
+// v1.2.4: 日付不整合の判定 / ガントのイベント行
+// ═══════════════════════════════════════
+// 期限が開始日より前なら true（どちらかが未設定なら false）
+function _taskDatesInvalid(t) {
+  return !!(t && t.startDate && t.dueDate && t.startDate > t.dueDate);
+}
+// 不整合タスクのガントバー（赤の破線枠）。通常バーと違いドラッグ操作はできず、クリックで詳細を開く
+function _ganttInvalidTaskBar(t, s, gStartMs, totalW) {
+  const a = dateToNum(t.startDate), b = dateToNum(t.dueDate);
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  const x1 = Math.max(0, (lo - gStartMs) / 86400000 * DAY_W);
+  const x2 = Math.min(totalW, (hi - gStartMs) / 86400000 * DAY_W + DAY_W);
+  if (x2 <= x1) return null;
+  const bar = document.createElement('div');
+  bar.className = 'gantt-bar task-bar date-invalid-bar';
+  bar.style.left = x1 + 'px';
+  bar.style.width = Math.max(DAY_W, x2 - x1) + 'px';
+  const lbl = document.createElement('span');
+  lbl.className = 'bar-label';
+  lbl.textContent = '⚠ ' + t.title;
+  bar.appendChild(lbl);
+  bar.title = `⚠ 期限が開始日より前です\n#${t.number||'?'} ${t.title} [${s.label}]\n開始日:${fmtFull(t.startDate)} 期限:${fmtFull(t.dueDate)}`;
+  return bar;
+}
+
+const _EV_DATE_RE  = /^\d{4}-\d{2}-\d{2}$/;
+const _EV_COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
+function _evSafeColor(c) { return (typeof c === 'string' && _EV_COLOR_RE.test(c)) ? c : '#f59e0b'; }
+function _projectEvents(p) {
+  return ((p && p.events) || [])
+    .filter(e => e && typeof e === 'object' && _EV_DATE_RE.test(e.date || ''))
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date) || String(a.title || '').localeCompare(String(b.title || '')));
+}
+
+// 日付ヘッダーの下（スクロールしても固定）に置くイベント行を作る
+function _buildGanttEventRow(ganttStart, rangeDays, gStartMs, totalW) {
+  const p = getProject(state.currentProjectId);
+  const readonly = !!window.IS_MOBILE_MODE;
+  const row = document.createElement('div');
+  row.className = 'gantt-event-row' + (readonly ? ' readonly' : '');
+  row.style.width = totalW + 'px';
+
+  const todayIdx = Math.round((dateToNum(today()) - gStartMs) / 86400000);
+  if (todayIdx >= 0 && todayIdx < rangeDays) {
+    const tl = document.createElement('div');
+    tl.className = 'gantt-event-today';
+    tl.style.left = (todayIdx * DAY_W + DAY_W / 2 - 1) + 'px';
+    row.appendChild(tl);
+  }
+
+  // 空きセルのクリックで、その日付のイベントを追加（スマホは表示のみ）
+  if (!readonly) {
+    row.addEventListener('click', e => {
+      if (e.target !== row && !e.target.classList.contains('gantt-event-today')) return;
+      const x = e.clientX - row.getBoundingClientRect().left;
+      const idx = Math.max(0, Math.min(rangeDays - 1, Math.floor(x / DAY_W)));
+      openEventModal(null, addDays(ganttStart, idx));
+    });
+  }
+
+  // 同じ日付が複数ある場合は、ダイヤを右へ少しずつずらして並べる
+  const byDate = {};
+  _projectEvents(p).forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
+  const marks = [];
+  Object.keys(byDate).forEach(ds => {
+    const idx = Math.round((dateToNum(ds) - gStartMs) / 86400000);
+    if (idx < 0 || idx >= rangeDays) return;
+    byDate[ds].forEach((e, k) => marks.push({ x: idx * DAY_W + DAY_W / 2 + k * 9, ev: e, k, list: byDate[ds], ds }));
+  });
+  marks.sort((a, b) => a.x - b.x);
+  marks.forEach(m => {
+    const mk = document.createElement('div');
+    mk.className = 'gantt-event-mk';
+    mk.style.left = m.x + 'px';
+    mk.style.background = _evSafeColor(m.ev.color);
+    mk.title = m.ds + '\n' + m.list.map(x => '・' + (x.title || '')).join('\n');
+    mk.addEventListener('click', ev => {
+      ev.stopPropagation();
+      if (readonly) toast(m.ds + '　' + (m.ev.title || ''), '', 3500);
+      else openEventModal(m.ev.id);
+    });
+    row.appendChild(mk);
+
+    // ラベルは日付ごとに先頭の1件だけ。次のダイヤにぶつからない幅に収め、入らなければ省略（ホバーで確認）
+    if (m.k === 0) {
+      const lastX = m.x + (m.list.length - 1) * 9;
+      const next = marks.find(n => n.ds !== m.ds && n.x > m.x);
+      const left = lastX + 10;
+      const avail = (next ? next.x - 8 : totalW) - left;
+      if (avail >= 24) {
+        const lbl = document.createElement('div');
+        lbl.className = 'gantt-event-lbl';
+        lbl.style.left = left + 'px';
+        lbl.style.maxWidth = avail + 'px';
+        lbl.textContent = (m.ev.title || '') + (m.list.length > 1 ? ` (+${m.list.length - 1})` : '');
+        row.appendChild(lbl);
+      }
+    }
+  });
+  return row;
+}
+
+let _editEventId = null;
+let _evColor = PROJECT_COLORS[0];
+function _updateEvColorSwatches() {
+  document.querySelectorAll('#ev-colors .color-swatch').forEach(sw => sw.classList.toggle('selected', sw.dataset.color === _evColor));
+}
+function openEventModal(id, presetDate) {
+  const p = getProject(state.currentProjectId); if (!p) return;
+  const e = id ? (p.events || []).find(x => x.id === id) : null;
+  if (id && !e) return;
+  _editEventId = e ? e.id : null;
+  document.getElementById('ev-modal-title').textContent = e ? 'イベントを編集' : 'イベントを追加';
+  document.getElementById('ev-title').value = e ? (e.title || '') : '';
+  document.getElementById('ev-date').value = e ? e.date : (presetDate || today());
+  _evColor = e ? _evSafeColor(e.color) : PROJECT_COLORS[0];
+  _updateEvColorSwatches();
+  document.getElementById('ev-del-btn').style.display = e ? '' : 'none';
+  openModal('event-modal');
+  setTimeout(() => { const el = document.getElementById('ev-title'); if (el) el.focus(); }, 80);
+}
+function closeEventModal() { closeModal('event-modal'); }
+function saveEvent() {
+  const p = getProject(state.currentProjectId); if (!p) return;
+  const title = document.getElementById('ev-title').value.trim();
+  const date  = document.getElementById('ev-date').value;
+  if (!title) { toast('タイトルを入力してください', 'error'); return; }
+  if (!_EV_DATE_RE.test(date)) { toast('日付を入力してください', 'error'); return; }
+  if (!Array.isArray(p.events)) p.events = [];
+  const now = new Date().toISOString();
+  if (_editEventId) {
+    const e = p.events.find(x => x.id === _editEventId);
+    if (e) { e.title = title; e.date = date; e.color = _evColor; e.updatedAt = now; }
+    toast('イベントを更新しました', 'success');
+  } else {
+    p.events.push({ id: uid(), title, date, color: _evColor, updatedAt: now });
+    toast('イベントを追加しました', 'success');
+  }
+  autoSave(state.currentProjectId);
+  closeEventModal();
+  if (state.currentView === 'gantt') renderGantt();
+}
+function deleteEvent() {
+  const p = getProject(state.currentProjectId); if (!p || !_editEventId) return;
+  if (!confirm('このイベントを削除しますか？')) return;
+  p.events = (p.events || []).filter(x => x.id !== _editEventId);
+  autoSave(state.currentProjectId);
+  closeEventModal();
+  toast('イベントを削除しました');
+  if (state.currentView === 'gantt') renderGantt();
+}
+
+// ═══════════════════════════════════════
 // PROJECT MODAL
 // ═══════════════════════════════════════
 function openProjectModal(id=null) {
@@ -9730,7 +9973,7 @@ function saveProject() {
     toast('プロジェクトを更新しました','success');
   } else {
     if (!state.data.nextProjectNum) state.data.nextProjectNum = Math.max(0, ...state.data.projects.map(p=>p.number||0)) + 1;
-    const p={id:uid(),number:state.data.nextProjectNum++,name,description:document.getElementById('pm-desc').value.trim(),startDate:document.getElementById('pm-start').value,endDate:document.getElementById('pm-end').value,members,color:_selectedColor,milestones:[],wikiPages:[{id:uid(),title:'Home',content:'',order:0,updatedAt:new Date().toISOString()}],archived:false,tasks:[],nextTaskNum:1};
+    const p={id:uid(),number:state.data.nextProjectNum++,name,description:document.getElementById('pm-desc').value.trim(),startDate:document.getElementById('pm-start').value,endDate:document.getElementById('pm-end').value,members,color:_selectedColor,milestones:[],events:[],wikiPages:[{id:uid(),title:'Home',content:'',order:0,updatedAt:new Date().toISOString()}],archived:false,tasks:[],nextTaskNum:1};
     state.data.projects.push(p);
     toast('プロジェクトを作成しました','success');
   }
@@ -10141,6 +10384,7 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-assignee').value='';
   document.getElementById('tm-start').value='';
   document.getElementById('tm-due').value='';
+  _updateTmDateInvalid();
   document.getElementById('tm-milestone').value='';
   document.getElementById('tm-estimated').value='';
   document.getElementById('tm-description').value='';
@@ -10411,6 +10655,7 @@ function _openTaskPanelInner(taskId){
   document.getElementById('panel-start').value=t.startDate||'';
   document.getElementById('panel-due').value=t.dueDate||'';
   _updatePanelDueBadge(t.dueDate||'');
+  _updatePanelDateInvalid();
   document.getElementById('panel-completed').value=t.completedAt||'';
   toggleCompletedField(t.status);
   document.getElementById('panel-points').value=t.storyPoints||0;
@@ -13134,6 +13379,7 @@ function createReferenceTask() {
   document.getElementById('tm-title').value = title;
   document.getElementById('tm-start').value = startDate;
   document.getElementById('tm-due').value = dueDate;
+  _updateTmDateInvalid();
   document.getElementById('tm-points').value = String(storyPoints);
   document.getElementById('tm-milestone').value = milestoneId;
   document.getElementById('tm-description').value = description;
@@ -13223,8 +13469,31 @@ function _updatePanelDueBadge(dueDate) {
   if (!dueDate) { badge.textContent=''; badge.className='panel-due-badge'; return; }
   const diff = daysDiff(dueDate);
   const cls = diff!==null?(diff<0?'overdue':diff<=3?'soon':''):'';
-  badge.className = 'panel-due-badge'+(cls?' '+cls:'');
-  badge.textContent = `期限: ${fmtFull(dueDate)}`;
+  const _st = (document.getElementById('panel-start') || {}).value || '';
+  const _bad = !!(_st && dueDate && _st > dueDate);   // v1.2.4: 期限が開始日より前
+  badge.className = 'panel-due-badge'+(cls?' '+cls:'')+(_bad?' date-invalid':'');
+  badge.textContent = (_bad ? '⚠ ' : '') + `期限: ${fmtFull(dueDate)}`;
+}
+
+// v1.2.4: 開始日・期限の不整合（期限が開始日より前）を赤枠で知らせる
+function _updatePanelDateInvalid() {
+  const st = document.getElementById('panel-start'), du = document.getElementById('panel-due');
+  if (!st || !du) return;
+  const bad = !!(st.value && du.value && st.value > du.value);
+  st.classList.toggle('date-invalid-field', bad);
+  du.classList.toggle('date-invalid-field', bad);
+  const msg = document.getElementById('panel-date-msg');
+  if (msg) msg.classList.toggle('show', bad);
+  _updatePanelDueBadge(du.value);
+}
+function _updateTmDateInvalid() {
+  const st = document.getElementById('tm-start'), du = document.getElementById('tm-due');
+  if (!st || !du) return;
+  const bad = !!(st.value && du.value && st.value > du.value);
+  st.classList.toggle('date-invalid-field', bad);
+  du.classList.toggle('date-invalid-field', bad);
+  const msg = document.getElementById('tm-date-msg');
+  if (msg) msg.classList.toggle('show', bad);
 }
 
 // タイトルバー右端の「担当者アイコン＋名前」を更新

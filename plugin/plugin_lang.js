@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.15',
+      version:     '1.3.16',
     });
   }
 
@@ -366,6 +366,12 @@
 
     // ── マイルストーン ──────────────────────────────────────
     'マイルストーン管理':                 'Milestone Management',
+    '◆ イベント':                         '◆ Events',
+    'イベント':                           'Events',
+    'イベントを追加':                     'Add Event',
+    'イベントを編集':                     'Edit Event',
+    '日付 *':                             'Date *',
+    '⚠ 期限が開始日より前です':           '⚠ Due date is before the start date',
     '新規マイルストーン':                 'New Milestone',
     '＋ マイルストーンを追加':            '＋ Add Milestone',
     '名前 *':                             'Name *',
@@ -471,6 +477,11 @@
     'マイルストーンを更新しました':       'Milestone updated',
     'マイルストーンを追加しました':       'Milestone added',
     'マイルストーンを削除しました':       'Milestone deleted',
+    'イベントを追加しました':             'Event added',
+    'イベントを更新しました':             'Event updated',
+    'イベントを削除しました':             'Event deleted',
+    '日付を入力してください':             'Please enter a date',
+    'このイベントを削除しますか？':       'Delete this event?',
     'マイルストーンを並び替えました':     'Milestones reordered',
     'プロジェクトを更新しました':         'Project updated',
     'プロジェクトを作成しました':         'Project created',
@@ -578,6 +589,7 @@
     'アプリバージョン情報':               'App Version Info',
     'バージョン:':                        'Version:',
     '最終更新:':                          'Last updated:',
+    'Wiki（使い方ガイド）':               'Wiki (User Guide)',
     'プラグイン開発者ガイド':             'Plugin Developer Guide',
     'バグ報告・機能要望 (Issues)':        'Report Bugs / Feature Requests (Issues)',
     '使用ライブラリ':                     'Libraries Used',
@@ -788,7 +800,7 @@
     s = s.replace(/^(\d+)件のファイルを保存中\.\.\.$/, 'Saving $1 file(s)...');
     s = s.replace(/^(\d+)件のファイルを添付しました$/, '$1 file(s) attached');
     s = s.replace(/^(.+) の添付に失敗: (.+)$/, 'Attachment failed for $1: $2');
-    s = s.replace(/^期限:\s*(\d{4}\/\d+\/\d+)/g, 'Due: $1');
+    s = s.replace(/^(⚠ )?期限:\s*(\d{4}\/\d+\/\d+)/g, '$1Due: $2');
     s = s.replace(/^編集済み (.+)$/, 'Edited $1');
     s = s.replace(/^今日 (\d+:\d+)$/, 'Today $1');
     // フォルダ履歴の「アクセス許可あり · 今日 08:47」などの複合文字列

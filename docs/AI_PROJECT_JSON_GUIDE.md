@@ -68,6 +68,7 @@
   "members": ["山田 太郎", "佐藤 花子"],
   "archived": false,
   "milestones": [ /* Milestone[] 4章 */ ],
+  "events": [ /* Event[] 省略可 */ ],
   "tasks": [ /* Task[] 5章 */ ],
   "nextTaskNum": 1,
   "weeklyNotes": [ /* WeeklyNote[] 9章 */ ],
@@ -89,6 +90,7 @@
 | `members` | string[] | ○ | メンバー名の配列（オブジェクトではなく単なる文字列） |
 | `archived` | boolean | ○ | |
 | `milestones` | Milestone[] | ○ | 空配列可 |
+| `events` | Event[] | 省略可 | ガントの最上部に表示する、特定の日付のイベント（v1.2.4〜）。省略すると空配列として読み込まれる。要素は `{ "id": "UID", "title": "客先レビュー", "date": "2026-11-20", "color": "#f43f5e" }`（`date` は `'YYYY-MM-DD'`、`color` は `#rrggbb`）。タスクではないので、`tasks` や `nextTaskNum` には影響しない |
 | `tasks` | Task[] | ○ | 空配列可 |
 | `nextTaskNum` | number | ○ | 次に採番されるタスク番号。既存タスクの最大 `number` + 1にしておく |
 | `weeklyNotes` | WeeklyNote[] | ○ | 通常は空配列 `[]` でよい |
