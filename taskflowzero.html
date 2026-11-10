@@ -1164,6 +1164,18 @@ html.mobile-mode .form-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap
 html.mobile-mode .form-group{min-width:0}
 html.mobile-mode .form-input,html.mobile-mode .form-select{min-width:0;width:100%;box-sizing:border-box;height:42px}
 html.mobile-mode .form-textarea{min-width:0;max-width:100%;box-sizing:border-box}
+/* スマホ：タスク追加・タスク詳細の「担当者」は<select>、「ラベル」はタップで選ぶチップにする（datalistの候補がスマホでは出ないため） */
+#tm-assignee-sel{display:none}
+html.mobile-mode #tm-assignee{display:none}
+html.mobile-mode #tm-assignee-sel{display:block}
+.tm-label-picker{display:none}
+html.mobile-mode .tm-label-picker{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+html.mobile-mode #tm-labels-display{display:none !important}
+#panel-assignee-sel{display:none}
+html.mobile-mode #panel-assignee{display:none}
+html.mobile-mode #panel-assignee-sel{display:block}
+html.mobile-mode #panel-labels-display{display:none !important}
+html.mobile-mode .tm-label-opt{min-height:34px;padding:5px 12px;border-radius:17px;font-size:13px;font-family:inherit;cursor:pointer;background:transparent;-webkit-tap-highlight-color:transparent}
 html.mobile-mode input[type="date"].form-input{-webkit-appearance:none;appearance:none;display:block;text-align:left;line-height:normal}
 html.mobile-mode .modal-footer{position:sticky;bottom:-18px;margin:16px -16px -18px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--border);z-index:2}
 
@@ -1723,6 +1735,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         <div class="meta-label">担当者</div>
         <input class="meta-input" id="panel-assignee" placeholder="担当者名" list="assignee-dl" oninput="panelDirty=true;_updatePanelTitleAssignee(this.value)">
         <datalist id="assignee-dl"></datalist>
+        <select class="meta-select" id="panel-assignee-sel" onchange="panelAssigneeSelChanged(this)"><option value="">未設定</option></select>
       </div>
       <div class="meta-field">
         <div class="meta-label">開始日</div>
@@ -1770,6 +1783,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
       </div>
       <div class="meta-field" style="grid-column:1/-1">
         <div class="meta-label">ラベル</div>
+        <div class="tm-label-picker" id="panel-label-picker"></div>
         <div id="panel-labels-display" style="margin-bottom:4px"></div>
         <div style="display:flex;gap:6px">
           <input class="meta-input" id="panel-new-label" placeholder="ラベルを追加..." style="flex:1;font-size:12px" onkeydown="if(event.key==='Enter')addPanelLabel()" list="label-dl"><datalist id="label-dl"></datalist>
@@ -1981,7 +1995,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           <option value="review">レビュー</option><option value="done">完了</option>
         </select>
       </div>
-      <div class="form-group"><label class="form-label">担当者</label><input class="form-input" id="tm-assignee" placeholder="担当者名" list="tm-assignee-dl"><datalist id="tm-assignee-dl"></datalist></div>
+      <div class="form-group"><label class="form-label">担当者</label><input class="form-input" id="tm-assignee" placeholder="担当者名" list="tm-assignee-dl"><datalist id="tm-assignee-dl"></datalist><select class="form-select" id="tm-assignee-sel" onchange="tmAssigneeSelChanged(this)"><option value="">未設定</option></select></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">開始日</label><input class="form-input" type="date" id="tm-start" oninput="_updateTmDateInvalid()"></div>
@@ -2043,6 +2057,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
       <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
         <span>ラベル</span>
       </label>
+      <div class="tm-label-picker" id="tm-label-picker"></div>
       <div id="tm-labels-display" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
       <div style="display:flex;gap:6px">
         <input class="form-input" id="tm-label-input" placeholder="ラベルを入力して Enter" style="flex:1" list="tm-label-dl"
@@ -6685,7 +6700,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.5';
+const APP_VERSION      = '1.2.6';
 const APP_VERSION_DATE = '2026-11-09';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
@@ -10405,6 +10420,8 @@ function openTaskModal(status='todo'){
   document.getElementById('tm-checklist-input').value='';
   document.getElementById('tm-labels-display').innerHTML='';
   document.getElementById('tm-label-input').value='';
+  _tmSyncAssigneeSel();
+  _tmRenderLabelPicker();
   // テンプレート選択肢を更新
   const _p2 = getProject(state.currentProjectId);
   const _templates = _p2?.projectSettings?.taskTemplates || [];
@@ -10463,6 +10480,7 @@ function applyTaskTemplate(tplId) {
       display.appendChild(span);
     });
   }
+  _tmRenderLabelPicker();
   toast(`テンプレート「${tpl.name}」を適用しました`, 'success');
 }
 
@@ -10508,6 +10526,76 @@ function tryCloseTaskModalOnOverlayClick(){
   closeTaskModal();
 }
 
+// ── スマホモード用：担当者の<select>・ラベルのチップ選択 ─────────────────
+// 担当者の候補（プロジェクト加入者＋既存タスクの担当者）。PC版の datalist と同じ内容
+function _tmAssigneeCandidates(){
+  const p = getProject(state.currentProjectId);
+  if (!p) return [];
+  return [...new Set([...(p.members||[]), ...(p.tasks||[]).map(t=>t.assignee).filter(Boolean)])];
+}
+// <select> の選択肢を作り直し、元の入力欄（inputId）の現在値に合わせる（候補にない名前も残す）
+function _syncAssigneeSel(inputId, selId){
+  const sel = document.getElementById(selId);
+  if (!sel || !window.IS_MOBILE_MODE) return;
+  const cur = document.getElementById(inputId).value.trim();
+  const names = _tmAssigneeCandidates();
+  if (cur && !names.includes(cur)) names.push(cur);
+  sel.innerHTML = '<option value="">未設定</option>' + names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value = cur;
+}
+function _tmSyncAssigneeSel(){ _syncAssigneeSel('tm-assignee', 'tm-assignee-sel'); }
+function _panelSyncAssigneeSel(){ _syncAssigneeSel('panel-assignee', 'panel-assignee-sel'); }
+function tmAssigneeSelChanged(sel){
+  document.getElementById('tm-assignee').value = sel.value;   // 保存処理は従来どおり #tm-assignee を読む
+}
+function panelAssigneeSelChanged(sel){
+  const inp = document.getElementById('panel-assignee');
+  inp.value = sel.value;
+  inp.dispatchEvent(new Event('input', { bubbles: true }));   // 手入力と同じ処理（変更あり扱い・タイトル横の担当者表示）を通す
+}
+// ラベルの候補（プロジェクトで設定済みのラベル＋既存タスクで使われているラベル）
+function _tmLabelCandidates(){
+  const p = getProject(state.currentProjectId);
+  if (!p) return [];
+  const existing = (p.tasks||[]).flatMap(t => t.labels||[]);
+  const defined  = (p.projectSettings?.labels || []).map(l => l.name);
+  return [...new Set([...defined, ...existing])].sort();
+}
+function _tmSelectedLabels(){
+  return [...document.getElementById('tm-labels-display').querySelectorAll('[data-label]')].map(el=>el.dataset.label);
+}
+// 候補ラベルをタップで選べるチップとして描画（選択中は✓付き。新規に追加したラベルも並ぶ）
+function _renderLabelChips(boxId, sel, toggleFn){
+  const box = document.getElementById(boxId);
+  if (!box || !window.IS_MOBILE_MODE) return;
+  const all = [...new Set([..._tmLabelCandidates(), ...sel])];
+  if (!all.length) {
+    box.innerHTML = '<span style="font-size:12px;color:var(--muted)">候補のラベルはありません。下の欄から追加できます</span>';
+    return;
+  }
+  box.innerHTML = all.map(l => {
+    const on = sel.includes(l), c = getLabelColor(l);
+    const st = on ? `background:${c}33;color:${c};border:1px solid ${c};font-weight:600`
+                  : `background:transparent;color:${c};border:1px solid ${c}66`;
+    return `<button type="button" class="tm-label-opt" data-label-opt="${esc(l)}" style="${st}" onclick="${toggleFn}(this.dataset.labelOpt)">${on?'✓ ':''}${esc(l)}</button>`;
+  }).join('');
+}
+function _tmRenderLabelPicker(){ _renderLabelChips('tm-label-picker', _tmSelectedLabels(), 'tmToggleLabel'); }
+function tmToggleLabel(text){
+  const display = document.getElementById('tm-labels-display');
+  const el = [...display.querySelectorAll('[data-label]')].find(e => e.dataset.label === text);
+  if (el) el.remove(); else _tmAppendLabelTag(text);
+  _tmRenderLabelPicker();
+}
+function _tmAppendLabelTag(text){
+  const display = document.getElementById('tm-labels-display');
+  const tag = document.createElement('span');
+  tag.dataset.label = text;
+  tag.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:rgba(79,142,255,.15);color:var(--accent);border-radius:4px;padding:2px 8px;font-size:12px;cursor:default';
+  tag.innerHTML = `${esc(text)}<span onclick="this.parentNode.remove()" style="cursor:pointer;opacity:.6;font-size:10px">✕</span>`;
+  display.appendChild(tag);
+}
+
 function tmAddLabel(){
   const input = document.getElementById('tm-label-input');
   const text = input.value.trim();
@@ -10515,13 +10603,10 @@ function tmAddLabel(){
   const display = document.getElementById('tm-labels-display');
   // 重複チェック
   const existing = [...display.querySelectorAll('[data-label]')].map(el=>el.dataset.label);
-  if(existing.includes(text)){input.value='';return;}
-  const tag = document.createElement('span');
-  tag.dataset.label = text;
-  tag.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:rgba(79,142,255,.15);color:var(--accent);border-radius:4px;padding:2px 8px;font-size:12px;cursor:default';
-  tag.innerHTML = `${esc(text)}<span onclick="this.parentNode.remove()" style="cursor:pointer;opacity:.6;font-size:10px">✕</span>`;
-  display.appendChild(tag);
+  if(existing.includes(text)){input.value='';_tmRenderLabelPicker();return;}
+  _tmAppendLabelTag(text);
   input.value='';
+  _tmRenderLabelPicker();
   input.focus();
 }
 
@@ -10650,6 +10735,7 @@ function _openTaskPanelInner(taskId){
   })();
   document.getElementById('panel-status').value=t.status;
   document.getElementById('panel-assignee').value=t.assignee||'';
+  _panelSyncAssigneeSel();
   _updatePanelTitleAssignee(t.assignee||'');
   _applyPanelMetaCollapsed(_panelMetaCollapsed);
   document.getElementById('panel-start').value=t.startDate||'';
@@ -10828,6 +10914,7 @@ function renderPanelLabels(labels){
     `<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44;margin-right:4px;display:inline-flex;align-items:center;gap:4px">${esc(l)} <span style="cursor:pointer;opacity:.6" onclick="removePanelLabel(${i})">✕</span></span>`
   ).join('');
   _renderPanelMetaCollapsedLabels(labels);
+  _renderLabelChips('panel-label-picker', labels, 'panelToggleLabel');
 }
 
 // 「詳細情報」を閉じている間、その代わりに表示するラベル一覧（詳細情報 と 詳細 の間）
@@ -10877,6 +10964,14 @@ function addPanelLabel(){
   if(!t.labels)t.labels=[];
   if(!t.labels.includes(val)){t.labels.push(val);renderPanelLabels(t.labels);panelDirty=true;}
   input.value='';
+}
+// スマホモード：候補ラベルのチップをタップして、付ける／外すを切り替える
+function panelToggleLabel(text){
+  const t=getTask(state.currentProjectId,_panelTaskId); if(!t)return;
+  if(!t.labels)t.labels=[];
+  const i=t.labels.indexOf(text);
+  if(i>=0)t.labels.splice(i,1); else t.labels.push(text);
+  renderPanelLabels(t.labels); panelDirty=true;
 }
 function removePanelLabel(idx){
   const t=getTask(state.currentProjectId,_panelTaskId); if(!t||!t.labels)return;
@@ -13410,6 +13505,7 @@ function createReferenceTask() {
     span.innerHTML = `${esc(lname)} <span style="cursor:pointer;opacity:.6" onclick="this.closest('.label-chip').remove()">✕</span>`;
     labelDisplay.appendChild(span);
   });
+  _tmRenderLabelPicker();
 
   toast(`#${t.number} の内容を引き継いで新規タスク作成画面を開きました`, 'success');
 }
