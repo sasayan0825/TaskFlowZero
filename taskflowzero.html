@@ -362,6 +362,10 @@ button.filter-select:hover{background:var(--surface3)}
 .filter-label{font-size:12px;color:var(--muted)}
 .filter-search{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;padding:4px 10px;font-family:inherit;outline:none;width:160px}
 .filter-search:focus{border-color:var(--accent)}
+/* v1.2.7: 設定中のフィルターを色で強調（PC・スマホ共通） */
+.filter-select.filter-active,.filter-search.filter-active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,var(--surface2));color:var(--accent2);font-weight:600}
+#filter-bar.has-filter .filter-label{color:var(--accent2);font-weight:600}
+#filter-bar .btn.filter-reset-on{border-color:var(--accent);color:var(--accent2);background:color-mix(in srgb,var(--accent) 18%,var(--surface2))}
 
 /* ── LIST VIEW ── */
 #list-view{flex:1;overflow:hidden;display:none;flex-direction:column}
@@ -1097,6 +1101,59 @@ html.mobile-mode #wiki-preview{padding:14px 14px}
 html.mobile-mode #wiki-textarea{padding:14px 14px}
 html.mobile-mode #wiki-page-link-btn{display:none}
 
+/* ═══ スマホ画面刷新（v1.2.7）═══
+   ・説明文はⓘ→ボトムシート　・タブは下部ナビ（縦向きのみ）　・フィルターは開閉式　・保存/更新ボタンは非表示 */
+#m-bottom-nav,#m-filter-row,#m-sheet,#m-sheet-backdrop,#ph-desc-btn{display:none}
+html.mobile-mode .project-desc{display:none !important}
+html.mobile-mode #ph-desc-btn.has-desc{display:inline-flex !important;align-items:center;justify-content:center;min-width:32px}
+html.mobile-mode #refresh-btn,html.mobile-mode #header button[title="保存"]{display:none !important}
+
+/* 説明ボトムシート */
+html.mobile-mode #m-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:950;display:block;opacity:0;pointer-events:none;transition:opacity .2s}
+html.mobile-mode #m-sheet-backdrop.show{opacity:1;pointer-events:auto}
+html.mobile-mode #m-sheet{position:fixed;left:0;right:0;bottom:0;z-index:960;display:flex;flex-direction:column;gap:10px;background:var(--surface);border-top:1px solid var(--border2);border-radius:18px 18px 0 0;padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px));transform:translateY(105%);transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:0 -10px 40px rgba(0,0,0,.45);max-height:75dvh}
+html.mobile-mode #m-sheet.show{transform:none}
+#m-sheet .m-sheet-grip{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 2px}
+#m-sheet .m-sheet-title{font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+#m-sheet .m-sheet-label{font-size:11px;color:var(--muted);letter-spacing:.5px}
+#m-sheet .m-sheet-body{font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;overflow-y:auto;-webkit-overflow-scrolling:touch;color:var(--text)}
+#m-sheet .m-sheet-body.empty{color:var(--muted)}
+
+/* フィルター開閉行 */
+html.mobile-mode #m-filter-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+html.mobile-mode[data-view="wiki"] #m-filter-row,html.mobile-mode.m-focus #m-filter-row{display:none !important}
+html.mobile-mode[data-view="list"] #m-add-btn{display:none}
+#m-filter-toggle{display:inline-flex;align-items:center;gap:6px}
+#m-filter-toggle svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#m-filter-toggle .m-caret{font-size:10px;transition:transform .15s}
+#m-filter-toggle.open .m-caret{transform:rotate(180deg)}
+#m-filter-toggle.has-filter{border-color:var(--accent);color:var(--accent2);background:color-mix(in srgb,var(--accent) 18%,var(--surface2))}
+#m-filter-badge{display:none;min-width:18px;height:18px;line-height:18px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;text-align:center;padding:0 5px;font-family:'JetBrains Mono',monospace}
+html.mobile-mode:not(.m-filters-open) #filter-bar{display:none !important}
+html.mobile-mode #filter-bar .btn-primary{display:none}
+html.mobile-mode #filter-bar{scrollbar-width:none}
+html.mobile-mode #filter-bar::-webkit-scrollbar{display:none}
+html.mobile-mode #filter-bar.sc-l,html.mobile-mode #filter-bar.sc-r{--fl:0px;--fr:0px;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 var(--fl),#000 calc(100% - var(--fr)),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 var(--fl),#000 calc(100% - var(--fr)),transparent 100%)}
+html.mobile-mode #filter-bar.sc-r{--fr:44px}
+html.mobile-mode #filter-bar.sc-l{--fl:26px}
+@media (orientation:landscape) and (max-height:520px){
+  html.mobile-mode[data-view="gantt"] #m-filter-row,html.mobile-mode[data-view="burndown"] #m-filter-row{display:none !important}
+}
+
+/* 下部ナビ（縦向きのみ。横向きは従来の上部タブ） */
+@media not all and (orientation:landscape) and (max-height:520px){
+  html.mobile-mode[data-mnav] #m-bottom-nav{display:flex;flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
+  html.mobile-mode[data-mnav] .view-tabs,html.mobile-mode[data-mnav] .my-tasks-tabs{display:none}
+  html.mobile-mode[data-mnav="project"] #project-header{padding-bottom:8px !important}
+  html.mobile-mode[data-mnav] #m-list-footer{padding-bottom:8px}
+  .mnav-group{display:none;flex:1;gap:2px;min-width:0}
+  html[data-mnav="project"] .mnav-group[data-group="project"],html[data-mnav="mytasks"] .mnav-group[data-group="mytasks"]{display:flex}
+  .mnav-btn{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:7px 2px 6px;border:none;background:transparent;color:var(--muted);font-family:inherit;font-size:10px;font-weight:600;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s,color .15s}
+  .mnav-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .mnav-btn span{white-space:nowrap;letter-spacing:-.03em}
+  .mnav-btn.active{color:var(--accent2);background:color-mix(in srgb,var(--accent) 16%,transparent)}
+}
+
 /* 設定 → スマホ連携 */
 .sync-block{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;max-width:560px}
 .sync-block h4{margin:0 0 6px;font-size:14px;font-weight:600}
@@ -1471,6 +1528,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           <div class="project-color-badge" id="ph-color-badge"></div>
           <div class="project-title" id="ph-title"></div>
           <span id="ph-project-num" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:2px 7px;border-radius:4px;flex-shrink:0"></span>
+          <button class="btn btn-secondary btn-sm" id="ph-desc-btn" data-keep onclick="openProjectDescSheet()" title="プロジェクトの説明" aria-label="プロジェクトの説明">ⓘ</button>
           <button class="btn btn-secondary btn-sm" onclick="openMilestoneModal()" title="マイルストーン">🏁 <span class="btn-label">マイルストーン</span></button>
           <button class="btn btn-secondary btn-sm" onclick="openProjectModal(state.currentProjectId)" title="編集">✏️ <span class="btn-label">編集</span></button>
           <button class="btn btn-secondary btn-sm" id="btn-archive-project" onclick="toggleArchiveProject(state.currentProjectId)" title="完了">📦 <span class="btn-label">完了</span></button>
@@ -1488,6 +1546,11 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         </div>
       </div>
 
+      <!-- スマホ：フィルター開閉行（v1.2.7） -->
+      <div id="m-filter-row">
+        <button class="btn btn-secondary btn-sm" id="m-filter-toggle" onclick="toggleMobileFilters()" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>フィルター <span id="m-filter-badge"></span><span class="m-caret">▼</span></button>
+        <button class="btn btn-primary btn-sm" id="m-add-btn" onclick="openTaskModal()">＋ タスク追加</button>
+      </div>
       <!-- FILTER BAR -->
       <div id="filter-bar">
         <span class="filter-label">フィルター:</span>
@@ -1673,7 +1736,32 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         </div>
       </div>
     </div>
+  <!-- スマホ：下部ナビ（v1.2.7。表示する中身は画面に応じて入れ替わる） -->
+  <nav id="m-bottom-nav" aria-label="画面切替">
+    <div class="mnav-group" data-group="project">
+      <button class="mnav-btn" data-view="list" onclick="switchView('list')"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><span>リスト</span></button>
+      <button class="mnav-btn" data-view="kanban" onclick="switchView('kanban')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="13" rx="1.5"/></svg><span>カンバン</span></button>
+      <button class="mnav-btn" data-view="burndown" onclick="switchView('burndown')"><svg viewBox="0 0 24 24"><path d="M3 4v16h18"/><path d="M6 8l5 4 3 3 5 3"/></svg><span>バーンダウン</span></button>
+      <button class="mnav-btn" data-view="gantt" onclick="switchView('gantt')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="9" height="4" rx="1"/><rect x="7" y="10" width="11" height="4" rx="1"/><rect x="12" y="16" width="9" height="4" rx="1"/></svg><span>ガント</span></button>
+      <button class="mnav-btn" data-view="wiki" onclick="switchView('wiki')"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg><span>Wiki</span></button>
+    </div>
+    <div class="mnav-group" data-group="mytasks">
+      <button class="mnav-btn" data-tab="mention" onclick="switchMyTasksTab('mention')"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12z"/></svg><span>メンション</span></button>
+      <button class="mnav-btn" data-tab="task" onclick="switchMyTasksTab('task')"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg><span>担当タスク</span></button>
+      <button class="mnav-btn" data-tab="activity" onclick="switchMyTasksTab('activity')"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span>アクティビティ</span></button>
+      <button class="mnav-btn" data-tab="like" onclick="switchMyTasksTab('like')"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>いいね</span></button>
+    </div>
+  </nav>
   </div>
+</div>
+<!-- スマホ：プロジェクト説明ボトムシート（v1.2.7） -->
+<div id="m-sheet-backdrop" onclick="closeMobileSheet()"></div>
+<div id="m-sheet" role="dialog" aria-modal="true" aria-labelledby="m-sheet-title">
+  <div class="m-sheet-grip"></div>
+  <div class="m-sheet-title" id="m-sheet-title"></div>
+  <div class="m-sheet-label">プロジェクトの説明</div>
+  <div class="m-sheet-body" id="m-sheet-body"></div>
+  <button class="btn btn-secondary" onclick="closeMobileSheet()">閉じる</button>
 </div>
 
 <!-- TASK PANEL -->
@@ -5435,6 +5523,7 @@ function addDays(d,n){ const x=new Date(d+'T00:00:00'); x.setDate(x.getDate()+n)
 function toast(msg,type='',duration=2800){ const e=document.getElementById('toast'); e.textContent=msg; e.className='show'+(type?' '+type:''); clearTimeout(e._t); e._t=setTimeout(()=>e.className='',duration); }
 
 function getFilteredTasks() {
+  updateFilterIndicators();
   const p = getProject(state.currentProjectId);
   if (!p) return [];
   let tasks = p.tasks;
@@ -5471,6 +5560,31 @@ function resetFilters() {
     if (el) el.value = '';
   });
   renderCurrentView();
+  updateFilterIndicators();
+}
+
+// v1.2.7: 設定中のフィルター項目を色で強調し、件数をスマホのフィルターボタンのバッジにも出す（PC・スマホ共通）
+function updateFilterIndicators() {
+  let n = 0;
+  ['filter-search','filter-milestone','filter-assignee','filter-label','filter-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const on = String(el.value || '').trim() !== '';
+    el.classList.toggle('filter-active', on);
+    if (on) n++;
+  });
+  const bar = document.getElementById('filter-bar');
+  if (bar) {
+    bar.classList.toggle('has-filter', n > 0);
+    const rst = bar.querySelector('[onclick="resetFilters()"]');
+    if (rst) rst.classList.toggle('filter-reset-on', n > 0);
+  }
+  const badge = document.getElementById('m-filter-badge');
+  if (badge) { badge.textContent = n; badge.style.display = n ? 'inline-block' : 'none'; }
+  const tg = document.getElementById('m-filter-toggle');
+  if (tg) tg.classList.toggle('has-filter', n > 0);
+  if (window._updateFilterFade) window._updateFilterFade();
+  return n;
 }
 
 // ═══════════════════════════════════════
@@ -6700,8 +6814,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.6';
-const APP_VERSION_DATE = '2026-11-09';
+const APP_VERSION      = '1.2.7';
+const APP_VERSION_DATE = '2026-11-11';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -14563,6 +14677,165 @@ if (!IS_MOBILE_MODE) (function() {
     // plugin_manifest.js が無い場合は旧形式にフォールバック（後方互換）
     loadScript('plugin/plugins.js');
   });
+})();
+
+
+// ═══ スマホ画面刷新（v1.2.7）═══
+if (IS_MOBILE_MODE) (function () {
+  const html = document.documentElement;
+  const isShown = el => !!el && getComputedStyle(el).display !== 'none';
+
+  // ── 下部ナビ：画面に応じて「プロジェクトのタブ」と「マイタスクのタブ」を入れ替える ──
+  function mNavSync() {
+    const my = document.getElementById('my-tasks-view');
+    const pd = document.getElementById('project-detail');
+    let mode = '';
+    if (isShown(my)) mode = 'mytasks';
+    else if (isShown(pd)) mode = 'project';
+    if (mode) html.setAttribute('data-mnav', mode); else html.removeAttribute('data-mnav');
+    document.querySelectorAll('#m-bottom-nav .mnav-btn[data-view]').forEach(b => {
+      const v = b.getAttribute('data-view');
+      b.classList.toggle('active', mode === 'project' && state.currentView === v);
+      // プロジェクト設定で非表示にしたタブは、ナビからも外す
+      const tab = document.getElementById('tab-' + v);
+      b.style.display = (tab && tab.style.display === 'none') ? 'none' : '';
+    });
+    document.querySelectorAll('#m-bottom-nav .mnav-btn[data-tab]').forEach(b => {
+      b.classList.toggle('active', mode === 'mytasks' && _myTasksTab === b.getAttribute('data-tab'));
+    });
+    updateFade();
+  }
+  const _sv = switchView;
+  switchView = function () { const r = _sv.apply(this, arguments); try { mNavSync(); } catch (e) {} return r; };
+  const _sm = switchMyTasksTab;
+  switchMyTasksTab = function () { const r = _sm.apply(this, arguments); try { mNavSync(); } catch (e) {} return r; };
+  const mo = new MutationObserver(mNavSync);
+  ['my-tasks-view', 'project-detail'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) mo.observe(el, { attributes: true, attributeFilter: ['style'] });
+  });
+  // プロジェクト設定でタブの表示が変わったとき
+  ['list', 'kanban', 'burndown', 'gantt', 'wiki'].forEach(v => {
+    const tab = document.getElementById('tab-' + v);
+    if (tab) new MutationObserver(mNavSync).observe(tab, { attributes: true, attributeFilter: ['style'] });
+  });
+
+  // ── プロジェクト説明：ⓘ → ボトムシート ──
+  const descEl = document.getElementById('ph-desc');
+  function descSync() {
+    const b = document.getElementById('ph-desc-btn');
+    if (b && descEl) b.classList.toggle('has-desc', !!descEl.textContent.trim());
+  }
+  if (descEl) { new MutationObserver(descSync).observe(descEl, { childList: true, characterData: true, subtree: true }); descSync(); }
+  window.openProjectDescSheet = function () {
+    const p = getProject(state.currentProjectId);
+    if (!p) return;
+    document.getElementById('m-sheet-title').textContent = p.name || '';
+    const body = document.getElementById('m-sheet-body');
+    const d = (p.description || '').trim();
+    body.textContent = d || '説明はありません';
+    body.classList.toggle('empty', !d);
+    document.getElementById('m-sheet').classList.add('show');
+    document.getElementById('m-sheet-backdrop').classList.add('show');
+  };
+  window.closeMobileSheet = function () {
+    document.getElementById('m-sheet').classList.remove('show');
+    document.getElementById('m-sheet-backdrop').classList.remove('show');
+  };
+
+  // ── フィルター行の開閉（基本は閉じる） ──
+  window.toggleMobileFilters = function (force) {
+    const open = (typeof force === 'boolean') ? force : !html.classList.contains('m-filters-open');
+    html.classList.toggle('m-filters-open', open);
+    const b = document.getElementById('m-filter-toggle');
+    if (b) { b.classList.toggle('open', open); b.setAttribute('aria-expanded', String(open)); }
+    requestAnimationFrame(updateFade);
+  };
+
+  // ── フィルター行：右(左)に隠れた項目があるとき、端をぼかして横スクロールできると示す ──
+  const bar = document.getElementById('filter-bar');
+  function updateFade() {
+    if (!bar) return;
+    const max = bar.scrollWidth - bar.clientWidth;
+    bar.classList.toggle('sc-r', max > 2 && bar.scrollLeft < max - 2);
+    bar.classList.toggle('sc-l', bar.scrollLeft > 2);
+  }
+  window._updateFilterFade = () => requestAnimationFrame(updateFade);
+  if (bar) {
+    bar.addEventListener('scroll', updateFade, { passive: true });
+    window.addEventListener('resize', updateFade);
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(updateFade);
+      ro.observe(bar);
+      Array.from(bar.children).forEach(c => ro.observe(c));
+    }
+  }
+
+  // ── タスク詳細：右スワイプで閉じる ──
+  const panel = document.getElementById('task-panel');
+  if (panel) {
+    let sx = 0, sy = 0, st = 0, dx = 0, mode = 0, ok = false;
+    const backdrop = () => document.getElementById('panel-backdrop');
+    function blockedStart(target) {
+      for (let el = target; el && el !== panel; el = el.parentElement) {
+        const tag = el.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable) return true;
+        // 横に動かせる要素（表・コードなど）が左へスクロール済みなら、そちらを優先
+        if (el.scrollWidth > el.clientWidth + 1) {
+          const ox = getComputedStyle(el).overflowX;
+          if ((ox === 'auto' || ox === 'scroll') && el.scrollLeft > 0) return true;
+        }
+      }
+      return false;
+    }
+    panel.addEventListener('touchstart', e => {
+      if (!panel.classList.contains('open') || e.touches.length !== 1) { ok = false; return; }
+      const t = e.touches[0];
+      sx = t.clientX; sy = t.clientY; st = Date.now(); dx = 0; mode = 0;
+      ok = !blockedStart(e.target);
+    }, { passive: true });
+    panel.addEventListener('touchmove', e => {
+      if (!ok) return;
+      const t = e.touches[0];
+      const mx = t.clientX - sx, my = t.clientY - sy;
+      if (mode === 0) {
+        if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+        if (mx > 0 && mx > Math.abs(my) * 1.6) { mode = 1; panel.style.transition = 'none'; }
+        else { mode = 2; return; }
+      }
+      if (mode !== 1) return;
+      dx = Math.max(0, mx);
+      e.preventDefault();
+      panel.style.transform = 'translateX(' + dx + 'px)';
+      const bd = backdrop();
+      if (bd) bd.style.opacity = String(Math.max(0, 1 - dx / Math.max(1, panel.offsetWidth)));
+    }, { passive: false });
+    function endSwipe() {
+      if (!ok || mode !== 1) { ok = false; return; }
+      ok = false;
+      const bd = backdrop();
+      const w = Math.max(1, panel.offsetWidth);
+      const v = dx / Math.max(1, Date.now() - st);
+      if (dx > w * 0.3 || (v > 0.5 && dx > 50)) {
+        closeTaskPanel();   // 未保存の確認が出る場合がある（キャンセルなら開いたまま）
+        if (!panel.classList.contains('open')) {
+          panel.style.transition = 'transform .22s ease-out';
+          panel.style.transform = 'translateX(100%)';
+          setTimeout(() => { panel.style.transition = ''; panel.style.transform = ''; if (bd) bd.style.opacity = ''; }, 260);
+          return;
+        }
+      }
+      panel.style.transition = 'transform .2s ease-out';
+      panel.style.transform = '';
+      if (bd) bd.style.opacity = '';
+      setTimeout(() => { panel.style.transition = ''; }, 240);
+    }
+    panel.addEventListener('touchend', endSwipe);
+    panel.addEventListener('touchcancel', endSwipe);
+  }
+
+  mNavSync();
+  updateFilterIndicators();
 })();
 
 if (IS_MOBILE_MODE) {
