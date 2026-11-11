@@ -1005,7 +1005,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 
 /* ═══ スマホモード（v1.2.0）═══
    File System Access API が使えない端末（または ?mobile=1）で html.mobile-mode が付く */
-#mobile-loader,#m-menu-btn,#m-backdrop,#m-list-footer{display:none}
+#mobile-loader,#m-menu-btn,#m-backdrop{display:none}
 .sync-unsent{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;font-family:'JetBrains Mono',monospace}
 html.mobile-mode body{height:100dvh}
 html.mobile-mode #file-loader > .loader-card,html.mobile-mode #file-loader > .welcome-info,html.mobile-mode #file-loader > .hash-folder-banner{display:none !important}
@@ -1122,7 +1122,6 @@ html.mobile-mode #m-sheet.show{transform:none}
 /* フィルター開閉行 */
 html.mobile-mode #m-filter-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
 html.mobile-mode[data-view="wiki"] #m-filter-row,html.mobile-mode.m-focus #m-filter-row{display:none !important}
-html.mobile-mode[data-view="list"] #m-add-btn{display:none}
 #m-filter-toggle{display:inline-flex;align-items:center;gap:6px}
 #m-filter-toggle svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #m-filter-toggle .m-caret{font-size:10px;transition:transform .15s}
@@ -1131,13 +1130,22 @@ html.mobile-mode[data-view="list"] #m-add-btn{display:none}
 #m-filter-badge{display:none;min-width:18px;height:18px;line-height:18px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;text-align:center;padding:0 5px;font-family:'JetBrains Mono',monospace}
 html.mobile-mode:not(.m-filters-open) #filter-bar{display:none !important}
 html.mobile-mode #filter-bar .btn-primary{display:none}
-html.mobile-mode #filter-bar{scrollbar-width:none}
-html.mobile-mode #filter-bar::-webkit-scrollbar{display:none}
-html.mobile-mode #filter-bar.sc-l,html.mobile-mode #filter-bar.sc-r{--fl:0px;--fr:0px;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 var(--fl),#000 calc(100% - var(--fr)),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 var(--fl),#000 calc(100% - var(--fr)),transparent 100%)}
-html.mobile-mode #filter-bar.sc-r{--fr:44px}
-html.mobile-mode #filter-bar.sc-l{--fl:26px}
+html.mobile-mode #filter-bar,html.mobile-mode .gantt-milestone-control{scrollbar-width:none}
+html.mobile-mode #filter-bar::-webkit-scrollbar,html.mobile-mode .gantt-milestone-control::-webkit-scrollbar{display:none}
+.m-fr-left{display:flex;align-items:center;gap:6px;min-width:0}
+#m-filter-row .btn{white-space:nowrap}
+#m-gantt-toggle{display:none;align-items:center;gap:6px}
+html.mobile-mode[data-view="gantt"] #m-gantt-toggle{display:inline-flex}
+#m-gantt-toggle svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#m-gantt-toggle .m-caret{font-size:10px;transition:transform .15s}
+#m-gantt-toggle.open .m-caret{transform:rotate(180deg)}
+html.mobile-mode:not(.m-gantt-open) .gantt-milestone-control{display:none !important}
+html.mobile-mode .m-fade.sc-l,html.mobile-mode .m-fade.sc-r{--fl:0px;--fr:0px;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 var(--fl),#000 calc(100% - var(--fr)),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 var(--fl),#000 calc(100% - var(--fr)),transparent 100%)}
+html.mobile-mode .m-fade.sc-r{--fr:44px}
+html.mobile-mode .m-fade.sc-l{--fl:26px}
 @media (orientation:landscape) and (max-height:520px){
   html.mobile-mode[data-view="gantt"] #m-filter-row,html.mobile-mode[data-view="burndown"] #m-filter-row{display:none !important}
+  html.mobile-mode .gantt-milestone-control{display:flex !important}   /* 横向きは行を隠さない（従来どおり） */
 }
 
 /* 下部ナビ（縦向きのみ。横向きは従来の上部タブ） */
@@ -1145,7 +1153,6 @@ html.mobile-mode #filter-bar.sc-l{--fl:26px}
   html.mobile-mode[data-mnav] #m-bottom-nav{display:flex;flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
   html.mobile-mode[data-mnav] .view-tabs,html.mobile-mode[data-mnav] .my-tasks-tabs{display:none}
   html.mobile-mode[data-mnav="project"] #project-header{padding-bottom:8px !important}
-  html.mobile-mode[data-mnav] #m-list-footer{padding-bottom:8px}
   .mnav-group{display:none;flex:1;gap:2px;min-width:0}
   html[data-mnav="project"] .mnav-group[data-group="project"],html[data-mnav="mytasks"] .mnav-group[data-group="mytasks"]{display:flex}
   .mnav-btn{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:7px 2px 6px;border:none;background:transparent;color:var(--muted);font-family:inherit;font-size:10px;font-weight:600;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s,color .15s}
@@ -1210,8 +1217,6 @@ html.mobile-mode #toast{left:12px;right:12px;bottom:auto;top:calc(env(safe-area-
 html.mobile-mode #toast.show{transform:none;opacity:1}
 
 /* スマホ：リストの下部に常に見える「タスクを追加」 / ガントの凡例は横スクロールの1行 */
-html.mobile-mode #m-list-footer{display:block;flex-shrink:0;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);background:var(--surface)}
-html.mobile-mode #m-list-footer .btn-add-task{width:100%;padding:11px;font-size:14px}
 html.mobile-mode .gantt-legend{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:18px;padding:8px 14px}
 html.mobile-mode .gantt-legend::-webkit-scrollbar{display:none}
 html.mobile-mode .gantt-legend > *{flex-shrink:0}
@@ -1548,11 +1553,14 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
 
       <!-- スマホ：フィルター開閉行（v1.2.7） -->
       <div id="m-filter-row">
-        <button class="btn btn-secondary btn-sm" id="m-filter-toggle" onclick="toggleMobileFilters()" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>フィルター <span id="m-filter-badge"></span><span class="m-caret">▼</span></button>
+        <div class="m-fr-left">
+          <button class="btn btn-secondary btn-sm" id="m-filter-toggle" onclick="toggleMobileFilters()" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>フィルター <span id="m-filter-badge"></span><span class="m-caret">▼</span></button>
+          <button class="btn btn-secondary btn-sm" id="m-gantt-toggle" onclick="toggleMobileGanttOpts()" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>表示範囲 <span class="m-caret">▼</span></button>
+        </div>
         <button class="btn btn-primary btn-sm" id="m-add-btn" onclick="openTaskModal()">＋ タスク追加</button>
       </div>
       <!-- FILTER BAR -->
-      <div id="filter-bar">
+      <div id="filter-bar" class="m-fade">
         <span class="filter-label">フィルター:</span>
         <input class="filter-search" id="filter-search" placeholder="🔍 タイトル検索..." oninput="renderCurrentView()">
         <select class="filter-select" id="filter-milestone" onchange="renderCurrentView()">
@@ -1592,7 +1600,6 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
             <div id="list-body"></div>
           </div>
         </div>
-        <div id="m-list-footer"><button class="btn-add-task" onclick="openTaskModal()">＋ タスクを追加</button></div>
       </div>
 
       <!-- KANBAN VIEW -->
@@ -1639,7 +1646,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
 
       <!-- GANTT VIEW -->
       <div id="gantt-view">
-        <div class="gantt-milestone-control">
+        <div class="gantt-milestone-control m-fade">
           <span style="font-size:12px;color:var(--muted)">表示範囲:</span>
           <select class="filter-select" id="gantt-range" onchange="renderGantt()">
             <option value="30">1ヶ月</option>
@@ -14752,24 +14759,34 @@ if (IS_MOBILE_MODE) (function () {
     requestAnimationFrame(updateFade);
   };
 
-  // ── フィルター行：右(左)に隠れた項目があるとき、端をぼかして横スクロールできると示す ──
-  const bar = document.getElementById('filter-bar');
+  // ── ガント「表示範囲」行の開閉（基本は閉じる） ──
+  window.toggleMobileGanttOpts = function (force) {
+    const open = (typeof force === 'boolean') ? force : !html.classList.contains('m-gantt-open');
+    html.classList.toggle('m-gantt-open', open);
+    const b = document.getElementById('m-gantt-toggle');
+    if (b) { b.classList.toggle('open', open); b.setAttribute('aria-expanded', String(open)); }
+    requestAnimationFrame(updateFade);
+  };
+
+  // ── 横スクロールする行（フィルター行・ガント表示範囲行）：隠れた項目があるとき、端をぼかして示す ──
+  const fadeBars = Array.from(document.querySelectorAll('.m-fade'));
   function updateFade() {
-    if (!bar) return;
-    const max = bar.scrollWidth - bar.clientWidth;
-    bar.classList.toggle('sc-r', max > 2 && bar.scrollLeft < max - 2);
-    bar.classList.toggle('sc-l', bar.scrollLeft > 2);
+    fadeBars.forEach(bar => {
+      const max = bar.scrollWidth - bar.clientWidth;
+      bar.classList.toggle('sc-r', max > 2 && bar.scrollLeft < max - 2);
+      bar.classList.toggle('sc-l', bar.scrollLeft > 2);
+    });
   }
   window._updateFilterFade = () => requestAnimationFrame(updateFade);
-  if (bar) {
+  window.addEventListener('resize', updateFade);
+  fadeBars.forEach(bar => {
     bar.addEventListener('scroll', updateFade, { passive: true });
-    window.addEventListener('resize', updateFade);
     if (window.ResizeObserver) {
       const ro = new ResizeObserver(updateFade);
       ro.observe(bar);
       Array.from(bar.children).forEach(c => ro.observe(c));
     }
-  }
+  });
 
   // ── タスク詳細：右スワイプで閉じる ──
   const panel = document.getElementById('task-panel');
