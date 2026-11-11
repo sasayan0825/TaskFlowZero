@@ -1007,6 +1007,9 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 .sync-unsent{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;font-family:'JetBrains Mono',monospace}
 html.mobile-mode body{height:100dvh}
 html.mobile-mode{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* v1.2.9: iOS 26のホーム画面起動で、表示領域が「画面高さ − 上のセーフエリア」しかない場合の補正（JSが html.ios-short を付ける） */
+html.ios-short{background:var(--surface)}
+html.ios-short.mobile-mode[data-mnav] #m-bottom-nav{padding-bottom:6px}
 html.mobile-mode #file-loader > .loader-card,html.mobile-mode #file-loader > .welcome-info,html.mobile-mode #file-loader > .hash-folder-banner{display:none !important}
 html.mobile-mode #mobile-loader{display:block;width:100%;max-width:420px;padding:0 16px;box-sizing:border-box}
 html.mobile-mode #mobile-loader .loader-card{width:100%;box-sizing:border-box}
@@ -15040,6 +15043,24 @@ document.addEventListener('click', function(e) {
 });
 </script>
 <div id="sidebar-tooltip"></div>
+<!-- TFZ-IOS-FIX: iOS 26 ホーム画面起動の高さ不足（画面高さ − 上セーフエリア）を検出して html.ios-short を付ける -->
+<script>
+(function(){
+  if(!window.IS_MOBILE_MODE||navigator.standalone!==true) return;
+  function init(){
+    var p=document.createElement('div');
+    p.style.cssText='position:fixed;left:0;top:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px)';
+    document.body.appendChild(p);
+    function chk(){
+      var top=parseFloat(getComputedStyle(p).paddingTop)||0;
+      var short=top>0&&screen.height>screen.width&&Math.abs(screen.height-innerHeight-top)<=4;
+      document.documentElement.classList.toggle('ios-short',short);
+    }
+    chk(); addEventListener('resize',chk); addEventListener('orientationchange',function(){setTimeout(chk,300)});
+  }
+  if(document.body)init();else addEventListener('DOMContentLoaded',init);
+})();
+</script>
 <!-- TFZ-DEBUG-START（余白調査用の一時表示。調査が終わったら削除） -->
 <script>
 (function(){
@@ -15058,7 +15079,7 @@ document.addEventListener('click', function(e) {
       'bodyH '+Math.round(b.height)+' appBottom '+(ar?Math.round(ar.bottom):'-'),
       'navTop '+(nr?Math.round(nr.top):'-')+' navBot '+(nr?Math.round(nr.bottom):'-')+' navH '+(nr?Math.round(nr.height):'-'),
       'navPadB '+(nav?getComputedStyle(nav).paddingBottom:'-')+' mnav='+m,
-      'standalone '+(navigator.standalone===true)].join('\n');
+      'standalone '+(navigator.standalone===true)+' ios-short '+document.documentElement.classList.contains('ios-short')].join('\n');
   }
   function start(){document.body.appendChild(p);document.body.appendChild(d);upd();setInterval(upd,1000);addEventListener('resize',upd);}
   if(document.body)start();else addEventListener('DOMContentLoaded',start);
