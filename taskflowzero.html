@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0f1a'/%3E%3Cpolygon points='19,3 10,18 16,18 13,29 22,14 16,14' fill='%234f8eff' stroke='%237aa7ff' stroke-width='0.8'/%3E%3C/svg%3E">
 <meta name="theme-color" content="#0b0f1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="TaskFlowZero">
 <script>
 (function() {
@@ -1005,7 +1005,8 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
    File System Access API が使えない端末（または ?mobile=1）で html.mobile-mode が付く */
 #mobile-loader,#m-menu-btn,#m-backdrop{display:none}
 .sync-unsent{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;font-family:'JetBrains Mono',monospace}
-html.mobile-mode body{position:fixed;inset:0;height:auto} /* v1.2.9: ホーム画面追加起動で100dvhが画面全高より短くなり、下ナビの下に空きが出るのを防ぐ */
+html.mobile-mode body{height:100dvh}
+html.mobile-mode{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html.mobile-mode #file-loader > .loader-card,html.mobile-mode #file-loader > .welcome-info,html.mobile-mode #file-loader > .hash-folder-banner{display:none !important}
 html.mobile-mode #mobile-loader{display:block;width:100%;max-width:420px;padding:0 16px;box-sizing:border-box}
 html.mobile-mode #mobile-loader .loader-card{width:100%;box-sizing:border-box}
