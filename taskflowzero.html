@@ -1005,7 +1005,7 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
    File System Access API が使えない端末（または ?mobile=1）で html.mobile-mode が付く */
 #mobile-loader,#m-menu-btn,#m-backdrop{display:none}
 .sync-unsent{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;font-family:'JetBrains Mono',monospace}
-html.mobile-mode body{height:100dvh}
+html.mobile-mode body{position:fixed;inset:0;height:auto} /* v1.2.9: ホーム画面追加起動で100dvhが画面全高より短くなり、下ナビの下に空きが出るのを防ぐ */
 html.mobile-mode #file-loader > .loader-card,html.mobile-mode #file-loader > .welcome-info,html.mobile-mode #file-loader > .hash-folder-banner{display:none !important}
 html.mobile-mode #mobile-loader{display:block;width:100%;max-width:420px;padding:0 16px;box-sizing:border-box}
 html.mobile-mode #mobile-loader .loader-card{width:100%;box-sizing:border-box}
@@ -6846,7 +6846,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.8';
+const APP_VERSION      = '1.2.9';
 const APP_VERSION_DATE = '2026-11-11';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
