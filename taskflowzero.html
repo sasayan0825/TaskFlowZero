@@ -508,7 +508,6 @@ td.date-invalid-cell{color:var(--red)!important;box-shadow:inset 0 0 0 1px var(-
 .gantt-bar.date-invalid-bar{background:rgba(239,68,68,.12)!important;border:2px dashed var(--red);color:var(--red);box-shadow:none;cursor:pointer;opacity:1!important}
 /* v1.2.4: ガントのイベント行（日付ヘッダーの下に固定表示） */
 .gantt-event-row{position:relative;height:30px;border-bottom:1px solid var(--border);background:var(--surface2);overflow:hidden;cursor:cell}
-.gantt-event-row.readonly{cursor:default}
 .gantt-event-today{position:absolute;top:0;bottom:0;width:2px;background:rgba(79,142,255,.7);pointer-events:none}
 .gantt-event-mk{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;transform:rotate(45deg);border:1px solid rgba(0,0,0,.35);box-sizing:border-box;cursor:pointer;z-index:2}
 .gantt-event-mk:hover{outline:2px solid var(--accent);z-index:3}
@@ -516,7 +515,6 @@ td.date-invalid-cell{color:var(--red)!important;box-shadow:inset 0 0 0 1px var(-
 #gantt-left-event-label{height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);background:var(--surface2);font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.6px}
 .ev-add-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:14px;line-height:1;cursor:pointer;padding:0}
 .ev-add-btn:hover{color:var(--accent);border-color:var(--accent)}
-html.mobile-mode .ev-add-btn{display:none}
 .gantt-col-stripe.saturday{background:rgba(59,130,246,.08)}
 .gantt-col-stripe.holiday{background:rgba(239,68,68,.08)}
 html.light .gantt-col-stripe.saturday{background:rgba(59,130,246,.12)}
@@ -1080,9 +1078,10 @@ html.mobile-mode .gantt-milestone-control > *{flex-shrink:0}
 html.mobile-mode.m-focus #header,html.mobile-mode.m-focus #project-header,html.mobile-mode.m-focus #filter-bar{display:none !important}
 @media (orientation:landscape) and (max-height:520px){
   html.mobile-mode[data-view="gantt"] #filter-bar,html.mobile-mode[data-view="burndown"] #filter-bar,
-  html.mobile-mode[data-view="gantt"] .project-title-row,html.mobile-mode[data-view="burndown"] .project-title-row,
   html.mobile-mode[data-view="gantt"] .project-desc,html.mobile-mode[data-view="burndown"] .project-desc{display:none !important}
   html.mobile-mode[data-view="gantt"] #m-focus-btn,html.mobile-mode[data-view="burndown"] #m-focus-btn{display:flex}
+  /* v1.2.8: プロジェクト名の行は、横向きではすべてのビュー（リスト・カンバン・Wiki含む）で隠す */
+  html.mobile-mode .project-title-row{display:none !important}
 }
 
 /* スマホで作ったプロジェクト（data-owned=1）だけは、プロジェクト・マイルストーン・Wikiも編集できる */
@@ -1100,6 +1099,28 @@ html.mobile-mode .wiki-toolbar > *{flex-shrink:0}
 html.mobile-mode #wiki-preview{padding:14px 14px}
 html.mobile-mode #wiki-textarea{padding:14px 14px}
 html.mobile-mode #wiki-page-link-btn{display:none}
+
+/* ═══ v1.2.8 スマホ調整 ═══ */
+/* マイタスク「担当タスク」：タイトル列を広げ、見出しは1行にして、表全体は横スクロール */
+html.mobile-mode .my-tasks-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+html.mobile-mode .my-tasks-table th{white-space:nowrap}
+html.mobile-mode .my-tasks-table td:not(.mt-title){white-space:nowrap}
+html.mobile-mode .my-tasks-table th.mt-title,html.mobile-mode .my-tasks-table td.mt-title{min-width:240px}
+/* リスト：タイトル列を広げる（表全体は横スクロール） */
+html.mobile-mode .list-body-inner{min-width:1120px}
+html.mobile-mode .list-table th:nth-child(2){min-width:300px}
+/* ガント：左の「マイルストーン / タスク」領域をタップで画面の半分ほどまで広げる（もう一度タップかチャート部分のタップで戻す） */
+.gl-ic{display:none}
+html.mobile-mode #gantt-left{transition:width .22s ease}
+html.mobile-mode #gantt-container.left-wide #gantt-left{width:50vw}
+html.mobile-mode #gantt-left-header-placeholder{cursor:pointer;padding:0 8px 0 12px !important;gap:6px;-webkit-tap-highlight-color:transparent}
+html.mobile-mode #gantt-left-header-placeholder .gl-txt{flex:1;min-width:0;line-height:1.3}
+html.mobile-mode #gantt-left-header-placeholder .gl-ic{display:inline;flex-shrink:0;font-size:13px;color:var(--accent2)}
+html.mobile-mode .gantt-row.milestone-row>.gantt-left-cell{width:auto;flex:1;min-width:0}
+/* ガントのイベント：スマホでも追加・編集できるよう、タップしやすくする */
+html.mobile-mode .ev-add-btn{width:28px;height:28px;font-size:16px}
+html.mobile-mode .gantt-event-mk::after{content:'';position:absolute;inset:-6px}
+html.mobile-mode #event-modal .form-row{grid-template-columns:1fr}
 
 /* ═══ スマホ画面刷新（v1.2.7）═══
    ・説明文はⓘ→ボトムシート　・タブは下部ナビ（縦向きのみ）　・フィルターは開閉式　・保存/更新ボタンは非表示 */
@@ -1677,7 +1698,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         </div>
         <div id="gantt-container">
           <div id="gantt-left">
-            <div id="gantt-left-header-placeholder" style="height:52px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;padding:0 16px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">マイルストーン / タスク</div>
+            <div id="gantt-left-header-placeholder" style="height:52px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;padding:0 16px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px" onclick="toggleGanttLeftWide()"><span class="gl-txt">マイルストーン / タスク</span><span class="gl-ic" aria-hidden="true">⇔</span></div>
             <div id="gantt-left-event-label"><span>◆ イベント</span><button class="ev-add-btn" onclick="openEventModal(null)" title="イベントを追加">＋</button></div>
             <div id="gantt-left-rows" style="overflow-y:hidden;flex:1"></div>
           </div>
@@ -5797,8 +5818,10 @@ let _myLikesSection      = 'received'; // 'received' | 'liked' | 'bookmarks'
 let _myLikesProjFilter   = '';         // プロジェクトIDフィルタ（''=全て）
 
 function switchMyTasksTab(tab) {
+  const _prevTab = _myTasksTab;
   _myTasksTab = tab;
   if (tab !== 'activity') { _myActivitySelDate = null; _myActivityYear = new Date().getFullYear(); }
+  else if (_prevTab !== 'activity') { _myActivityYear = new Date().getFullYear(); _myActivitySelDate = today(); }   // アクティビティを開いたときは、当日を選択した状態にする
   if (tab !== 'like') { _myLikesYear = new Date().getFullYear(); _myLikesSection = 'received'; _myLikesProjFilter = ''; }
   renderMyTasks();
   // タブボタンを除いたコンテンツ部分だけをフェードイン
@@ -5977,7 +6000,7 @@ function renderMyTasks() {
 
     const sh = (col, label) => {
       const active = _myTasksSortCol === col;
-      const cls = active ? (_myTasksSortAsc ? 'sort-asc' : 'sort-desc') : '';
+      const cls = (active ? (_myTasksSortAsc ? 'sort-asc' : 'sort-desc') : '') + (col === 'title' ? ' mt-title' : '');
       return `<th class="sortable ${cls}" onclick="sortMyTasks('${col}')" style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--border)">${label}</th>`;
     };
 
@@ -5992,7 +6015,7 @@ function renderMyTasks() {
         </select>
         <span style="font-size:12px;color:var(--muted);margin-left:4px">${myTasks.length}件</span>
       </div>
-      ${myTasks.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+      ${myTasks.length ? `<div class="my-tasks-table-wrap"><table class="my-tasks-table" style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="color:var(--muted)">
           <th style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--border)">#</th>
           ${sh('title','タイトル')}
@@ -6010,7 +6033,7 @@ function renderMyTasks() {
           const dueCls = diff!==null?(diff<0?'color:var(--red)':diff<=3?'color:var(--yellow)':''):'';
           return `<tr class="my-tasks-row" style="border-bottom:1px solid var(--border)" onclick="openTaskPanelFromMyTasks('${jsq(p.id)}','${jsq(t.id)}')">
             <td style="padding:7px 8px;font-family:'JetBrains Mono',monospace;color:var(--muted)">#${t.number||'?'}</td>
-            <td style="padding:7px 8px;font-weight:500">${esc(t.title)}</td>
+            <td class="mt-title" style="padding:7px 8px;font-weight:500">${esc(t.title)}</td>
             <td style="padding:7px 8px">${t.priority==='high'?'<span class="priority-flag priority-high" title="優先度: 高">↑</span>':t.priority==='low'?'<span class="priority-flag priority-low" title="優先度: 低">↓</span>':'<span style="color:var(--muted);font-size:12px">—</span>'}</td>
             <td style="padding:7px 8px"><span style="background:${p.color||'#4f8eff'}22;color:${p.color||'#4f8eff'};border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600">${esc(p.name)}</span></td>
             <td style="padding:7px 8px">${ms?`<span style="background:${ms.color||'#4f8eff'}22;color:${ms.color||'#4f8eff'};border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600">🏁 ${esc(ms.name)}</span>`:'<span style="color:var(--muted);font-size:12px">—</span>'}</td>
@@ -6019,7 +6042,7 @@ function renderMyTasks() {
             <td style="padding:7px 8px;font-size:12px;${dueCls}">${t.dueDate?fmtFull(t.dueDate):'—'}</td>
           </tr>`;
         }).join('')}</tbody>
-      </table>` : `<div style="text-align:center;padding:20px;font-size:12px;color:var(--muted)">担当タスクはありません</div>`}`;
+      </table></div>` : `<div style="text-align:center;padding:20px;font-size:12px;color:var(--muted)">担当タスクはありません</div>`}`;
 
   } else if (_myTasksTab === 'activity') {
     contentHtml = _renderActivityTabContent(myName);
@@ -6098,7 +6121,7 @@ function shiftActivityDate(delta) {
 function changeActivityYear(delta) {
   const thisYear = new Date().getFullYear();
   _myActivityYear = Math.min(thisYear, _myActivityYear + delta);
-  _myActivitySelDate = null; // 年を変えたら日付選択解除
+  _myActivitySelDate = (_myActivityYear === thisYear) ? today() : null; // 年を変えたら日付選択解除（今年に戻ったときは当日を選択）
   renderMyTasks();
 }
 
@@ -6540,6 +6563,7 @@ function _renderActivityTabContent(myName) {
           <div data-proj-perf-header style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">&#x23F1; プロジェクト別実績</div>
           <button class="activity-view-btn" onclick="toggleAllActivityPerf(${!_perfAllOpen})">${_perfAllOpen ? '▲ すべて折りたたむ' : '▼ すべて展開'}</button>
         </div>
+        <div class="activity-perf-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead><tr>
             <th style="${_th};text-align:left">プロジェクト</th>
@@ -6552,6 +6576,7 @@ function _renderActivityTabContent(myName) {
           <tbody>${perfRows}
           </tbody>
         </table>
+        </div>
       </div>` : '';
 
     const _atLatest = _myActivitySelDate >= today();
@@ -6821,7 +6846,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.7';
+const APP_VERSION      = '1.2.8';
 const APP_VERSION_DATE = '2026-11-11';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
@@ -8069,7 +8094,11 @@ function listMsDrop(e, msId) {
   if (!tip) return;
   let _timer = null;
 
+  // スマホ（タップ時に擬似的なマウスイベントが発生する）では表示しない
+  const _noHover = () => !!window.IS_MOBILE_MODE || (window.matchMedia && window.matchMedia('(hover: none)').matches);
+
   document.addEventListener('mouseover', e => {
+    if (_noHover()) return;
     const tr = e.target.closest('tr[data-ms-desc]');
     if (!tr) return;
     const desc = tr.getAttribute('data-ms-desc');
@@ -8759,6 +8788,8 @@ function renderGantt() {
   const ganttRight = document.getElementById('gantt-right');
   const ganttLeftRows2 = document.getElementById('gantt-left-rows');
   ganttRight.onscroll = () => { ganttLeftRows2.scrollTop = ganttRight.scrollTop; };
+  // スマホ：広げたタスク名の領域は、ガントチャート部分をタップしても元に戻す
+  ganttRight.onclick = () => toggleGanttLeftWide(false);
 
   // 左ペイン上でのホイール操作を右ペインに転送
   // deltaMode に応じてピクセル換算してから scrollBy に渡す
@@ -9790,6 +9821,15 @@ function _ganttInvalidTaskBar(t, s, gStartMs, totalW) {
   return bar;
 }
 
+// スマホ：「マイルストーン / タスク」の見出しをタップで、左のタスク名の領域を画面の半分ほどまで広げる／元に戻す
+function toggleGanttLeftWide(force) {
+  if (!window.IS_MOBILE_MODE) return;
+  const c = document.getElementById('gantt-container');
+  if (!c) return;
+  const on = (typeof force === 'boolean') ? force : !c.classList.contains('left-wide');
+  c.classList.toggle('left-wide', on);
+}
+
 const _EV_DATE_RE  = /^\d{4}-\d{2}-\d{2}$/;
 const _EV_COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
 function _evSafeColor(c) { return (typeof c === 'string' && _EV_COLOR_RE.test(c)) ? c : '#f59e0b'; }
@@ -9803,9 +9843,8 @@ function _projectEvents(p) {
 // 日付ヘッダーの下（スクロールしても固定）に置くイベント行を作る
 function _buildGanttEventRow(ganttStart, rangeDays, gStartMs, totalW) {
   const p = getProject(state.currentProjectId);
-  const readonly = !!window.IS_MOBILE_MODE;
   const row = document.createElement('div');
-  row.className = 'gantt-event-row' + (readonly ? ' readonly' : '');
+  row.className = 'gantt-event-row';
   row.style.width = totalW + 'px';
 
   const todayIdx = Math.round((dateToNum(today()) - gStartMs) / 86400000);
@@ -9816,15 +9855,13 @@ function _buildGanttEventRow(ganttStart, rangeDays, gStartMs, totalW) {
     row.appendChild(tl);
   }
 
-  // 空きセルのクリックで、その日付のイベントを追加（スマホは表示のみ）
-  if (!readonly) {
-    row.addEventListener('click', e => {
-      if (e.target !== row && !e.target.classList.contains('gantt-event-today')) return;
-      const x = e.clientX - row.getBoundingClientRect().left;
-      const idx = Math.max(0, Math.min(rangeDays - 1, Math.floor(x / DAY_W)));
-      openEventModal(null, addDays(ganttStart, idx));
-    });
-  }
+  // 空きセルのクリック（スマホではタップ）で、その日付のイベントを追加
+  row.addEventListener('click', e => {
+    if (e.target !== row && !e.target.classList.contains('gantt-event-today')) return;
+    const x = e.clientX - row.getBoundingClientRect().left;
+    const idx = Math.max(0, Math.min(rangeDays - 1, Math.floor(x / DAY_W)));
+    openEventModal(null, addDays(ganttStart, idx));
+  });
 
   // 同じ日付が複数ある場合は、ダイヤを右へ少しずつずらして並べる
   const byDate = {};
@@ -9844,8 +9881,7 @@ function _buildGanttEventRow(ganttStart, rangeDays, gStartMs, totalW) {
     mk.title = m.ds + '\n' + m.list.map(x => '・' + (x.title || '')).join('\n');
     mk.addEventListener('click', ev => {
       ev.stopPropagation();
-      if (readonly) toast(m.ds + '　' + (m.ev.title || ''), '', 3500);
-      else openEventModal(m.ev.id);
+      openEventModal(m.ev.id);
     });
     row.appendChild(mk);
 
@@ -14220,6 +14256,7 @@ class MobDirHandle {
 // ── 同期パッケージ共通 ──────────────────────────────
 const PKG_VERSION = 1;
 const _PKG_TASK_FIELDS = ['title','status','assignee','startDate','dueDate','storyPoints','baseEstimatedHours','description','milestoneId','labels','priority','completedAt','completedAtTime','completedBy'];
+const _PKG_EVENT_FIELDS = ['title','date','color'];
 const _pkgNull = v => (v === undefined ? null : v);
 const _pkgSame = (a, b) => JSON.stringify(_pkgNull(a)) === JSON.stringify(_pkgNull(b));
 function _pkgStamp() {
@@ -14254,6 +14291,17 @@ function computeProjectOps(base, cur) {
     const ba = new Set((b.activity || []).map(a => a.at + '|' + a.type));
     (t.activity || []).forEach(a => { if (!ba.has(a.at + '|' + a.type)) ops.push({ t: 'activity-add', tid: t.id, entry: deepCopy(a) }); });
   });
+  // ガントのイベント行（project.events）：追加・変更・削除（v1.2.8）
+  const be = new Map((base.events || []).map(e => [e.id, e]));
+  const ce = new Map((cur.events || []).map(e => [e.id, e]));
+  (cur.events || []).forEach(e => {
+    const o = be.get(e.id);
+    if (!o) { ops.push({ t: 'ev-add', ev: deepCopy(e) }); return; }
+    _PKG_EVENT_FIELDS.forEach(f => {
+      if (!_pkgSame(o[f], e[f])) ops.push({ t: 'ev-set', eid: e.id, f, b: _pkgNull(o[f]), a: _pkgNull(e[f]), at: e.updatedAt || null });
+    });
+  });
+  (base.events || []).forEach(o => { if (!ce.has(o.id)) ops.push({ t: 'ev-del', eid: o.id }); });
   return ops;
 }
 
@@ -14268,6 +14316,7 @@ function _buildSyntheticFromOps(cur, ops) {
   if (!st.nextTaskNum) st.nextTaskNum = Math.max(0, ...st.tasks.map(t => t.number || 0)) + 1;
   if (!sb.nextTaskNum) sb.nextTaskNum = st.nextTaskNum;
   ops.forEach(op => {
+    if (op.t === 'ev-add' || op.t === 'ev-set' || op.t === 'ev-del') return;   // イベントの操作は、下でまとめて反映する
     if (op.t === 'task-add') {
       if (find(st, op.task.id)) return;                 // 取り込み済み
       const t = deepCopy(op.task);
@@ -14295,6 +14344,21 @@ function _buildSyntheticFromOps(cur, ops) {
       if (!tt.activity.some(a => a.at + '|' + a.type === key)) tt.activity.push(deepCopy(op.entry));
     }
   });
+  // ガントのイベント行（v1.2.8）。変更前=PCの現在値、変更後=スマホの変更を重ねた値として、既存の3-wayマージ（mergeProjectEvents）に渡す
+  const evOps = ops.filter(op => op.t === 'ev-add' || op.t === 'ev-set' || op.t === 'ev-del');
+  if (evOps.length) {
+    sb.events = Array.isArray(sb.events) ? sb.events : []; st.events = Array.isArray(st.events) ? st.events : [];
+    evOps.forEach(op => {
+      if (op.t === 'ev-add') {
+        if (op.ev && op.ev.id && !st.events.some(e => e.id === op.ev.id)) st.events.push(deepCopy(op.ev));
+        return;
+      }
+      const ib = sb.events.find(e => e.id === op.eid), it = st.events.find(e => e.id === op.eid);
+      if (!ib || !it) { skipped.push(op); return; }       // PC側で削除されたイベント
+      if (op.t === 'ev-del') { st.events = st.events.filter(e => e.id !== op.eid); return; }
+      if (_PKG_EVENT_FIELDS.includes(op.f)) { ib[op.f] = op.b; it[op.f] = op.a; if (op.at) it.updatedAt = op.at; }
+    });
+  }
   return { base: sb, theirs: st, added, skipped };
 }
 
@@ -14498,7 +14562,7 @@ async function openMobileExport() {
   const newP = projects.filter(p => p.owned).length;
   _syncDialog('📤 変更を書き出し', `
     <div style="font-size:13px;line-height:1.8;margin-bottom:8px">変更 <b>${total}</b> 件（${projects.length}プロジェクト）<br><span style="color:var(--muted);font-size:12px">${newP ? `スマホで作成・編集したプロジェクト ${newP}件／` : ''}新規タスク ${addN}件・新規コメント ${cmN}件</span></div>
-    <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">書き出したファイルをTeamsなどでPCへ送り、PC版の「スマホの変更を取り込み」で開いてください。削除はPCへ反映されません（プロジェクト・マイルストーン・Wikiの編集は、スマホで作ったプロジェクトだけ反映されます）。</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">書き出したファイルをTeamsなどでPCへ送り、PC版の「スマホの変更を取り込み」で開いてください。タスクの削除はPCへ反映されません（プロジェクト・マイルストーン・Wikiの編集は、スマホで作ったプロジェクトだけ反映されます）。ガントのイベントは、追加・変更・削除ともPCへ反映されます。</div>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-secondary" onclick="closeSyncDialog()">閉じる</button><button class="btn btn-secondary" onclick="doMobileExport('download')">ダウンロード</button><button class="btn btn-primary" onclick="doMobileExport('share')">共有…</button></div>`);
 }
 async function doMobileExport(mode) {
