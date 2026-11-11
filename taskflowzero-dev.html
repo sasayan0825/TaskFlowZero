@@ -15056,7 +15056,9 @@ document.addEventListener('click', function(e) {
       var short=top>0&&screen.height>screen.width&&Math.abs(screen.height-innerHeight-top)<=4;
       document.documentElement.classList.toggle('ios-short',short);
     }
-    chk(); addEventListener('resize',chk); addEventListener('orientationchange',function(){setTimeout(chk,300)});
+    chk(); addEventListener('resize',chk); addEventListener('pageshow',chk); document.addEventListener('visibilitychange',chk);
+    addEventListener('orientationchange',function(){setTimeout(chk,300)});
+    var n=0,iv=setInterval(function(){chk(); if(++n>=20) clearInterval(iv);},500); /* 起動直後は高さが確定していないことがあるため、最初の10秒は繰り返し判定 */
   }
   if(document.body)init();else addEventListener('DOMContentLoaded',init);
 })();
