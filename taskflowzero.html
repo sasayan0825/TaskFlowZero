@@ -1263,19 +1263,11 @@ html.mobile-mode #proj-search-title{flex:1 1 100%;width:100%;box-sizing:border-b
 /* スマホ：トーストは画面上部に、横幅いっぱいで出す（下端はブラウザのツールバーに隠れるため。消えた状態も画面外へ） */
 html.mobile-mode #toast{left:12px;right:12px;bottom:auto;top:calc(env(safe-area-inset-top,0px) + 56px);transform:translateY(-160%);max-width:none;opacity:0;pointer-events:none;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 html.mobile-mode #toast.show{transform:none;opacity:1}
-/* iOS（ホーム画面から起動）で、起動直後に画面上部がぼやけて見える（ガラス表示）のを防ぐ。
-   画面端に固定された「閉じている間は透明・画面外」の要素が原因と考え、閉じている間は描画自体をやめる（visibility:hidden）。
-   開くときは即座に表示し、閉じるときはアニメーション終了後に非表示にするので、見た目の動きは変わらない */
-html.mobile-mode #m-backdrop,html.mobile-mode #m-sheet-backdrop{visibility:hidden;transition:opacity .2s,visibility 0s .2s}
-html.mobile-mode #m-backdrop.show,html.mobile-mode #m-sheet-backdrop.show{visibility:visible;transition:opacity .2s}
-html.mobile-mode #sidebar{visibility:hidden;transition:transform .22s ease,visibility 0s .22s}
-html.mobile-mode #sidebar.m-open{visibility:visible;transition:transform .22s ease}
-html.mobile-mode #task-panel{visibility:hidden;transition:transform .25s cubic-bezier(.4,0,.2,1),visibility 0s .25s}
-html.mobile-mode #task-panel.open{visibility:visible;transition:transform .25s cubic-bezier(.4,0,.2,1)}
-html.mobile-mode #m-sheet{visibility:hidden;transition:transform .25s cubic-bezier(.4,0,.2,1),visibility 0s .25s}
-html.mobile-mode #m-sheet.show{visibility:visible;transition:transform .25s cubic-bezier(.4,0,.2,1)}
-html.mobile-mode #toast{visibility:hidden;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s,visibility 0s .25s}
-html.mobile-mode #toast.show{visibility:visible;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s}
+/* iOS（ホーム画面から起動）で、画面上部がガラス表示でにじむのを防ぐ。
+   ヘッダーの色の固定帯を、画面最上部（ステータスバーの領域）に置く。iOSは画面上端に固定された不透明な要素を見て上部の表示を決める */
+html.mobile-mode body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--surface);z-index:101;pointer-events:none}
+/* スマホ版の設定にアカウントは出さない（登録情報はPC側の settings.json にあり、スマホには取り込まれないため） */
+html.mobile-mode #settings-nav-accounts{display:none !important}
 
 /* スマホ：リストの下部に常に見える「タスクを追加」 / ガントの凡例は横スクロールの1行 */
 html.mobile-mode .gantt-legend{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:18px;padding:8px 14px}
@@ -6920,6 +6912,7 @@ function showSettings() {
 }
 
 function showSettingsPane(pane) {
+  if (pane === 'accounts' && window.IS_MOBILE_MODE) pane = 'version';   // スマホ版にはアカウント設定を出さない
   ['version','sync','files','accounts','plugins'].forEach(p => {
     document.getElementById('settings-pane-' + p).style.display = p === pane ? '' : 'none';
     const nav = document.getElementById('settings-nav-' + p);
