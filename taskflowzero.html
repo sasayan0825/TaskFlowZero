@@ -1265,9 +1265,15 @@ html.mobile-mode #toast{left:12px;right:12px;bottom:auto;top:calc(env(safe-area-
 html.mobile-mode #toast.show{transform:none;opacity:1}
 /* iOS（ホーム画面から起動）で、画面上部がガラス表示でにじむのを防ぐ。
    ヘッダーの色の固定帯を、画面最上部（ステータスバーの領域）に置く。iOSは画面上端に固定された不透明な要素を見て上部の表示を決める */
-html.mobile-mode body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--surface);z-index:101;pointer-events:none}
+/* v1.2.11: 高さに下限(4px)を付け、pointer-events:none を外した（iOSが上端の固定要素として認識できるように）。
+   起動直後は m-band-kick を一時的に付けて高さを変え、再レイアウトさせる */
+html.mobile-mode body::before{content:"";position:fixed;top:0;left:0;right:0;height:max(env(safe-area-inset-top,0px),4px);background:var(--surface);z-index:101}
+html.mobile-mode.m-band-kick body::before{height:calc(max(env(safe-area-inset-top,0px),4px) + 1px)}
 /* スマホ版の設定にアカウントは出さない（登録情報はPC側の settings.json にあり、スマホには取り込まれないため） */
 html.mobile-mode #settings-nav-accounts{display:none !important}
+/* v1.2.11: 表示テーマの切替はスマホ版の設定に出す（PC版はヘッダーのボタン） */
+#settings-theme-row{display:none}
+html.mobile-mode #settings-theme-row{display:flex}
 
 /* スマホ：リストの下部に常に見える「タスクを追加」 / ガントの凡例は横スクロールの1行 */
 html.mobile-mode .gantt-legend{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:18px;padding:8px 14px}
@@ -1452,6 +1458,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
               <div style="font-size:20px;font-weight:700;color:var(--accent2)">⚡ TaskFlowZero</div>
               <div style="font-size:13px;color:var(--muted)">バージョン: <span style="color:var(--text);font-family:'JetBrains Mono',monospace" id="settings-version-num"></span></div>
               <div style="font-size:13px;color:var(--muted)">最終更新: <span style="color:var(--text)" id="settings-version-date"></span></div>
+              <div id="settings-theme-row" style="font-size:13px;color:var(--muted);align-items:center;gap:8px">表示テーマ: <button id="settings-theme-btn" class="btn btn-secondary btn-sm" onclick="toggleTheme()">🌙 ダーク</button></div>
               <div style="font-size:12px;color:var(--muted)">© 2026 Yusuke</div>
               <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px">
                 <a href="https://github.com/sasayan0825/TaskFlowZero" target="_blank" rel="noopener"
@@ -2507,12 +2514,18 @@ let _timelineFilter = (() => {
 // ═══════════════════════════════════════
 function applyTheme(theme) {
   const btn = document.getElementById('theme-toggle');
+  const sbtn = document.getElementById('settings-theme-btn');
+  const mtc = document.querySelector('meta[name="theme-color"]');
   if (theme === 'light') {
     document.documentElement.classList.add('light');
     if (btn) btn.innerHTML = '☀️ <span class="btn-label">ライト</span>';
+    if (sbtn) sbtn.textContent = '☀️ ライト';
+    if (mtc) mtc.setAttribute('content', '#ffffff');
   } else {
     document.documentElement.classList.remove('light');
     if (btn) btn.innerHTML = '🌙 <span class="btn-label">ダーク</span>';
+    if (sbtn) sbtn.textContent = '🌙 ダーク';
+    if (mtc) mtc.setAttribute('content', '#0b0f1a');
   }
 }
 function _initNavTooltips() {
@@ -2596,6 +2609,19 @@ function toggleTheme() {
     const saved = localStorage.getItem('taskflow-theme') || 'dark';
     applyTheme(saved);
   } catch(e) { applyTheme('dark'); }
+})();
+// v1.2.11: スマホ（iOSホーム追加起動）で、上部のにじみが消えないことがあるため、起動直後に上部の固定帯を再レイアウトさせる
+(function() {
+  if (!window.IS_MOBILE_MODE) return;
+  const de = document.documentElement;
+  function kick() {
+    de.classList.add('m-band-kick');
+    requestAnimationFrame(() => requestAnimationFrame(() => de.classList.remove('m-band-kick')));
+  }
+  [0, 300, 1000, 2500].forEach(ms => setTimeout(kick, ms));
+  window.addEventListener('pageshow', kick);
+  window.addEventListener('resize', kick);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
 })();
 
 // ═══════════════════════════════════════
@@ -6884,8 +6910,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.10';
-const APP_VERSION_DATE = '2026-11-12';
+const APP_VERSION      = '1.2.11';
+const APP_VERSION_DATE = '2026-11-13';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -8140,14 +8166,16 @@ function renderList() {
   (p.milestones||[]).forEach(ms => {
     const msTasks = grouped[ms.id]||[];
     if (!msTasks.length) return;
-    const doneCount = msTasks.filter(t=>t.status==='done').length;
+    // v1.2.11: 完了数・全体数はタブ（未完了/完了/すべて）に関係なく、フィルタ後のタスクで数える
+    const msAll = tasks.filter(t => t.milestoneId === ms.id);
+    const doneCount = msAll.filter(t=>t.status==='done').length;
     rows += `<tr class="list-ms-group-row" onclick="toggleMsGroup('mg-${jsq(ms.id)}',this)"${ms.description?` data-ms-desc="${esc(ms.description)}"`:''}  ondragover="listMsDragOver(event,'${jsq(ms.id)}')" ondragleave="listMsDragLeave(event)" ondrop="listMsDrop(event,'${jsq(ms.id)}')">
       <td colspan="10">
         <span id="mg-arrow-${ms.id}" style="margin-right:6px;font-size:10px">▼</span>
         <span style="width:8px;height:8px;border-radius:50%;background:${ms.color||'#4f8eff'};display:inline-block;margin-right:6px;vertical-align:middle"></span>
         🏁 ${esc(ms.name)}${ms.description?` <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:4px">💬</span>`:''}
         ${ms.endDate?`<span style="font-weight:400;margin-left:8px">期限: ${fmtFull(ms.endDate)}</span>`:''}
-        <span style="margin-left:12px;color:var(--green)">${doneCount}/${msTasks.length}完了</span>
+        <span style="margin-left:12px;color:var(--green)">${doneCount}/${msAll.length}完了</span>
       </td>
     </tr>
     <tbody id="mg-${ms.id}">${msTasks.map(t=>buildListRow(t)).join('')}</tbody>`;
