@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.16',
+      version:     '1.3.17',
     });
   }
 
@@ -586,6 +586,29 @@
     'アプリ全体の設定を管理します':       'Manage application-wide settings',
     '📋 バージョン':                      '📋 Version',
     '🔌 プラグイン':                      '🔌 Plugins',
+    // ── 設定 → アカウント（v1.2.10） ─────────────────────────
+    '👤 アカウント':                      '👤 Accounts',
+    'プロジェクトのメンバー・担当者に登録されている名前を管理します。削除したアカウントは、右上のアカウント選択と、新しい担当者・メンバーの候補から外れます（既存のタスクやコメントはそのまま残ります）。':
+      'Manage the names registered as project members and assignees. A deleted account is removed from the account selector at the top right and from the candidates for new assignees and members (existing tasks and comments are kept).',
+    '＋ アカウントを追加':                '＋ Add Account',
+    'スマホモードでは閲覧のみです。追加・削除・変更はPC版で行ってください': 'View only in mobile mode. Add, delete and edit accounts on the PC version.',
+    'アカウントがありません':             'No accounts',
+    '左の一覧からアカウントを選択してください': 'Select an account from the list',
+    '自分':                               'Me',
+    '削除済み':                           'Deleted',
+    '🖼️ アイコンを設定':                  '🖼️ Set Icon',
+    '✏️ 名前を変更する':                  '✏️ Rename',
+    '↩ 復元':                             '↩ Restore',
+    '関係するプロジェクト':               'Related Projects',
+    '📦 完了済み':                        '📦 Archived',
+    'メンバー':                           'Member',
+    '担当タスクのみ':                     'Assigned tasks only',
+    '担当タスクなし':                     'No assigned tasks',
+    '関係するプロジェクトはありません':   'No related projects',
+    'アカウント名に「,」「、」や改行は使えません': 'Account names cannot contain commas or line breaks',
+    'アカウント名は40文字以内にしてください': 'Account names must be 40 characters or fewer',
+    '設定ファイルに保存できませんでした': 'Could not save to the settings file',
+    '追加するアカウントの名前を入力してください:': 'Enter the name of the account to add:',
     'アプリバージョン情報':               'App Version Info',
     'バージョン:':                        'Version:',
     '最終更新:':                          'Last updated:',
@@ -779,6 +802,16 @@
     s = s.replace(/^「(.+)」はすでに存在します。別の名前を入力してください$/, '"$1" already exists. Please enter a different name');
     s = s.replace(/^「(.+)」→「(.+)」に変更しました（(\d+)件のプロジェクトを更新）$/, 'Renamed "$1" → "$2" ($3 projects updated)');
     s = s.replace(/^「(.+)」を新しい名前に変更します。\n新しい名前を入力してください:$/, 'Rename "$1" to a new name.\nEnter a new name:');
+
+    // アカウント管理（v1.2.10）
+    s = s.replace(/^参加プロジェクト (\d+)件$/, 'Projects: $1');
+    s = s.replace(/^🗑 削除済み（(\d+)件）$/, '🗑 Deleted ($1)');
+    s = s.replace(/^担当 未完了 (\d+) \/ 全 (\d+)$/, 'Assigned: $1 open / $2 total');
+    s = s.replace(/^アカウント「(.+)」を追加しました$/, 'Account \"$1\" added');
+    s = s.replace(/^アカウント「(.+)」を削除しました$/, 'Account \"$1\" deleted');
+    s = s.replace(/^アカウント「(.+)」を復元しました$/, 'Account \"$1\" restored');
+    s = s.replace(/^「(.+)」を削除しますか？\nアカウントの選択と、新しい担当者・メンバーの候補から外れます。既存のタスクやコメントはそのまま残り、あとから復元できます。$/,
+      'Delete \"$1\"?\nIt will be removed from the account selector and from the candidates for new assignees and members. Existing tasks and comments are kept, and you can restore it later.');
 
     // UI コンテンツ関連
     s = s.replace(/完了済みプロジェクト（(\d+)件）/g, 'Archived Projects ($1)');

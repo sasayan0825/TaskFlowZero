@@ -186,7 +186,8 @@ taskflowzero.html は起動時に以下の順序で動作します。
   ├── project_P1.json   ← プロジェクト 1 のデータ全体
   ├── project_P2.json   ← プロジェクト 2 のデータ全体
   ├── project_P3.json
-  └── settings.json     ← アプリ全体設定（v1.1.3〜: プラグイン設定は含まない）
+  └── settings.json     ← アプリ全体設定（v1.1.3〜: プラグイン設定は含まない。
+                          v1.2.10〜: アカウント登録情報 accounts を保存）
 
   plugin フォルダ/
   ├── plugin_manifest.js       ← 読み込むプラグイン一覧（自動生成、データのみ）

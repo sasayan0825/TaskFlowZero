@@ -1188,6 +1188,32 @@ html.mobile-mode .m-fade.sc-l{--fl:26px}
 .sync-block h4{margin:0 0 6px;font-size:14px;font-weight:600}
 .sync-block p{margin:0 0 12px;font-size:12px;color:var(--muted);line-height:1.7}
 /* 設定 → 添付ファイル */
+/* ── 設定 → アカウント（v1.2.10） ── */
+.acc-wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.acc-listcol{flex:0 0 270px;max-width:100%}
+.acc-detailcol{flex:1 1 340px;min-width:0;max-width:760px}
+.acc-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;background:var(--surface2)}
+.acc-item:hover{background:var(--surface3)}
+.acc-item.sel{border-color:var(--accent2);background:rgba(79,142,255,.08)}
+.acc-item-main{min-width:0}
+.acc-item-name{font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px;min-width:0}
+.acc-item-name .acc-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-item-sub{font-size:11px;color:var(--muted)}
+.acc-badge{font-size:10px;padding:1px 6px;border-radius:999px;background:var(--surface3);color:var(--muted);border:1px solid var(--border);white-space:nowrap;flex-shrink:0}
+.acc-badge-warn{color:#fb923c;border-color:rgba(251,146,60,.5)}
+.acc-deleted{opacity:.55;filter:grayscale(.5)}
+.acc-deleted:hover{opacity:.8}
+.acc-group{font-size:12px;font-weight:600;color:var(--muted);margin:14px 0 8px}
+.acc-detail-head{display:flex;gap:14px;align-items:center;margin-bottom:12px}
+.acc-detail-name{font-size:18px;font-weight:700;word-break:break-all;margin-bottom:4px}
+.acc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.acc-sec-title{font-size:12px;font-weight:600;color:var(--muted);margin:6px 0 8px}
+.acc-proj{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;cursor:pointer;font-size:12px;flex-wrap:wrap}
+.acc-proj:hover{background:var(--surface3)}
+.acc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.acc-proj-name{color:var(--text);min-width:0;word-break:break-all}
+.acc-proj-cnt{margin-left:auto;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap}
+html.mobile-mode .acc-listcol{flex:1 1 100%}
 .att-sec{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;max-width:760px}
 .att-sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
 .att-sec-head h4{margin:0;font-size:14px;font-weight:600}
@@ -1237,6 +1263,19 @@ html.mobile-mode #proj-search-title{flex:1 1 100%;width:100%;box-sizing:border-b
 /* スマホ：トーストは画面上部に、横幅いっぱいで出す（下端はブラウザのツールバーに隠れるため。消えた状態も画面外へ） */
 html.mobile-mode #toast{left:12px;right:12px;bottom:auto;top:calc(env(safe-area-inset-top,0px) + 56px);transform:translateY(-160%);max-width:none;opacity:0;pointer-events:none;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 html.mobile-mode #toast.show{transform:none;opacity:1}
+/* iOS（ホーム画面から起動）で、起動直後に画面上部がぼやけて見える（ガラス表示）のを防ぐ。
+   画面端に固定された「閉じている間は透明・画面外」の要素が原因と考え、閉じている間は描画自体をやめる（visibility:hidden）。
+   開くときは即座に表示し、閉じるときはアニメーション終了後に非表示にするので、見た目の動きは変わらない */
+html.mobile-mode #m-backdrop,html.mobile-mode #m-sheet-backdrop{visibility:hidden;transition:opacity .2s,visibility 0s .2s}
+html.mobile-mode #m-backdrop.show,html.mobile-mode #m-sheet-backdrop.show{visibility:visible;transition:opacity .2s}
+html.mobile-mode #sidebar{visibility:hidden;transition:transform .22s ease,visibility 0s .22s}
+html.mobile-mode #sidebar.m-open{visibility:visible;transition:transform .22s ease}
+html.mobile-mode #task-panel{visibility:hidden;transition:transform .25s cubic-bezier(.4,0,.2,1),visibility 0s .25s}
+html.mobile-mode #task-panel.open{visibility:visible;transition:transform .25s cubic-bezier(.4,0,.2,1)}
+html.mobile-mode #m-sheet{visibility:hidden;transition:transform .25s cubic-bezier(.4,0,.2,1),visibility 0s .25s}
+html.mobile-mode #m-sheet.show{visibility:visible;transition:transform .25s cubic-bezier(.4,0,.2,1)}
+html.mobile-mode #toast{visibility:hidden;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s,visibility 0s .25s}
+html.mobile-mode #toast.show{visibility:visible;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s}
 
 /* スマホ：リストの下部に常に見える「タスクを追加」 / ガントの凡例は横スクロールの1行 */
 html.mobile-mode .gantt-legend{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:18px;padding:8px 14px}
@@ -1405,6 +1444,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           <div id="settings-nav-version" class="settings-nav-item active" onclick="showSettingsPane('version')">📋 バージョン</div>
           <div id="settings-nav-sync"    class="settings-nav-item"        onclick="showSettingsPane('sync')">📱 スマホ連携<span id="sync-unsent" class="sync-unsent" style="display:none"></span></div>
           <div id="settings-nav-files"   class="settings-nav-item"        onclick="showSettingsPane('files')">📎 添付ファイル</div>
+          <div id="settings-nav-accounts" class="settings-nav-item"       onclick="showSettingsPane('accounts')">👤 アカウント</div>
           <div id="settings-nav-plugins" class="settings-nav-item"        onclick="showSettingsPane('plugins')">🔌 プラグイン</div>
         </div>
         <!-- 右ペイン -->
@@ -1467,6 +1507,11 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
             </div>
             <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px">タスク・コメント・Wikiから参照されている添付ファイルと、どこからも参照されていないファイルを調べます。</div>
             <div id="att-body"><div class="att-empty">スキャンすると結果が表示されます</div></div>
+          </div>
+          <div id="settings-pane-accounts" style="display:none">
+            <div style="font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)">👤 アカウント</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px;max-width:760px">プロジェクトのメンバー・担当者に登録されている名前を管理します。削除したアカウントは、右上のアカウント選択と、新しい担当者・メンバーの候補から外れます（既存のタスクやコメントはそのまま残ります）。</div>
+            <div id="accounts-body"></div>
           </div>
           <div id="settings-pane-plugins" style="display:none">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
@@ -6847,8 +6892,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.9';
-const APP_VERSION_DATE = '2026-11-11';
+const APP_VERSION      = '1.2.10';
+const APP_VERSION_DATE = '2026-11-12';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -6875,13 +6920,14 @@ function showSettings() {
 }
 
 function showSettingsPane(pane) {
-  ['version','sync','files','plugins'].forEach(p => {
+  ['version','sync','files','accounts','plugins'].forEach(p => {
     document.getElementById('settings-pane-' + p).style.display = p === pane ? '' : 'none';
     const nav = document.getElementById('settings-nav-' + p);
     if (nav) nav.classList.toggle('active', p === pane);
   });
   if (pane === 'plugins') initPluginPane();
   if (pane === 'files') renderAttPane();
+  if (pane === 'accounts') renderAccountsPane();
   if (pane === 'sync') { renderSyncPane(); if (IS_MOBILE_MODE) refreshSyncBadge(); }
 }
 
@@ -6909,6 +6955,8 @@ async function loadSettings() {
     state.settings = _SETTINGS_DEFAULT();
     await _writeSettings();
   }
+  // アカウント登録情報（accounts）を読み込んだので、右上のメニューと設定ペインを更新
+  try { renderAccountMenu(); renderAccountsPane(); } catch(e) {}
   // plugin フォルダ側の plugin-settings.json を読み込む
   // （旧バージョンの settings.json にプラグイン設定が残っていれば一度だけ移行する）
   await loadPluginSettings();
@@ -7247,9 +7295,10 @@ function _getAccountNames() {
   const members   = (state.data.projects || []).flatMap(p => p.members || []);
   const assignees = (state.data.projects || []).flatMap(p => (p.tasks||[]).map(t=>t.assignee).filter(Boolean));
   const saved = localStorage.getItem(_myNameKey()) || '';
-  const set = new Set([...members, ...assignees]);
+  const set = new Set([...members, ...assignees, ..._accRegistry().map(a => a && a.name).filter(Boolean)]);
   if (saved) set.add(saved);
-  return [...set].sort();
+  // 設定 → アカウントで削除したものは選択肢に出さない（v1.2.10）
+  return [...set].filter(n => !isAccountDeleted(n)).sort();
 }
 
 // ボタン（アイコン＋名前）の表示更新。renderSidebar から呼ばれる
@@ -7334,6 +7383,12 @@ document.addEventListener('keydown', e => {
 function renameMyName() {
   const oldName = localStorage.getItem(_myNameKey()) || '';
   if (!oldName) { toast('名前が選択されていません', 'error'); return; }
+  renameAccount(oldName);
+}
+
+// 任意のアカウント名を変更する（v1.2.10〜。自分以外のアカウントも変更できる）
+function renameAccount(oldName) {
+  if (!oldName) return;
 
   const newName = prompt(`「${oldName}」を新しい名前に変更します。\n新しい名前を入力してください:`, oldName);
   if (newName === null) return; // キャンセル
@@ -7341,14 +7396,9 @@ function renameMyName() {
   if (!trimmed) { toast('名前を入力してください', 'error'); return; }
   if (trimmed === oldName) { toast('名前が変わっていません', 'error'); return; }
 
-  // 重複チェック
-  const allMembers  = (state.data.projects || []).flatMap(p => p.members || []);
-  const allAssignees = (state.data.projects || []).flatMap(p => (p.tasks||[]).map(t=>t.assignee).filter(Boolean));
-  const allNames = new Set([...allMembers, ...allAssignees]);
-  if (allNames.has(trimmed)) {
-    toast(`「${trimmed}」はすでに存在します。別の名前を入力してください`, 'error');
-    return;
-  }
+  // 重複・形式チェック（削除済みのアカウントとの重複も不可）
+  const _nameErr = _accValidateName(trimmed, oldName);
+  if (_nameErr) { toast(_nameErr, 'error'); return; }
 
   // 全プロジェクトJSONの一括置換
   const dirtyPids = new Set();
@@ -7404,29 +7454,213 @@ function renameMyName() {
     delete state.avatars[oldName];
   }
 
-  // localStorage の自分の名前を更新
-  try { localStorage.setItem(_myNameKey(), trimmed); } catch(e) {}
+  // 自分の名前を変更した場合のみ、localStorage の自分の名前を更新
+  if ((localStorage.getItem(_myNameKey()) || '') === oldName) {
+    try { localStorage.setItem(_myNameKey(), trimmed); } catch(e) {}
+  }
 
   // dirty なプロジェクトを保存
   dirtyPids.forEach(pid => autoSave(pid, true));
 
-  // avatars.json も保存
-  if (state.rootDirHandle && state.avatars) {
-    (async () => {
-      try {
-        const fh = await state.rootDirHandle.getFileHandle('avatars.json', { create: true });
-        const w  = await fh.createWritable();
-        await w.write(JSON.stringify(state.avatars));
-        await w.close();
-      } catch(e) { console.warn('avatars.json save failed:', e); }
-    })();
+  // avatars.json も保存（{version, avatars} 形式。loadAvatars と同じ形式で書き出す）
+  if (state.avatars) saveAvatars();
+
+  // 設定 → アカウントの登録情報（削除フラグなど）も新しい名前へ引き継ぐ
+  if (_accEntry(oldName)) {
+    _mutateAccounts(list => { const e = list.find(a => a && a.name === oldName); if (e) e.name = trimmed; })
+      .then(() => { renderAccountMenu(); renderAccountsPane(); });
   }
+  if (_accSelected === oldName) _accSelected = trimmed;
 
   // UI 更新
   renderSidebar();
   renderMyTasks();
+  renderAccountsPane();
   toast(`「${oldName}」→「${trimmed}」に変更しました（${dirtyPids.size}件のプロジェクトを更新）`, 'success');
 }
+
+// ═══════════════════════════════════════
+// アカウント管理（設定 → アカウント）v1.2.10
+// ═══════════════════════════════════════
+// 登録情報は settings.json の accounts.value に保存する（[{name, deleted, deletedAt, addedAt}]）。
+// アカウント自体は「メンバー・担当者・登録情報」に出てくる名前の集合。削除は論理削除（deleted:true）で、
+// 既存のタスク・コメント等は変えない。アイコンは avatars.json のまま。
+let _accSelected = '';
+
+function _accRegistry() {
+  const a = state.settings && state.settings.accounts && state.settings.accounts.value;
+  return Array.isArray(a) ? a : [];
+}
+function _accEntry(name) { return _accRegistry().find(a => a && a.name === name) || null; }
+function isAccountDeleted(name) { const e = _accEntry(name); return !!(e && e.deleted); }
+// 追加・削除・変更ができない状態（スマホモード、フォルダ未接続）
+function _accViewOnly() { return !!window.IS_MOBILE_MODE || !state.rootDirHandle; }
+
+function _accAllNames() {
+  const projs = (state.data && state.data.projects) || [];
+  const set = new Set([
+    ...projs.flatMap(p => p.members || []),
+    ...projs.flatMap(p => (p.tasks || []).map(t => t.assignee).filter(Boolean)),
+    ..._accRegistry().map(a => a && a.name).filter(Boolean)
+  ]);
+  const me = getMyName();
+  if (me) set.add(me);
+  return set;
+}
+
+function _accValidateName(name, exclude) {
+  if (!name) return '名前を入力してください';
+  if (/[,、\u0000-\u001f\u007f]/.test(name)) return 'アカウント名に「,」「、」や改行は使えません';
+  if (name.length > 40) return 'アカウント名は40文字以内にしてください';
+  if (name !== exclude && _accAllNames().has(name)) return `「${name}」はすでに存在します。別の名前を入力してください`;
+  return '';
+}
+
+// 登録情報の更新。他の人の変更を巻き戻さないよう、ディスク上の最新を読み直してから変更して書き戻す
+async function _mutateAccounts(fn) {
+  if (!state.rootDirHandle) return false;
+  try {
+    let disk = null;
+    try {
+      const fh = await state.rootDirHandle.getFileHandle('settings.json');
+      const parsed = JSON.parse(await (await fh.getFile()).text());
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) disk = parsed;
+    } catch(e) {}
+    state.settings = disk || state.settings || _SETTINGS_DEFAULT();
+    if (!state.settings.accounts || !Array.isArray(state.settings.accounts.value)) state.settings.accounts = { value: [] };
+    fn(state.settings.accounts.value);
+    state.settings.accounts._updatedAt = new Date().toISOString();
+    const fh = await state.rootDirHandle.getFileHandle('settings.json', { create: true });
+    const w  = await fh.createWritable();
+    await w.write(JSON.stringify(state.settings, null, 2));
+    await w.close();
+    return true;
+  } catch(e) {
+    console.warn('settings.json（accounts）書き込みエラー:', e);
+    return false;
+  }
+}
+
+// そのアカウントに関係するプロジェクト（メンバー、または担当タスクがある）
+function _accountProjects(name) {
+  const out = [];
+  (state.data && state.data.projects || []).forEach(p => {
+    if (!p || p.deleted) return;
+    const isMember = (p.members || []).includes(name);
+    const mine = (p.tasks || []).filter(t => t.assignee === name);
+    if (!isMember && !mine.length) return;
+    out.push({ p, isMember, total: mine.length, open: mine.filter(t => t.status !== 'done').length });
+  });
+  out.sort((a, b) => (!!a.p.archived - !!b.p.archived) || ((a.p.number || 0) - (b.p.number || 0)));
+  return out;
+}
+
+function renderAccountsPane() {
+  const root = document.getElementById('accounts-body');
+  if (!root) return;
+  const viewOnly = _accViewOnly();
+  const names = [..._accAllNames()].sort((a, b) => a.localeCompare(b, 'ja'));
+  const active  = names.filter(n => !isAccountDeleted(n));
+  const deleted = names.filter(n =>  isAccountDeleted(n));
+  if (!_accSelected || !names.includes(_accSelected)) _accSelected = active[0] || deleted[0] || '';
+  const me = getMyName();
+
+  const item = (n, isDel) => `<div class="acc-item${n === _accSelected ? ' sel' : ''}${isDel ? ' acc-deleted' : ''}" data-name="${esc(n)}" onclick="accSelect(this.dataset.name)">
+    ${avatarHtml(n, 'member-avatar', 'width:30px;height:30px;font-size:12px;margin:0;border:none;flex-shrink:0')}
+    <div class="acc-item-main">
+      <div class="acc-item-name"><span class="acc-nm" data-no-translate>${esc(n)}</span>${n === me && !isDel ? '<span class="acc-badge">自分</span>' : ''}</div>
+      <div class="acc-item-sub">参加プロジェクト ${_accountProjects(n).length}件</div>
+    </div>
+  </div>`;
+
+  let list = '';
+  if (!viewOnly) list += `<button class="btn btn-primary btn-sm" style="margin-bottom:10px" onclick="accAdd()">＋ アカウントを追加</button>`;
+  else list += `<div class="att-empty" style="margin-bottom:8px">スマホモードでは閲覧のみです。追加・削除・変更はPC版で行ってください</div>`;
+  list += active.length ? active.map(n => item(n, false)).join('') : '<div class="att-empty">アカウントがありません</div>';
+  if (deleted.length) list += `<div class="acc-group">🗑 削除済み（${deleted.length}件）</div>` + deleted.map(n => item(n, true)).join('');
+
+  let detail = '<div class="att-empty">左の一覧からアカウントを選択してください</div>';
+  if (_accSelected) {
+    const n = _accSelected, isDel = isAccountDeleted(n);
+    const rel = _accountProjects(n);
+    detail = `<div class="acc-detail-head">
+      ${avatarHtml(n, 'member-avatar', 'width:56px;height:56px;font-size:20px;margin:0;border:none;flex-shrink:0')}
+      <div style="min-width:0"><div class="acc-detail-name" data-no-translate>${esc(n)}</div>
+        ${isDel ? '<span class="acc-badge">削除済み</span>' : (n === me ? '<span class="acc-badge">自分</span>' : '')}</div>
+    </div>`;
+    if (!viewOnly) {
+      detail += `<div class="acc-actions">
+        <button class="btn btn-secondary btn-sm" data-name="${esc(n)}" onclick="accEditAvatar(this.dataset.name)">🖼️ アイコンを設定</button>
+        <button class="btn btn-secondary btn-sm" data-name="${esc(n)}" onclick="accRename(this.dataset.name)">✏️ 名前を変更する</button>
+        ${isDel
+          ? `<button class="btn btn-secondary btn-sm" data-name="${esc(n)}" onclick="accRestore(this.dataset.name)">↩ 復元</button>`
+          : `<button class="btn btn-secondary btn-sm" data-name="${esc(n)}" onclick="accDelete(this.dataset.name)">🗑 削除</button>`}
+      </div>`;
+    }
+    detail += '<div class="acc-sec-title">関係するプロジェクト</div>';
+    detail += rel.length ? rel.map(r => {
+      const col = /^#[0-9a-fA-F]{3,8}$/.test(r.p.color || '') ? r.p.color : '#4f8eff';
+      return `<div class="acc-proj${r.p.archived ? ' acc-deleted' : ''}" data-pid="${esc(r.p.id)}" onclick="accOpenProject(this.dataset.pid)">
+        <span class="acc-dot" style="background:${col}"></span>
+        <span class="acc-proj-name" data-no-translate>P${esc(String(r.p.number || ''))} ${esc(r.p.name || '')}</span>
+        ${r.p.archived ? '<span class="acc-badge">📦 完了済み</span>' : ''}
+        ${r.isMember ? '<span class="acc-badge">メンバー</span>' : '<span class="acc-badge acc-badge-warn">担当タスクのみ</span>'}
+        <span class="acc-proj-cnt">${r.total ? `担当 未完了 ${r.open} / 全 ${r.total}` : '担当タスクなし'}</span>
+      </div>`;
+    }).join('') : '<div class="att-empty">関係するプロジェクトはありません</div>';
+  }
+  root.innerHTML = `<div class="acc-wrap"><div class="acc-listcol">${list}</div><div class="acc-detailcol">${detail}</div></div>`;
+}
+
+function accSelect(name) { _accSelected = name; renderAccountsPane(); }
+function accOpenProject(pid) { if (getProject(pid)) openProject(pid); }
+function accEditAvatar(name) { if (!_accViewOnly()) openAvatarModal(name); }
+function accRename(name) { if (!_accViewOnly()) renameAccount(name); }
+
+async function accAdd() {
+  if (_accViewOnly()) return;
+  const input = prompt('追加するアカウントの名前を入力してください:', '');
+  if (input === null) return;
+  const name = input.trim();
+  const err = _accValidateName(name, '');
+  if (err) { toast(err, 'error'); return; }
+  const ok = await _mutateAccounts(list => {
+    if (!list.some(a => a && a.name === name)) list.push({ name, deleted: false, addedAt: new Date().toISOString() });
+  });
+  if (!ok) { toast('設定ファイルに保存できませんでした', 'error'); return; }
+  _accSelected = name;
+  renderAccountMenu(); renderAccountsPane();
+  toast(`アカウント「${name}」を追加しました`, 'success');
+}
+
+async function accDelete(name) {
+  if (_accViewOnly() || !name) return;
+  if (!confirm(`「${name}」を削除しますか？\nアカウントの選択と、新しい担当者・メンバーの候補から外れます。既存のタスクやコメントはそのまま残り、あとから復元できます。`)) return;
+  const ok = await _mutateAccounts(list => {
+    let e = list.find(a => a && a.name === name);
+    if (!e) { e = { name }; list.push(e); }
+    e.deleted = true; e.deletedAt = new Date().toISOString();
+  });
+  if (!ok) { toast('設定ファイルに保存できませんでした', 'error'); return; }
+  // 削除したのが今の「自分」なら未設定に戻す
+  if (getMyName() === name) { try { localStorage.setItem(_myNameKey(), ''); } catch(e) {} }
+  renderSidebar();      // 内部で右上のアカウントボタンも更新される
+  renderMyTasks();
+  renderAccountsPane();
+  toast(`アカウント「${name}」を削除しました`, 'success');
+}
+
+async function accRestore(name) {
+  if (_accViewOnly() || !name) return;
+  const ok = await _mutateAccounts(list => {
+    const e = list.find(a => a && a.name === name);
+    if (e) { e.deleted = false; delete e.deletedAt; }
+  });
+  if (!ok) { toast('設定ファイルに保存できませんでした', 'error'); return; }
+  renderAccountMenu(); renderAccountsPane();
+  toast(`アカウント「${name}」を復元しました`, 'success');
+}
+
 
 // ── アバターモーダル ───────────────────────────────────
 let _avatarTargetName = '';     // 現在編集中のユーザー名
@@ -7515,6 +7749,7 @@ async function saveAvatarFromCanvas() {
     // プロジェクト詳細が開いていれば再描画
     if (state.currentProjectId) renderMain();
     else renderProjectsList();
+    renderAccountsPane();
     toast('アバター画像を保存しました', 'success');
   });
 }
@@ -7528,6 +7763,7 @@ async function deleteAvatar() {
     renderMyTasks();
     if (state.currentProjectId) renderMain();
     else renderProjectsList();
+    renderAccountsPane();
     toast('アバター画像を削除しました');
   });
 }
@@ -7847,7 +8083,7 @@ function updateFilters() {
   }
   // Datalists
   const dl = document.getElementById('assignee-dl');
-  const all = [...new Set([...(p.members||[]),...assignees])];
+  const all = [...new Set([...(p.members||[]),...assignees])].filter(n=>!isAccountDeleted(n));
   dl.innerHTML = all.map(m=>`<option value="${esc(m)}">`).join('');
   document.getElementById('tm-assignee-dl').innerHTML = dl.innerHTML;
   const caDl = document.getElementById('comment-author-dl');
@@ -10570,7 +10806,7 @@ function openTaskModal(status='todo'){
     const _p = getProject(state.currentProjectId);
     const _members   = _p ? (_p.members||[]) : [];
     const _assignees = _p ? (_p.tasks||[]).map(t=>t.assignee).filter(Boolean) : [];
-    const _all = [...new Set([..._members, ..._assignees])].sort();
+    const _all = [...new Set([..._members, ..._assignees])].filter(n=>!isAccountDeleted(n)).sort();
     _tmCreatorDl.innerHTML = _all.map(n=>`<option value="${esc(n)}">`).join('');
   }
   setTmDescMode('edit');
@@ -10689,7 +10925,7 @@ function tryCloseTaskModalOnOverlayClick(){
 function _tmAssigneeCandidates(){
   const p = getProject(state.currentProjectId);
   if (!p) return [];
-  return [...new Set([...(p.members||[]), ...(p.tasks||[]).map(t=>t.assignee).filter(Boolean)])];
+  return [...new Set([...(p.members||[]), ...(p.tasks||[]).map(t=>t.assignee).filter(Boolean)])].filter(n=>!isAccountDeleted(n));
 }
 // <select> の選択肢を作り直し、元の入力欄（inputId）の現在値に合わせる（候補にない名前も残す）
 function _syncAssigneeSel(inputId, selId){
@@ -10877,7 +11113,7 @@ function _openTaskPanelInner(taskId){
     createdEl.textContent = t.createdAtTime ? fmtDatetime(t.createdAtTime) : '';
     // datalist に担当者・メンバー補完
     if (creatorDl && p) {
-      const _all = [...new Set([...(p.members||[]), ...(p.tasks||[]).map(x=>x.assignee).filter(Boolean)])].sort();
+      const _all = [...new Set([...(p.members||[]), ...(p.tasks||[]).map(x=>x.assignee).filter(Boolean)])].filter(n=>!isAccountDeleted(n)).sort();
       creatorDl.innerHTML = _all.map(n=>`<option value="${esc(n)}">`).join('');
     }
   })();
@@ -11907,7 +12143,7 @@ function _getMentionCandidates(query) {
   if (!p) return [];
   const members  = p.members || [];
   const assignees = [...new Set((p.tasks||[]).map(t=>t.assignee).filter(Boolean))];
-  const all = [...new Set([...members, ...assignees])].sort();
+  const all = [...new Set([...members, ...assignees])].filter(n=>!isAccountDeleted(n)).sort();
   if (!query) return all;
   const q = query.toLowerCase();
   return all.filter(n => n.toLowerCase().includes(q));
