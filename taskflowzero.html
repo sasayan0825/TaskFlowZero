@@ -220,6 +220,7 @@ body{font-family:'Noto Sans JP','Outfit',sans-serif;background:var(--bg);color:v
 .sidebar-item .task-count{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--surface3);padding:1px 6px;border-radius:10px}
 .sidebar-item .mention-count{font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(79,142,255,.25);color:var(--accent2);padding:1px 6px;border-radius:10px;font-weight:700}
 .sidebar-badge-wrap{display:flex;gap:4px;align-items:center;margin-left:auto}
+html.mobile-mode #sidebar-tooltip{display:none!important}
 #sidebar-tooltip{position:fixed;background:var(--surface3);color:var(--text);font-size:12px;white-space:nowrap;padding:5px 10px;border-radius:6px;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.35);pointer-events:none;opacity:0;transform:translateX(-4px);transition:opacity .18s ease,transform .18s ease;z-index:99999}
 .sb-badge-mention{font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(79,142,255,.25);color:var(--accent2);padding:1px 6px;border-radius:10px;font-weight:700}
 .sb-badge-task{font-family:'JetBrains Mono',monospace;font-size:10px;background:rgba(34,197,94,.2);color:var(--green);padding:1px 6px;border-radius:10px;font-weight:700}
@@ -5707,6 +5708,8 @@ function updateFilterIndicators() {
 // ═══════════════════════════════════════
 let _tooltipTimer = null;
 function _showSidebarTooltip(e, name) {
+  // スマホモードではタップ時に mouseenter が擬似発火してポップアップが出てしまうため表示しない
+  if (window.IS_MOBILE_MODE) return;
   const tip = document.getElementById('sidebar-tooltip');
   if (!tip) return;
   tip.textContent = name;
@@ -6933,7 +6936,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.12';
+const APP_VERSION      = '1.2.13';
 const APP_VERSION_DATE = '2026-11-13';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
