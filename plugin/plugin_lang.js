@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.17',
+      version:     '1.3.18',
     });
   }
 
@@ -588,8 +588,15 @@
     '🔌 プラグイン':                      '🔌 Plugins',
     // ── 設定 → アカウント（v1.2.10） ─────────────────────────
     '👤 アカウント':                      '👤 Accounts',
-    'プロジェクトのメンバー・担当者に登録されている名前を管理します。削除したアカウントは、右上のアカウント選択と、新しい担当者・メンバーの候補から外れます（既存のタスクやコメントはそのまま残ります）。':
-      'Manage the names registered as project members and assignees. A deleted account is removed from the account selector at the top right and from the candidates for new assignees and members (existing tasks and comments are kept).',
+    // v1.2.12: 説明文を「右上のアカウント選択と、」で改行したため、前半・後半に分けて訳す
+    'プロジェクトのメンバー・担当者に登録されている名前を管理します。削除したアカウントは、右上のアカウント選択と、':
+      'Manage the names registered as project members and assignees. A deleted account is removed from the account selector at the top right and',
+    '新しい担当者・メンバーの候補から外れます（既存のタスクやコメントはそのまま残ります）。':
+      'from the candidates for new assignees and members (existing tasks and comments are kept).',
+    '期限: 未設定':                       'Due: Not set',
+    '担当: 未設定':                       'Assignee: Not set',
+    '期限を変更':                         'Change due date',
+    '担当者を変更':                       'Change assignee',
     '＋ アカウントを追加':                '＋ Add Account',
     'スマホモードでは閲覧のみです。追加・削除・変更はPC版で行ってください': 'View only in mobile mode. Add, delete and edit accounts on the PC version.',
     'アカウントがありません':             'No accounts',

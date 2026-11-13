@@ -423,6 +423,8 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .task-card.priority-high{background:linear-gradient(135deg, color-mix(in srgb, var(--red) 22%, var(--surface)), color-mix(in srgb, var(--red) 5%, var(--surface)))}
 .task-card.priority-low{background:linear-gradient(135deg, color-mix(in srgb, var(--muted) 24%, var(--surface)), color-mix(in srgb, var(--muted) 5%, var(--surface)))}
 .task-card:hover{border-color:var(--border2);background:var(--surface2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.task-card.priority-high:hover{background:linear-gradient(135deg, color-mix(in srgb, var(--red) 36%, var(--surface)), color-mix(in srgb, var(--red) 12%, var(--surface)));border-color:color-mix(in srgb, var(--red) 55%, var(--border2))}
+.task-card.priority-low:hover{background:linear-gradient(135deg, color-mix(in srgb, var(--muted) 40%, var(--surface)), color-mix(in srgb, var(--muted) 14%, var(--surface)));border-color:color-mix(in srgb, var(--muted) 55%, var(--border2))}
 .task-card.dragging{opacity:.4}
 .task-card-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
 .task-number{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);white-space:nowrap;margin-top:2px}
@@ -562,7 +564,14 @@ html.light .gantt-col-stripe.holiday{background:rgba(239,68,68,.12)}
 .cmt-bookmark-btn.bookmarked{color:#f5a623}
 .panel-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px;border-radius:4px;transition:all .15s}
 .panel-close:hover{background:var(--surface2);color:var(--text)}
-.panel-due-badge{margin-left:auto;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);white-space:nowrap}
+.panel-due-wrap{position:relative;margin-left:auto;display:inline-flex;align-items:center}
+.panel-due-quick{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;display:none;cursor:pointer}
+.panel-due-quick::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;cursor:pointer}
+.panel-due-wrap.editable .panel-due-quick{display:block}
+.panel-due-wrap.editable .panel-due-badge{cursor:pointer;border-bottom:1px dashed var(--border2)}
+.panel-due-wrap.editable .panel-due-badge.date-invalid{border-bottom:1px solid var(--red)}
+.panel-due-badge.unset{opacity:.75}
+.panel-due-badge{margin-left:0;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);white-space:nowrap}
 .panel-due-badge.overdue{color:var(--red);font-weight:600}
 .panel-due-badge.soon{color:var(--yellow)}
 .panel-body{flex:1;overflow-y:auto;padding:20px;overflow-anchor:none}
@@ -574,6 +583,14 @@ html.light .gantt-col-stripe.holiday{background:rgba(239,68,68,.12)}
 .panel-title-row .panel-title-input{flex:1;min-width:0}
 .panel-title-assignee{display:none;align-items:center;gap:6px;flex-shrink:0;font-size:12px;color:var(--muted);white-space:nowrap;max-width:140px;opacity:0;transition:opacity .15s}
 .panel-title-assignee-name{overflow:hidden;text-overflow:ellipsis}
+.panel-title-assignee{cursor:pointer}
+.panel-title-assignee:hover .panel-title-assignee-name{color:var(--text)}
+.panel-title-assignee.unset .panel-title-assignee-name{border-bottom:1px dashed var(--border2)}
+.panel-assignee-menu{position:fixed;z-index:700;min-width:160px;max-width:260px;max-height:260px;overflow-y:auto;background:var(--surface);border:1px solid var(--border2);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);padding:4px}
+.pam-item{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;color:var(--text);font-size:12px;font-family:inherit;text-align:left;padding:6px 8px;border-radius:5px;cursor:pointer}
+.pam-item:hover{background:var(--surface2)}
+.pam-item.active{background:rgba(79,142,255,.15);color:var(--accent2);font-weight:600}
+.pam-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .panel-title-sticky.scrolled .panel-title-assignee,
 .panel-title-sticky.meta-collapsed .panel-title-assignee{display:flex;opacity:1}
 .panel-title-avatar-wrap{display:inline-flex;flex-shrink:0}
@@ -626,6 +643,8 @@ html.light .gantt-col-stripe.holiday{background:rgba(239,68,68,.12)}
 .panel-creator-bar{display:flex;align-items:center;gap:10px;margin:-10px 0 14px;flex-wrap:wrap}
 .panel-creator-bar .creator-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
 .panel-creator-bar .creator-item span{font-size:12px}
+.panel-creator-bar .panel-sp-chip{margin-left:auto;display:none}
+.panel-creator-bar .panel-sp-chip.show{display:inline-block}
 .panel-creator-input{background:none;border:none;border-bottom:1px dashed var(--border);color:var(--text);font-size:11px;font-family:inherit;padding:1px 4px;outline:none;width:120px;border-radius:0}
 .panel-creator-input:focus{border-bottom-color:var(--accent);color:var(--text)}
 .panel-creator-input:disabled{border-bottom-color:transparent;color:var(--muted);cursor:default;width:auto}
@@ -1509,7 +1528,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           </div>
           <div id="settings-pane-accounts" style="display:none">
             <div style="font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)">👤 アカウント</div>
-            <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px;max-width:760px">プロジェクトのメンバー・担当者に登録されている名前を管理します。削除したアカウントは、右上のアカウント選択と、新しい担当者・メンバーの候補から外れます（既存のタスクやコメントはそのまま残ります）。</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px;max-width:760px">プロジェクトのメンバー・担当者に登録されている名前を管理します。削除したアカウントは、右上のアカウント選択と、<br>新しい担当者・メンバーの候補から外れます（既存のタスクやコメントはそのまま残ります）。</div>
             <div id="accounts-body"></div>
           </div>
           <div id="settings-pane-plugins" style="display:none">
@@ -1848,7 +1867,10 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
     <button class="panel-bookmark-btn" id="panel-bookmark-btn" onclick="toggleTaskBookmark()" title="ブックマーク"></button>
     <button class="panel-url-copy" id="panel-url-copy-btn" onclick="copyTaskUrl()" title="このタスクのURLをコピー">🔗 URLコピー</button>
     <button class="panel-url-copy" id="panel-ref-create-btn" onclick="createReferenceTask()" title="このタスクの内容を引き継いで新規タスクを作成">📄 参照作成</button>
-    <span class="panel-due-badge" id="panel-due-badge"></span>
+    <span class="panel-due-wrap" id="panel-due-wrap">
+      <span class="panel-due-badge" id="panel-due-badge"></span>
+      <input type="date" class="panel-due-quick" id="panel-due-quick" tabindex="-1" title="期限を変更" onchange="panelQuickDueChanged(this)">
+    </span>
     <button class="panel-close" onclick="closeTaskPanel()">✕</button>
   </div>
   <button id="panel-scroll-btn" class="panel-scroll-btn" onclick="panelScrollJump()" title="一番下へ移動" style="display:none">
@@ -1859,7 +1881,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
       <div class="panel-title-row">
         <span class="priority-flag" id="panel-title-priority-badge" style="display:none;flex-shrink:0"></span>
         <input class="panel-title-input" id="panel-title" placeholder="タスクのタイトル" oninput="panelDirty=true">
-        <div class="panel-title-assignee" id="panel-title-assignee">
+        <div class="panel-title-assignee" id="panel-title-assignee" title="担当者を変更" onclick="openPanelAssigneeMenu(event)">
           <span class="panel-title-avatar-wrap" id="panel-title-assignee-avatar"></span>
           <span class="panel-title-assignee-name" id="panel-title-assignee-name"></span>
         </div>
@@ -1877,6 +1899,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         <span>📅</span>
         <span id="panel-created-at"></span>
       </div>
+      <div class="task-points panel-sp-chip" id="panel-sp-chip" title="ストーリーポイント"></div>
     </div>
     <div class="panel-meta-toggle" id="panel-meta-toggle" onclick="togglePanelMetaCollapse()" title="クリックで詳細情報の開閉">
       <span>📋 詳細情報</span>
@@ -1913,7 +1936,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
       </div>
       <div class="meta-field">
         <div class="meta-label">ストーリーポイント</div>
-        <select class="meta-select" id="panel-points" onchange="panelDirty=true">
+        <select class="meta-select" id="panel-points" onchange="panelDirty=true;_refreshPanelSpChip()">
           <option value="0">未設定</option>
           <option value="1">1</option><option value="2">2</option><option value="3">3</option>
           <option value="5">5</option><option value="8">8</option><option value="13">13</option><option value="21">21</option>
@@ -6910,7 +6933,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.11';
+const APP_VERSION      = '1.2.12';
 const APP_VERSION_DATE = '2026-11-13';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
@@ -11123,6 +11146,7 @@ function _openTaskPanelInner(taskId){
     const createdEl = document.getElementById('panel-created-at');
     const creatorDl = document.getElementById('panel-creator-dl');
     // createdAtTime または creator のどちらかがあれば表示
+    bar.dataset.hasCreator = (t.createdAtTime || t.creator) ? '1' : '';
     if (!t.createdAtTime && !t.creator) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
     // 作成者 input
@@ -11160,6 +11184,7 @@ function _openTaskPanelInner(taskId){
   document.getElementById('panel-completed').value=t.completedAt||'';
   toggleCompletedField(t.status);
   document.getElementById('panel-points').value=t.storyPoints||0;
+  _refreshPanelSpChip();
   document.getElementById('panel-priority').value=t.priority||'';
   updatePanelTitlePriorityBadge();
   updateHoursDisplay(t);
@@ -11502,6 +11527,7 @@ function savePanelTask(){
 }
 
 function closeTaskPanel(){
+  closePanelAssigneeMenu();
   if(panelDirty&&!confirm('変更が保存されていません。閉じますか？'))return;
   const _cmtText = document.getElementById('comment-text');
   if(_cmtText && _cmtText.value.trim() && !confirm('コメントの入力内容が破棄されます。閉じますか？'))return;
@@ -13965,6 +13991,12 @@ function _applyPanelMetaCollapsed(collapsed) {
   if (toggle) toggle.classList.toggle('collapsed', collapsed);
   if (titleWrap) titleWrap.classList.toggle('meta-collapsed', collapsed);
   if (collapsedLabels) _refreshPanelMetaCollapsed();
+  // v1.2.12: 閉じている間だけ、期限・担当の変更とSP表示を有効にする
+  const _du = document.getElementById('panel-due'), _as = document.getElementById('panel-assignee');
+  if (_du) _updatePanelDueBadge(_du.value);
+  if (_as) _updatePanelTitleAssignee(_as.value.trim());
+  _refreshPanelSpChip();
+  closePanelAssigneeMenu();
 }
 
 function togglePanelMetaCollapse() {
@@ -13977,13 +14009,41 @@ function togglePanelMetaCollapse() {
 function _updatePanelDueBadge(dueDate) {
   const badge = document.getElementById('panel-due-badge');
   if (!badge) return;
-  if (!dueDate) { badge.textContent=''; badge.className='panel-due-badge'; return; }
+  const _wrap = document.getElementById('panel-due-wrap'), _q = document.getElementById('panel-due-quick');
+  if (_wrap) _wrap.classList.toggle('editable', !!_panelMetaCollapsed);   // v1.2.12: 閉じている間だけ押して変更できる
+  if (_q) _q.value = dueDate || '';
+  if (!dueDate) {
+    if (_panelMetaCollapsed) { badge.textContent='期限: 未設定'; badge.className='panel-due-badge unset'; }
+    else { badge.textContent=''; badge.className='panel-due-badge'; }
+    return;
+  }
   const diff = daysDiff(dueDate);
   const cls = diff!==null?(diff<0?'overdue':diff<=3?'soon':''):'';
   const _st = (document.getElementById('panel-start') || {}).value || '';
   const _bad = !!(_st && dueDate && _st > dueDate);   // v1.2.4: 期限が開始日より前
   badge.className = 'panel-due-badge'+(cls?' '+cls:'')+(_bad?' date-invalid':'');
   badge.textContent = (_bad ? '⚠ ' : '') + `期限: ${fmtFull(dueDate)}`;
+}
+
+// v1.2.12: 閉じた状態の期限バッジから日付を変更（詳細情報の入力欄に反映し、保存は従来どおり）
+function panelQuickDueChanged(el) {
+  const du = document.getElementById('panel-due');
+  if (!du) return;
+  du.value = el.value;
+  du.dispatchEvent(new Event('input', { bubbles: true }));   // 変更あり扱い・不整合チェック・バッジ更新を手入力と同じ経路で通す
+}
+
+// v1.2.12: 閉じた状態のSP表示（作成者・作成日の行の右端）。未設定なら出さない
+function _refreshPanelSpChip() {
+  const chip = document.getElementById('panel-sp-chip'), bar = document.getElementById('panel-creator-bar');
+  const sel = document.getElementById('panel-points');
+  if (!chip || !bar || !sel) return;
+  const pts = parseInt(sel.value) || 0;
+  const show = !!_panelMetaCollapsed && pts > 0;
+  chip.textContent = show ? 'SP ' + pts : '';
+  chip.classList.toggle('show', show);
+  if (show) bar.style.display = 'flex';
+  else if (!bar.dataset.hasCreator) bar.style.display = 'none';
 }
 
 // v1.2.4: 開始日・期限の不整合（期限が開始日より前）を赤枠で知らせる
@@ -14015,12 +14075,60 @@ function _updatePanelTitleAssignee(name) {
   const nameEl = document.getElementById('panel-title-assignee-name');
   if (!wrap || !avatarEl || !nameEl) return;
   if (!name) {
-    wrap.style.visibility = 'hidden';
+    // v1.2.12: 閉じている間は「担当: 未設定」を出して、押して設定できるようにする
+    if (_panelMetaCollapsed) {
+      wrap.style.visibility = '';
+      wrap.classList.add('unset');
+      avatarEl.innerHTML = '';
+      nameEl.textContent = '担当: 未設定';
+    } else {
+      wrap.style.visibility = 'hidden';
+    }
     return;
   }
   wrap.style.visibility = '';
+  wrap.classList.remove('unset');
   avatarEl.innerHTML = avatarHtml(name, 'panel-title-avatar', '');
   nameEl.textContent = name;
+}
+
+// v1.2.12: タイトル行の担当者を押して候補（メンバー＋未設定）から選ぶ。値は詳細情報の入力欄に反映（保存は従来どおり）
+function closePanelAssigneeMenu() {
+  const m = document.getElementById('panel-assignee-menu');
+  if (m) m.remove();
+  document.removeEventListener('click', closePanelAssigneeMenu);
+  document.removeEventListener('keydown', _pamKeydown);
+}
+function _pamKeydown(e) { if (e.key === 'Escape') { e.stopPropagation(); closePanelAssigneeMenu(); } }
+function openPanelAssigneeMenu(ev) {
+  if (ev) ev.stopPropagation();
+  closePanelAssigneeMenu();
+  const wrap = document.getElementById('panel-title-assignee');
+  const inp = document.getElementById('panel-assignee');
+  if (!wrap || !inp) return;
+  const cur = (inp.value || '').trim();
+  const names = _tmAssigneeCandidates().slice().sort((a, b) => a.localeCompare(b, 'ja'));
+  if (cur && !names.includes(cur)) names.unshift(cur);
+  const item = (label, val) => `<button type="button" class="pam-item${val === cur ? ' active' : ''}" data-name="${esc(val)}">${val ? avatarHtml(val, 'panel-title-avatar', '') : ''}<span>${esc(label)}</span></button>`;
+  const menu = document.createElement('div');
+  menu.id = 'panel-assignee-menu';
+  menu.className = 'panel-assignee-menu';
+  menu.innerHTML = item('未設定', '') + names.map(n => item(n, n)).join('');
+  menu.addEventListener('click', e => {
+    e.stopPropagation();
+    const b = e.target.closest('.pam-item');
+    if (!b) return;
+    inp.value = b.dataset.name;
+    inp.dispatchEvent(new Event('input', { bubbles: true }));   // 手入力と同じ処理（変更あり扱い・タイトル横の担当者表示）を通す
+    _panelSyncAssigneeSel();
+    closePanelAssigneeMenu();
+  });
+  document.body.appendChild(menu);
+  const r = wrap.getBoundingClientRect();
+  menu.style.top = Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8) + 'px';
+  menu.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+  document.addEventListener('click', closePanelAssigneeMenu);
+  document.addEventListener('keydown', _pamKeydown);
 }
 
 // Sticky task-title: shrink + shadow once the panel body is scrolled
