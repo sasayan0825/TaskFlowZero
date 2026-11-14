@@ -1130,6 +1130,13 @@ html.mobile-mode .my-tasks-table th.mt-title,html.mobile-mode .my-tasks-table td
 /* リスト：タイトル列を広げる（表全体は横スクロール） */
 html.mobile-mode .list-body-inner{min-width:1120px}
 html.mobile-mode .list-table th:nth-child(2){min-width:300px}
+/* v1.2.14 スマホ縦持ち：リストは「#」と「タイトル」だけを表示し、横スクロールしない（横持ちは従来どおり） */
+@media (orientation:portrait) and (max-width:600px){
+  html.mobile-mode .list-body-inner{min-width:0}
+  html.mobile-mode .list-table [data-col]{display:none !important}
+  html.mobile-mode .list-table th:nth-child(2){min-width:0}
+  html.mobile-mode .list-table td:nth-child(2){overflow-wrap:anywhere}
+}
 /* ガント：左の「マイルストーン / タスク」領域をタップで画面の半分ほどまで広げる（もう一度タップかチャート部分のタップで戻す） */
 .gl-ic{display:none}
 html.mobile-mode #gantt-left{transition:width .22s ease}
@@ -6936,8 +6943,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.13';
-const APP_VERSION_DATE = '2026-11-13';
+const APP_VERSION      = '1.2.14';
+const APP_VERSION_DATE = '2026-11-14';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -8156,6 +8163,10 @@ function setListTab(tab) {
   renderList();
 }
 
+// スマホ縦持ち（v1.2.14）：リストは「#」「タイトル」だけ表示する。CSSの条件と揃えること
+function _listPortraitCompact() {
+  try { return !!(window.IS_MOBILE_MODE && window.matchMedia && window.matchMedia('(orientation:portrait) and (max-width:600px)').matches); } catch (e) { return false; }
+}
 function renderList() {
   const p = getProject(state.currentProjectId);
   if (!p) return;
@@ -8188,6 +8199,7 @@ function renderList() {
   });
 
   // Build single unified table
+  const gcs = _listPortraitCompact() ? 2 : 10;   // グループ行の結合列数（スマホ縦持ちは「#」「タイトル」の2列だけ）
   let rows = '';
   (p.milestones||[]).forEach(ms => {
     const msTasks = grouped[ms.id]||[];
@@ -8196,7 +8208,7 @@ function renderList() {
     const msAll = tasks.filter(t => t.milestoneId === ms.id);
     const doneCount = msAll.filter(t=>t.status==='done').length;
     rows += `<tr class="list-ms-group-row" onclick="toggleMsGroup('mg-${jsq(ms.id)}',this)"${ms.description?` data-ms-desc="${esc(ms.description)}"`:''}  ondragover="listMsDragOver(event,'${jsq(ms.id)}')" ondragleave="listMsDragLeave(event)" ondrop="listMsDrop(event,'${jsq(ms.id)}')">
-      <td colspan="10">
+      <td colspan="${gcs}">
         <span id="mg-arrow-${ms.id}" style="margin-right:6px;font-size:10px">▼</span>
         <span style="width:8px;height:8px;border-radius:50%;background:${ms.color||'#4f8eff'};display:inline-block;margin-right:6px;vertical-align:middle"></span>
         🏁 ${esc(ms.name)}${ms.description?` <span style="font-size:10px;color:var(--muted);font-weight:400;margin-left:4px">💬</span>`:''}
@@ -8208,7 +8220,7 @@ function renderList() {
   });
   if (noMs.length) {
     rows += `<tr class="list-ms-group-row" onclick="toggleMsGroup('mg-none',this)" ondragover="listMsDragOver(event,'__none__')" ondragleave="listMsDragLeave(event)" ondrop="listMsDrop(event,'__none__')">
-      <td colspan="10"><span id="mg-arrow-none" style="margin-right:6px;font-size:10px">▼</span>未割り当て <span style="margin-left:8px">${noMs.length}件</span></td>
+      <td colspan="${gcs}"><span id="mg-arrow-none" style="margin-right:6px;font-size:10px">▼</span>未割り当て <span style="margin-left:8px">${noMs.length}件</span></td>
     </tr>
     <tbody id="mg-none">${noMs.map(t=>buildListRow(t)).join('')}</tbody>`;
   }
@@ -15283,6 +15295,76 @@ if (IS_MOBILE_MODE) (function () {
     panel.addEventListener('touchend', endSwipe);
     panel.addEventListener('touchcancel', endSwipe);
   }
+
+
+  // ── 端末を縦横に回したとき、リストを描き直す（縦持ちは列を絞るため、グループ行の結合列数が変わる）──
+  try {
+    const mq = window.matchMedia('(orientation:portrait) and (max-width:600px)');
+    const onRotate = () => { try { if (state.currentView === 'list' && isShown(document.getElementById('project-detail')) && getProject(state.currentProjectId)) renderList(); } catch (e) {} };
+    if (mq.addEventListener) mq.addEventListener('change', onRotate); else if (mq.addListener) mq.addListener(onRotate);
+  } catch (e) {}
+
+  // ── 画面左端から右へスワイプ → 左ペインを開く／ペインや背景を左へスワイプ → 閉じる（v1.2.14）──
+  // 方式A：一定距離スワイプした時点で開閉する（指に追従はしない）。リスト・カンバン・バーンダウン・ガント・Wiki・マイタスクの各画面で共通。
+  (function () {
+    const EDGE = 24;          // 左端として扱う幅(px)。横向きのノッチ側は safe-area 分を足す
+    const DIST = 50;          // 開閉とみなす横移動量(px)
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-left:env(safe-area-inset-left,0px)';
+    document.body.appendChild(probe);
+    const insetLeft = () => parseFloat(getComputedStyle(probe).paddingLeft) || 0;
+    const sidebar = () => document.getElementById('sidebar');
+    const isDrawerOpen = () => { const sb = sidebar(); return !!sb && sb.classList.contains('m-open'); };
+    function overlayOpen() {
+      const panel = document.getElementById('task-panel');
+      if (panel && panel.classList.contains('open')) return true;
+      const sheet = document.getElementById('m-sheet');
+      if (sheet && sheet.classList.contains('show')) return true;
+      return !!document.querySelector('.modal-overlay.modal-visible, .modal-overlay[style*="flex"]');
+    }
+    function isEditable(el) {
+      for (; el && el !== document.body; el = el.parentElement) {
+        const tag = el.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable) return true;
+      }
+      return false;
+    }
+    let sx = 0, sy = 0, mode = 0, kind = 0, ok = false;   // kind: 1=開く, 2=閉じる / mode: 0=判定前, 1=横スワイプ, 2=対象外
+    document.addEventListener('touchstart', e => {
+      ok = false; mode = 0; kind = 0;
+      if (e.touches.length !== 1) return;
+      const app = document.getElementById('app');
+      if (!isShown(app)) return;
+      const t = e.touches[0];
+      sx = t.clientX; sy = t.clientY;
+      if (isDrawerOpen()) {
+        const sb = sidebar();
+        if (e.target.closest && (e.target.closest('#sidebar') === sb || e.target.id === 'm-backdrop')) { ok = true; kind = 2; }
+        return;
+      }
+      if (sx > EDGE + insetLeft()) return;
+      if (overlayOpen() || isEditable(e.target)) return;
+      ok = true; kind = 1;
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+      if (!ok || mode === 2) return;
+      const t = e.touches[0];
+      const mx = t.clientX - sx, my = t.clientY - sy;
+      if (mode === 0) {
+        if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+        const dirOk = kind === 1 ? mx > 0 : mx < 0;
+        if (dirOk && Math.abs(mx) > Math.abs(my) * 1.6) mode = 1;
+        else { mode = 2; return; }
+      }
+      // 端から始めた横スワイプは、カンバン・ガントの横スクロールやブラウザの動きに回さない
+      if (e.cancelable) e.preventDefault();
+      if (kind === 1 && mx >= DIST) { mode = 2; ok = false; openMobileDrawer(); }
+      else if (kind === 2 && mx <= -DIST) { mode = 2; ok = false; closeMobileDrawer(); }
+    }, { passive: false });
+    const reset = () => { ok = false; mode = 0; kind = 0; };
+    document.addEventListener('touchend', reset);
+    document.addEventListener('touchcancel', reset);
+  })();
 
   mNavSync();
   updateFilterIndicators();
