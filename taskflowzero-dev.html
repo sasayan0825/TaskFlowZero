@@ -1052,6 +1052,16 @@ html.mobile-mode [onclick*="deleteTask"],html.mobile-mode [onclick*="deleteProje
 html.mobile-mode #ps-tab-basic,html.mobile-mode #ps-tab-templates,html.mobile-mode #ps-tab-labels{display:none !important}
 html.mobile-mode .hidden-view-guard button{display:none !important}
 html.mobile-mode .project-title-row{gap:6px;flex-wrap:wrap}
+/* プロジェクト名の行：ボタンは「⋯」1つにまとめ、中身はボトムシートで選ぶ */
+#ph-menu-btn,#m-menu-sheet{display:none}
+html.mobile-mode #project-header .project-title-row .btn:not(#ph-menu-btn){display:none !important}
+html.mobile-mode #project-header .project-title-row #ph-menu-btn{display:inline-flex !important;align-items:center;justify-content:center;min-width:40px;font-size:18px;line-height:1;margin-left:auto}
+html.mobile-mode #m-menu-sheet{position:fixed;left:0;right:0;bottom:0;z-index:960;display:flex;flex-direction:column;gap:2px;background:var(--surface);border-top:1px solid var(--border2);border-radius:18px 18px 0 0;padding:10px 12px calc(14px + env(safe-area-inset-bottom,0px));transform:translateY(105%);transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:0 -10px 40px rgba(0,0,0,.45)}
+html.mobile-mode #m-menu-sheet.show{transform:none}
+#m-menu-sheet .m-sheet-grip{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 6px}
+#m-menu-sheet .m-menu-item{display:flex;align-items:center;gap:14px;width:100%;padding:14px 10px;background:none;border:0;border-radius:10px;color:var(--text);font:inherit;font-size:15px;text-align:left}
+#m-menu-sheet .m-menu-item:active{background:var(--surface2)}
+#m-menu-sheet .m-menu-ico{width:24px;text-align:center;font-size:18px}
 html.mobile-mode .project-title{font-size:17px}
 html.mobile-mode #project-header{padding-left:12px !important;padding-right:12px !important}
 html.mobile-mode .view-tabs{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -1288,7 +1298,9 @@ html.mobile-mode #projects-header-title{flex:1 1 100%;min-width:0}
 html.mobile-mode #projects-header-title > div:first-child{font-size:21px !important;white-space:nowrap}
 html.mobile-mode #projects-header-actions{flex:1 1 100%;gap:8px}
 html.mobile-mode #projects-header-actions .btn{flex:1;justify-content:center;white-space:nowrap}
-html.mobile-mode #projects-search-bar{flex-wrap:wrap}
+html.mobile-mode #projects-search-bar{flex-wrap:wrap;gap:8px}
+html.mobile-mode #proj-search-title{flex:1 1 100%;width:auto;min-width:0;box-sizing:border-box}
+html.mobile-mode #projects-search-bar .proj-filter-select{flex:1 1 0;width:auto;min-width:0;box-sizing:border-box}
 html.mobile-mode #proj-search-title{flex:1 1 100%;width:100%;box-sizing:border-box}
 /* スマホ：トーストは画面上部に、横幅いっぱいで出す（下端はブラウザのツールバーに隠れるため。消えた状態も画面外へ） */
 html.mobile-mode #toast{left:12px;right:12px;bottom:auto;top:calc(env(safe-area-inset-top,0px) + 56px);transform:translateY(-160%);max-width:none;opacity:0;pointer-events:none;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s;box-shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -1635,6 +1647,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           <button class="btn btn-secondary btn-sm" id="btn-archive-project" onclick="toggleArchiveProject(state.currentProjectId)" title="完了">📦 <span class="btn-label">完了</span></button>
           <button class="btn btn-secondary btn-sm" data-keep onclick="openProjectSettings(state.currentProjectId)" title="設定">⚙️ <span class="btn-label">設定</span></button>
           <button class="btn btn-danger btn-sm" onclick="deleteProject(state.currentProjectId)" title="削除">🗑</button>
+          <button class="btn btn-secondary btn-sm" id="ph-menu-btn" onclick="openProjectMenu()" title="メニュー" aria-label="メニュー">⋯</button>
         </div>
         <div class="project-desc" id="ph-desc"></div>
         <div class="view-tabs">
@@ -1865,6 +1878,14 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
   <div class="m-sheet-label">プロジェクトの説明</div>
   <div class="m-sheet-body" id="m-sheet-body"></div>
   <button class="btn btn-secondary" onclick="closeMobileSheet()">閉じる</button>
+</div>
+<!-- スマホ：プロジェクトメニュー（名前の行の「⋯」） -->
+<div id="m-menu-sheet" role="dialog" aria-modal="true" aria-label="プロジェクトメニュー">
+  <div class="m-sheet-grip"></div>
+  <button class="m-menu-item" onclick="mobMenuGo('desc')"><span class="m-menu-ico">ⓘ</span>プロジェクトの説明</button>
+  <button class="m-menu-item" data-owned-only onclick="mobMenuGo('milestone')"><span class="m-menu-ico">🏁</span>マイルストーン</button>
+  <button class="m-menu-item" data-owned-only onclick="mobMenuGo('edit')"><span class="m-menu-ico">✏️</span>プロジェクトを編集</button>
+  <button class="m-menu-item" onclick="mobMenuGo('settings')"><span class="m-menu-ico">⚙️</span>プロジェクト設定</button>
 </div>
 
 <!-- TASK PANEL -->
@@ -15224,7 +15245,26 @@ if (IS_MOBILE_MODE) (function () {
   };
   window.closeMobileSheet = function () {
     document.getElementById('m-sheet').classList.remove('show');
+    document.getElementById('m-menu-sheet').classList.remove('show');
     document.getElementById('m-sheet-backdrop').classList.remove('show');
+  };
+  // ── プロジェクトメニュー（⋯）：スマホで作ったプロジェクトだけ、マイルストーンと編集も出す ──
+  window.openProjectMenu = function () {
+    const pid = state.currentProjectId;
+    if (!pid) return;
+    const owned = _mobIsOwned(pid);
+    document.querySelectorAll('#m-menu-sheet [data-owned-only]').forEach(el => { el.style.display = owned ? '' : 'none'; });
+    document.getElementById('m-menu-sheet').classList.add('show');
+    document.getElementById('m-sheet-backdrop').classList.add('show');
+  };
+  window.mobMenuGo = function (act) {
+    closeMobileSheet();
+    const pid = state.currentProjectId;
+    if (!pid) return;
+    if (act === 'desc') openProjectDescSheet();
+    else if (act === 'milestone') openMilestoneModal();
+    else if (act === 'edit') openProjectModal(pid);
+    else if (act === 'settings') openProjectSettings(pid);
   };
 
   // ── フィルター行の開閉（基本は閉じる） ──
