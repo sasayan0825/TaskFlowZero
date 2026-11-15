@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.18',
+      version:     '1.3.19',
     });
   }
 
@@ -486,6 +486,11 @@
     'プロジェクトを更新しました':         'Project updated',
     'プロジェクトを作成しました':         'Project created',
     'プロジェクトを削除しました':         'Project deleted',
+    'プロジェクトの説明':                 'Project description',
+    'メニュー':                           'Menu',
+    '🗑 プロジェクトを削除':              '🗑 Delete Project',
+    'スマホで作成したプロジェクトを、このスマホから削除します。PCへ渡し済みの場合も、PC側には残ります。削除する前に、エクスポートや「変更を書き出し」でPCへ渡してください。':
+      'Deletes a project created on this phone from this phone. If you have already passed it to the PC, it stays on the PC. Before deleting, pass it to the PC with Export or "Export changes".',
     'コメントを投稿しました':             'Comment posted',
     'コメントと工数を投稿しました':       'Comment & hours posted',
     'コメントを更新しました':             'Comment updated',
@@ -792,6 +797,8 @@
     s = s.replace(/^フォルダ「(.+)」が必要です$/, 'Folder "$1" is required');
     s = s.replace(/^「(.+)」フォルダを開いてください$/, 'Please open the "$1" folder');
     s = s.replace(/^「(.+)」を削除しますか？$/, 'Delete "$1"?');
+    s = s.replace(/^「(.+)」を削除しますか？\n\nこのスマホのデータから消え、元に戻せません。\nPCへ渡し済みの場合も、PC側には残ります。$/, 'Delete "$1"?\n\nIt will be removed from this phone and cannot be undone.\nIf you have already passed it to the PC, it stays on the PC.');
+    s = s.replace(/^削除に失敗しました: (.+)$/, 'Failed to delete: $1');
     // マイタスク：メンション件数・既読操作
     s = s.replace(/^(\d+)件（未読 (\d+)）$/, '$1 ($2 unread)');
     s = s.replace(/^(\d+)件を既読にしました$/, '$1 mention(s) marked as read');

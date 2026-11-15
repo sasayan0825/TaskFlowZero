@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.2.14-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.2.15-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -131,9 +131,9 @@ Open TaskFlowZero in a browser that can't pick a folder — Safari on iPhone/iPa
 4. Phone: "Settings → Mobile Sync → Export changes" creates a small file containing only your changes; share it
 5. PC: "Settings → Mobile Sync → Import Mobile Changes" opens it. Only items that conflict with changes made on the PC are shown in the conflict dialog
 
-If you haven't started using the PC version yet, choose "Start new" on the first screen to begin on the phone alone (projects created on the phone can also have milestones and Wiki pages edited, and are added as new projects when imported on the PC).
+If you haven't started using the PC version yet, choose "Start new" on the first screen to begin on the phone alone (projects created on the phone can also have milestones and Wiki pages edited, holiday settings changed, and the project deleted, and are added as new projects when imported on the PC).
 
-For projects imported from the PC, deletions and edits to projects, milestones and Wiki pages made on the phone are not reflected on the PC. Because the data lives in the browser, clearing browser data erases it — export your changes regularly (on iPhone, adding the app to the Home Screen is recommended).
+For projects imported from the PC, deletions, holiday-setting changes, and edits to projects, milestones and Wiki pages made on the phone are not reflected on the PC. Because the data lives in the browser, clearing browser data erases it — export your changes regularly (on iPhone, adding the app to the Home Screen is recommended).
 
 ### 🔗 Comment Anchor Links
 URLs support the format `#[FolderName-]P1-42-C3`, letting you share a link that jumps directly to a specific comment.

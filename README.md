@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.2.14-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.2.15-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -128,9 +128,9 @@ iPhone・iPad の Safari や Android の Chrome など、フォルダを選べ�
 4. スマホ：「設定 → スマホ連携 → 変更を書き出し」で、自分の変更分だけのファイルを作って共有する
 5. PC：「設定 → スマホ連携 → スマホの変更を取り込み」で開く。PC側の変更と食い違う項目だけ、競合ダイアログで選べます
 
-PCをまだ使い始めていない場合は、スマホの最初の画面で「新規で始める」を選ぶと、スマホだけで始められます（スマホで作ったプロジェクトは、マイルストーンやWikiも編集でき、PCに取り込むと新しいプロジェクトとして追加されます）。
+PCをまだ使い始めていない場合は、スマホの最初の画面で「新規で始める」を選ぶと、スマホだけで始められます（スマホで作ったプロジェクトは、マイルストーンやWikiの編集、休み設定の変更、プロジェクトの削除もでき、PCに取り込むと新しいプロジェクトとして追加されます）。
 
-PCから取り込んだプロジェクトでは、スマホ側の削除、プロジェクト・マイルストーン・Wikiの編集はPCに反映されません。データはブラウザ内にあるため、ブラウザのデータを消すと失われます。こまめに「変更を書き出し」してください（iPhoneでは、ホーム画面に追加して使うのがおすすめです）。
+PCから取り込んだプロジェクトでは、スマホ側の削除、プロジェクト・マイルストーン・Wikiの編集、休み設定の変更はPCに反映されません。データはブラウザ内にあるため、ブラウザのデータを消すと失われます。こまめに「変更を書き出し」してください（iPhoneでは、ホーム画面に追加して使うのがおすすめです）。
 
 ### 🔗 コメントアンカーリンク
 URLは `#[FolderName-]P1-42-C3` 形式に対応。特定のコメントへ直接ジャンプするリンクを共有できます。
