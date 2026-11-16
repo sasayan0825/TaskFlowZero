@@ -14,7 +14,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0f1a'/%3E%3Cpolygon points='19,3 10,18 16,18 13,29 22,14 16,14' fill='%234f8eff' stroke='%237aa7ff' stroke-width='0.8'/%3E%3C/svg%3E">
 <meta name="theme-color" content="#0b0f1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>(function(){try{if(localStorage.getItem('taskflow-theme')==='light'){var m=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(m)m.setAttribute('content','default');}}catch(e){}})();</script>
 <meta name="apple-mobile-web-app-title" content="TaskFlowZero">
 <script>
 (function() {
@@ -1118,7 +1119,7 @@ html.mobile-mode #my-tasks-view{padding:14px 12px}
 html.mobile-mode #kanban-view{padding:10px;gap:10px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 html.mobile-mode .kanban-col{width:84vw;min-width:84vw;scroll-snap-align:center}
 /* タスク詳細・モーダルは画面いっぱい */
-html.mobile-mode #task-panel{width:100vw !important;min-width:0 !important;max-width:100vw !important;height:100dvh}
+html.mobile-mode #task-panel{width:100vw !important;min-width:0 !important;max-width:100vw !important;height:100dvh;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
 html.mobile-mode #panel-resize-handle{display:none}
 html.mobile-mode .modal{width:calc(100vw - 20px) !important;max-width:none !important;max-height:calc(100dvh - 28px) !important;padding:18px 16px}
 html.mobile-mode input,html.mobile-mode textarea,html.mobile-mode select{font-size:16px}
@@ -2634,11 +2635,13 @@ function applyTheme(theme) {
     if (btn) btn.innerHTML = '☀️ <span class="btn-label">ライト</span>';
     if (sbtn) sbtn.textContent = '☀️ ライト';
     if (mtc) mtc.setAttribute('content', '#ffffff');
+    try { const sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'); if (sb) sb.setAttribute('content', 'default'); } catch(e) {}
   } else {
     document.documentElement.classList.remove('light');
     if (btn) btn.innerHTML = '🌙 <span class="btn-label">ダーク</span>';
     if (sbtn) sbtn.textContent = '🌙 ダーク';
     if (mtc) mtc.setAttribute('content', '#0b0f1a');
+    try { const sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]'); if (sb) sb.setAttribute('content', 'black-translucent'); } catch(e) {}
   }
 }
 function _initNavTooltips() {
@@ -7035,7 +7038,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.3.1';
+const APP_VERSION      = '1.3.2';
 const APP_VERSION_DATE = '2026-11-16';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
@@ -15502,9 +15505,11 @@ async function mobDeleteOwnedProject(pid) {
   if (!confirm(`「${p.name}」を削除しますか？\n\nこのスマホのデータから消え、元に戻せません。\nPCへ渡し済みの場合も、PC側には残ります。`)) return;
   closeModal('project-settings-modal');
   try {
+    // v1.3.2: ファイル名は、プロジェクトを一覧から外す「前」に求める（外した後だと番号が引けず、別名のファイルを消そうとして本物が残っていた）
+    const fname = _projectFileName(pid);
     _dirtyProjects.delete(pid); delete _baseSnapshots[pid];
     state.data.projects = state.data.projects.filter(x => x.id !== pid);
-    await mobDel('files', _projectFileName(pid));
+    await mobDel('files', fname);
     await mobDel('pkgbase', pid);
     const info = (await mobGet('meta', 'info')) || {};
     info.mobileOwned = (info.mobileOwned || []).filter(x => x !== pid);
