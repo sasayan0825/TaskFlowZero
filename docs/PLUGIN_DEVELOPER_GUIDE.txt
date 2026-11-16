@@ -952,7 +952,18 @@ TaskFlow.getPluginConfig(pluginId)
     likes:     LikeEntry[],     // このコメントへの「いいね」一覧
     bookmarks: LikeEntry[],     // このコメントの「ブックマーク」一覧
     reads:     ReadEntry[],     // メンションの既読・未読の記録（任意。v1.2.1〜）
+    effortLog: EffortLog,       // 工数記録（任意）
   }
+
+  【EffortLog（コメントに付く工数記録）】
+    { estimated: number, actual: number, from?: string, to?: string }
+    estimated は見積の増減分（時間。マイナス可）、actual は実績（時間。0以上）。
+    task.estimatedHours / actualHours は、baseEstimatedHours と各コメントの
+    effortLog の合計から recalcHours() で再計算されます。
+    from / to は作業タイマー（v1.3.0〜）が記録するときだけ付く任意項目で、
+    作業の開始・終了（ISO 8601）です。マイタスクのアクティビティで、
+    actual が1時間以上のときだけ作業時間の範囲として表示します。
+    プラグインが工数付きコメントを作るときは from / to を省略してください。
 
   【ReadEntry（メンション既読の1件。v1.2.1〜）】
     { id: string /* ユーザー名 */, at: string /* 操作日時 ISO 8601 */, read: boolean }

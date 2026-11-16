@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.2.15-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.3.0-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -112,6 +112,8 @@ Click the 📎 button to attach files or images. Attachments are saved to `files
 
 ### ⏱ Effort Tracking
 Log estimated and actual hours per comment via the **＋ Add Effort** button in the comment area. Hours accumulate as a running history on each task.
+
+You can also press **▶ Start Work** in the task detail to time your work, then **⏹ Stop & Log** to record the actual hours as a comment automatically (Work Timer). While timing, a "● REC" banner is shown at the top of the screen. Only one task can be timed at a time.
 
 ### 📁 Folder History
 The launch screen shows up to 10 recently opened folders. One click to reopen — no folder picker required.

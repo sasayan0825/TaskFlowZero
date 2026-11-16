@@ -4,7 +4,7 @@
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue.svg)](./LICENSE)
 [![Chrome / Edge](https://img.shields.io/badge/browser-Chrome%20%2F%20Edge-green.svg)](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)
-[![Version](https://img.shields.io/badge/version-v1.2.15-orange.svg)](./taskflowzero.html)
+[![Version](https://img.shields.io/badge/version-v1.3.0-orange.svg)](./taskflowzero.html)
 
 🔗 **[Try it now →](https://sasayan0825.github.io/TaskFlowZero/taskflowzero.html)**
 
@@ -109,6 +109,8 @@ Wikiの見出しにカーソルを合わせると表示される🔗アイコン
 
 ### ⏱ 工数入力
 コメント欄の「＋ 工数を追加」から**予定工数・実績工数**をコメントと一緒に記録できます。記録した工数はコメント履歴として蓄積されます。
+
+さらに、タスク詳細の「▶ 作業開始」で作業時間を計測し、「⏹ 停止して記録」を押すと実績工数がコメントとして自動で記録されます（作業タイマー）。計測中は画面上部に「● REC 作業中」のバナーが出ます。同時に計測できるのは1タスクのみです。
 
 ### 📁 フォルダ履歴
 起動画面に過去に開いたフォルダの履歴（最大10件）が表示されます。ワンクリックで素早く再アクセスでき、一括削除も可能です。

@@ -176,6 +176,22 @@ body{font-family:'Noto Sans JP','Outfit',sans-serif;background:var(--bg);color:v
 
 /* HEADER */
 #header{min-height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;padding:8px 20px;gap:10px 16px;flex-shrink:0;z-index:100}
+/* WORK TIMER (v1.3.0) */
+#timer-banner{display:none;flex-shrink:0;align-items:center;gap:10px;height:36px;padding:0 20px;background:rgba(239,68,68,.12);border-bottom:1px solid rgba(239,68,68,.35);color:var(--text);font-size:13px;cursor:pointer;z-index:99;overflow:hidden}
+#timer-banner.show{display:flex}
+#timer-banner:hover{background:rgba(239,68,68,.18)}
+#timer-banner.other{background:rgba(245,158,11,.12);border-bottom-color:rgba(245,158,11,.4);cursor:default}
+.timer-rec-dot{color:var(--red);font-size:14px;line-height:1;animation:timerBlink 1.2s ease-in-out infinite}
+#timer-banner.other .timer-rec-dot{color:var(--yellow)}
+@keyframes timerBlink{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.timer-rec-dot{animation:none}}
+.timer-rec-text{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--red)}
+#timer-banner.other .timer-rec-text{color:var(--yellow)}
+.timer-banner-prefix{white-space:nowrap;color:var(--muted)}
+.timer-banner-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.timer-banner-time{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.timer-btn-time{font-variant-numeric:tabular-nums}
+html.mobile-mode #timer-banner,html.mobile-mode #timer-panel-btn{display:none !important}
 #logo{font-family:'Outfit',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.5px;color:var(--accent2);display:flex;align-items:center;gap:8px;white-space:nowrap}
 #file-status{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
 #file-dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
@@ -1424,6 +1440,17 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
   </div>
 </div>
 
+<!-- WORK TIMER BANNER -->
+<div id="timer-banner" onclick="timerBannerClick(event)" title="クリックで作業中のタスクを開く">
+  <span class="timer-rec-dot">●</span>
+  <span class="timer-rec-text">REC</span>
+  <span class="timer-banner-prefix" id="timer-banner-prefix">作業中：</span>
+  <span class="timer-banner-label" id="timer-banner-label"></span>
+  <span class="timer-banner-time" id="timer-banner-time">00:00:00</span>
+  <button type="button" class="btn btn-danger btn-sm" id="timer-banner-stop" onclick="event.stopPropagation();timerStop()" title="停止して記録">⏹ 停止</button>
+  <button type="button" class="btn btn-secondary btn-sm" id="timer-banner-discard" onclick="event.stopPropagation();timerDiscard()" title="記録せずに破棄" style="display:none">破棄</button>
+</div>
+
 <div id="m-backdrop" onclick="closeMobileDrawer()"></div>
 <!-- APP -->
 <div id="app" style="display:none">
@@ -2087,6 +2114,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           <button class="btn btn-primary btn-sm" id="comment-update-btn" onclick="updateComment()" style="display:none">更新する</button>
           <button class="btn btn-secondary btn-sm" id="comment-cancel-edit-btn" onclick="cancelEditComment()" style="display:none">キャンセル</button>
           <button type="button" class="btn btn-secondary btn-sm" id="effort-toggle-btn" onclick="toggleEffortPanel()">＋ 工数を追加</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="timer-panel-btn" onclick="timerPanelClick()" title="作業時間を計測し、停止すると実績としてコメントに記録します">▶ 作業開始</button>
         </div>
         <div id="effort-panel" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius)">
           <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">工数入力（どちらか一方でも可）</div>
@@ -5255,6 +5283,7 @@ function returnToTop() {
   document.getElementById('header').style.display = 'none';
   document.getElementById('app').style.display = 'none';
   document.getElementById('file-loader').style.display = 'flex';
+  try { timerRefresh(); } catch(e) {}
   // ハッシュとフォルダ関連のガイドをリセット
   history.replaceState(null, '', window.location.pathname + window.location.search);
   window._pendingHashFolder = null;
@@ -5302,6 +5331,9 @@ function initApp() {
   initFileCache();
 
   try { renderSyncPane(); if (IS_MOBILE_MODE) refreshSyncBadge(); } catch(e) { console.warn('renderSyncPane', e); }
+
+  // 作業タイマーの復元（バナー・ボタン表示）
+  try { timerRestore(); } catch(e) { console.warn('timerRestore', e); }
 
   // Handle URL hash navigation after render
   setTimeout(() => navigateToHash(window.location.hash), 200);
@@ -6287,7 +6319,13 @@ function _buildActivityEvents(myName) {
           const parts = [];
           if (c.effortLog.estimated) parts.push(`見積 ${c.effortLog.estimated}h`);
           if (c.effortLog.actual)    parts.push(`実績 ${c.effortLog.actual}h`);
-          add(c.createdAt, { type:'effort', icon:'⏱', text:`工数記録: ${parts.join(' / ')}`, pid:p.id, tid:t.id, pname:p.name, pc, actual: c.effortLog.actual || 0, commentNo });
+          // 作業タイマーの記録（from/to あり）で実績が1時間以上のときだけ、作業した時間の範囲を添える
+          let rangeTxt = '';
+          const _lg = c.effortLog;
+          if (_lg.from && _lg.to && (_lg.actual || 0) >= 1 && !isNaN(Date.parse(_lg.from)) && !isNaN(Date.parse(_lg.to))) {
+            rangeTxt = `（${_timerFmtRange(new Date(_lg.from), new Date(_lg.to))}）`;
+          }
+          add(c.createdAt, { type:'effort', icon:'⏱', text:`工数記録: ${parts.join(' / ')}${rangeTxt}`, pid:p.id, tid:t.id, pname:p.name, pc, actual: c.effortLog.actual || 0, commentNo });
         } else {
           add(c.createdAt, { type:'comment', icon:'💬', text:`コメント投稿: &ldquo;${esc(c.text||'')}&rdquo;`, pid:p.id, tid:t.id, pname:p.name, pc, commentNo });
         }
@@ -6971,8 +7009,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.2.15';
-const APP_VERSION_DATE = '2026-11-15';
+const APP_VERSION      = '1.3.0';
+const APP_VERSION_DATE = '2026-11-16';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -11243,6 +11281,7 @@ function _openTaskPanelInner(taskId){
   renderTimeline(t);
   setMdMode('preview');
   setCmtMode('edit');
+  timerRefreshPanelBtn();
   // Restore saved panel width
   const savedW = parseInt(localStorage.getItem('taskflow-panel-width') || '0');
   const panel = document.getElementById('task-panel');
@@ -13484,6 +13523,238 @@ function addComment(){
   renderTimeline(t); autoSave(state.currentProjectId, true); renderCurrentView();
   toast(comment.effortLog?'コメントと工数を投稿しました':'コメントを投稿しました','success');
 }
+
+// ═══════════════════════════════════════
+// 作業タイマー（v1.3.0）
+// ═══════════════════════════════════════
+// 状態は localStorage のみに持つ（プロジェクトJSONには入れない＝共有・3-wayマージの対象外）。
+// 値は { pid, tid, folder, startedAt(ISO) } の1件だけ。経過時間は「現在時刻 − startedAt」で毎回計算する。
+// 停止すると、既存の「コメント＋工数（effortLog.actual）」として記録する（recalcHours・マイタスク・CSVに自動で乗る）。
+const TIMER_KEY = 'taskflow-work-timer';
+const TIMER_MIN_SEC = 60;           // これ未満は記録せず破棄
+const TIMER_WARN_SEC = 12 * 3600;   // これを超えていたら停止時に確認
+let _timerTicker = null;
+
+function _timerFolder() { return state.rootDirHandle ? state.rootDirHandle.name : ''; }
+function _timerRead() {
+  try {
+    const raw = localStorage.getItem(TIMER_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o || !o.pid || !o.tid || !o.startedAt || isNaN(Date.parse(o.startedAt))) return null;
+    return o;
+  } catch (e) { return null; }
+}
+function _timerWrite(o) { try { localStorage.setItem(TIMER_KEY, JSON.stringify(o)); return true; } catch (e) { return false; } }
+function _timerClear() { try { localStorage.removeItem(TIMER_KEY); } catch (e) {} }
+
+// none: なし / mine: このフォルダで対象タスクあり / missing: このフォルダだが対象タスクがない（削除済み）/ other: 別フォルダ
+function _timerStatus(o) {
+  if (!o) return 'none';
+  if (!state.data || !state.data.projects) return 'other';
+  if ((o.folder || '') !== _timerFolder()) return 'other';
+  const p = getProject(o.pid);
+  return (p && p.tasks.find(x => x.id === o.tid)) ? 'mine' : 'missing';
+}
+
+function _timerFmtClock(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
+}
+function _timerFmtDur(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  return h && m ? `${h}時間${m}分` : h ? `${h}時間` : `${m}分`;
+}
+function _timerFmtHM(d) { return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function _timerFmtRange(a, b) {
+  if (a.toDateString() === b.toDateString()) return `${_timerFmtHM(a)}〜${_timerFmtHM(b)}`;
+  const md = d => `${d.getMonth() + 1}/${d.getDate()} `;
+  return `${md(a)}${_timerFmtHM(a)}〜${md(b)}${_timerFmtHM(b)}`;
+}
+
+// 停止時の記録。addComment() と同じ手順だが、DOM入力を経由しない（確認ダイアログも出さない）。
+// 実績は「1分単位に四捨五入した分」を時間換算（小数第2位）して effortLog.actual に入れる。
+function _timerRecord(o, startMs, endMs) {
+  const p = getProject(o.pid);
+  const t = p && p.tasks.find(x => x.id === o.tid);
+  if (!t) return null;
+  const min = Math.round((endMs - startMs) / 60000);
+  const actual = Math.round(min / 60 * 100) / 100;
+  if (!t.comments) t.comments = [];
+  if (!t.nextCommentNo) t.nextCommentNo = Math.max(0, ...t.comments.map(c => c.no || 0)) + 1;
+  let author = getMyName();
+  if (!author) {
+    const ai = document.getElementById('comment-author');
+    author = (ai && ai.value.trim()) || '名無し';
+  }
+  const text = `⏱ 作業時間 ${_timerFmtDur(min)}（${_timerFmtRange(new Date(startMs), new Date(endMs))}）`;
+  t.comments.push({ id: uid(), no: t.nextCommentNo++, author, text, createdAt: new Date().toISOString(), likes: [], bookmarks: [], effortLog: { estimated: 0, actual, from: new Date(startMs).toISOString(), to: new Date(endMs).toISOString() } });
+  // ここから先は記録済み。画面更新などで例外が出ても、呼び出し側で巻き戻して二重記録にならないよう個別に握る
+  try { recalcHours(t); } catch (e) { console.warn('timer recalcHours', e); }
+  try { autoSave(o.pid, true); } catch (e) { console.warn('timer autoSave', e); }
+  try { if (_panelTaskId === t.id && _panelProjectId === o.pid) { updateHoursDisplay(t); renderTimeline(t); } } catch (e) { console.warn('timer panel render', e); }
+  try { renderCurrentView(); } catch (e) { console.warn('timer view render', e); }
+  return { min };
+}
+
+// 停止（記録）。解決したら true、中断（別フォルダ・キャンセル等）なら false。
+function timerStop() {
+  const o = _timerRead();
+  if (!o) { timerRefresh(); return true; }
+  const st = _timerStatus(o);
+  if (st === 'other') { toast('別のフォルダで再生中のため、そちらのフォルダで停止してください', 'warn', 5000); return false; }
+  const startMs = Date.parse(o.startedAt);
+  let endMs = Date.now();
+  if (st === 'mine' && endMs - startMs > TIMER_WARN_SEC * 1000) {
+    const long = _timerFmtDur(Math.round((endMs - startMs) / 60000));
+    if (!confirm(`計測が${long}になっています。このまま記録しますか？\n\nOK：そのまま記録\nキャンセル：記録する時間を指定する／破棄する`)) {
+      const v = prompt('記録する作業時間を分で入力してください。\n空欄のままOKを押すと、記録せずに破棄します。\nキャンセルすると、計測を続けます。', '');
+      if (v === null) return false;
+      if (String(v).trim() === '') { _timerClear(); timerRefresh(); toast('計測を破棄しました'); return true; }
+      const mm = parseFloat(v);
+      if (!(mm > 0)) { toast('分を数値で入力してください', 'error'); return false; }
+      endMs = startMs + Math.round(mm) * 60000;
+    }
+  }
+  // 他タブとの二重記録を避けるため、先にキーを消してから記録する
+  _timerClear();
+  if (st === 'missing') { toast('再生中のタスクが見つからないため、計測を破棄しました', 'warn'); timerRefresh(); return true; }
+  if (endMs - startMs < TIMER_MIN_SEC * 1000) { toast('短すぎるため記録しませんでした（1分未満）'); timerRefresh(); return true; }
+  let res = null;
+  try { res = _timerRecord(o, startMs, endMs); }
+  catch (e) { console.warn('timer record failed:', e); _timerWrite(o); timerRefresh(); toast('作業時間を記録できませんでした', 'error'); return false; }
+  timerRefresh();
+  if (!res) { toast('再生中のタスクが見つからないため、計測を破棄しました', 'warn'); return true; }
+  toast(`作業時間を記録しました（${_timerFmtDur(res.min)}）`, 'success');
+  return true;
+}
+
+// 開始。他タスクが再生中なら、先にそちらを停止・記録する。記録できない場合（別フォルダ等）は開始を中止する。
+function timerStart(pid, tid) {
+  if (window.IS_MOBILE_MODE) return;
+  const t = getTask(pid, tid);
+  if (!t) return;
+  const cur = _timerRead();
+  if (cur) {
+    if (cur.pid === pid && cur.tid === tid && (cur.folder || '') === _timerFolder()) return;
+    if (_timerStatus(cur) === 'other') { toast('別のタブ／フォルダで再生中のため、先にそちらで停止してください', 'warn', 5000); return; }
+    if (!timerStop()) return;
+  }
+  if (!_timerWrite({ pid, tid, folder: _timerFolder(), startedAt: new Date().toISOString() })) {
+    toast('タイマーを開始できませんでした（ブラウザの保存領域に書き込めません）', 'error');
+    return;
+  }
+  timerRefresh();
+  toast('作業を開始しました', 'success');
+}
+
+// 別フォルダで残ってしまったタイマーを、記録せずに破棄する（バナーの「破棄」）
+function timerDiscard() {
+  const o = _timerRead();
+  if (!o) { timerRefresh(); return; }
+  if (!confirm('別のフォルダで計測中のタイマーを、記録せずに破棄します。よろしいですか？')) return;
+  _timerClear();
+  timerRefresh();
+  toast('計測を破棄しました');
+}
+
+function _timerIsPanelTask(o) {
+  return !!(o && _panelTaskId && o.tid === _panelTaskId && o.pid === _panelProjectId && (o.folder || '') === _timerFolder());
+}
+
+function timerPanelClick() {
+  if (!_panelTaskId || !_panelProjectId) return;
+  if (_timerIsPanelTask(_timerRead())) timerStop();
+  else timerStart(_panelProjectId, _panelTaskId);
+}
+
+function timerBannerClick(ev) {
+  const o = _timerRead();
+  if (!o || _timerStatus(o) !== 'mine') return;
+  const detail = document.getElementById('project-detail');
+  const inDetail = detail && detail.style.display !== 'none' && state.currentProjectId === o.pid;
+  if (!inDetail) openProject(o.pid);
+  setTimeout(() => openTaskPanel(o.tid), 100);
+}
+
+function timerRefreshPanelBtn() {
+  const b = document.getElementById('timer-panel-btn');
+  if (!b || window.IS_MOBILE_MODE) return;
+  const o = _timerRead();
+  const run = _timerIsPanelTask(o);
+  const mode = run ? 'run' : 'idle';
+  if (b.dataset.mode !== mode) {
+    b.dataset.mode = mode;
+    b.className = 'btn btn-sm ' + (run ? 'btn-danger' : 'btn-secondary');
+    b.innerHTML = run ? '<span>⏹ 停止して記録</span> <span class="timer-btn-time"></span>' : '▶ 作業開始';
+  }
+  if (run) {
+    const sp = b.querySelector('.timer-btn-time');
+    if (sp) sp.textContent = '（' + _timerFmtClock((Date.now() - Date.parse(o.startedAt)) / 1000) + '）';
+  }
+}
+
+function _timerTick() {
+  const o = _timerRead();
+  if (!o) { timerRefresh(); return; }
+  const st = _timerStatus(o);
+  if (st === 'missing') {
+    _timerClear();
+    toast('再生中のタスクが見つからないため、計測を破棄しました', 'warn');
+    timerRefresh();
+    return;
+  }
+  const tm = document.getElementById('timer-banner-time');
+  if (tm) tm.textContent = _timerFmtClock((Date.now() - Date.parse(o.startedAt)) / 1000);
+  const pre = document.getElementById('timer-banner-prefix');
+  const lb = document.getElementById('timer-banner-label');
+  let prefix, label;
+  if (st === 'other') { prefix = '別フォルダで作業中：'; label = o.folder || ''; }
+  else {
+    const p = getProject(o.pid), t = p.tasks.find(x => x.id === o.tid);
+    prefix = '作業中：'; label = `${p.name} / ${t.title}`;
+  }
+  if (pre && pre.textContent !== prefix) pre.textContent = prefix;
+  if (lb && lb.textContent !== label) { lb.textContent = label; lb.title = label; }
+  timerRefreshPanelBtn();
+}
+
+// バナー・パネルのボタン・1秒更新を、現在のキーの状態に合わせる
+function timerRefresh() {
+  if (window.IS_MOBILE_MODE) return;
+  const banner = document.getElementById('timer-banner');
+  if (!banner) return;
+  const hdr = document.getElementById('header');
+  const o = _timerRead();
+  if (!o || !hdr || hdr.style.display === 'none') {
+    banner.className = '';
+    if (_timerTicker) { clearInterval(_timerTicker); _timerTicker = null; }
+    timerRefreshPanelBtn();
+    return;
+  }
+  const st = _timerStatus(o);
+  banner.className = 'show' + (st === 'other' ? ' other' : '');
+  document.getElementById('timer-banner-stop').style.display = st === 'other' ? 'none' : '';
+  document.getElementById('timer-banner-discard').style.display = st === 'other' ? '' : 'none';
+  _timerTick();
+  if (!_timerTicker && _timerRead()) _timerTicker = setInterval(_timerTick, 1000);
+}
+
+// 起動時・フォルダ読込後の復元。リロードやブラウザを閉じていた間も計測は続く（開始時刻からの差分）
+function timerRestore() {
+  if (window.IS_MOBILE_MODE) return;
+  timerRefresh();
+  const o = _timerRead();
+  if (o && _timerStatus(o) === 'mine') {
+    toast(`作業タイマーが続いています（開始 ${_timerFmtHM(new Date(o.startedAt))}）`, '', 5000);
+  }
+}
+
+// 他のタブでタイマーが開始・停止されたら、このタブの表示を合わせる（記録は操作したタブ側で行う）
+window.addEventListener('storage', e => {
+  if (e.key === TIMER_KEY || e.key === null) timerRefresh();
+});
 
 function deleteComment(idx){
   if(!confirm('このコメントを削除しますか？\n工数が登録されている場合は合計から減算されます。'))return;

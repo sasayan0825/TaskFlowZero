@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.19',
+      version:     '1.3.20',
     });
   }
 
@@ -494,6 +494,28 @@
     'コメントを投稿しました':             'Comment posted',
     'コメントと工数を投稿しました':       'Comment & hours posted',
     'コメントを更新しました':             'Comment updated',
+    // 作業タイマー（v1.3.0）
+    '▶ 作業開始':                         '▶ Start Work',
+    '⏹ 停止して記録':                     '⏹ Stop & Log',
+    '⏹ 停止':                            '⏹ Stop',
+    '破棄':                               'Discard',
+    '作業中：':                           'Working on: ',
+    '別フォルダで作業中：':               'Working in another folder: ',
+    'クリックで作業中のタスクを開く':     'Click to open the task in progress',
+    '停止して記録':                       'Stop and log',
+    '記録せずに破棄':                     'Discard without logging',
+    '作業時間を計測し、停止すると実績としてコメントに記録します': 'Time your work; stopping logs the actual hours as a comment',
+    '作業を開始しました':                 'Work started',
+    '計測を破棄しました':                 'Timer discarded',
+    '短すぎるため記録しませんでした（1分未満）': 'Not logged: shorter than 1 minute',
+    '再生中のタスクが見つからないため、計測を破棄しました': 'The task being timed was not found, so the timer was discarded',
+    '作業時間を記録できませんでした':     'Could not log the work time',
+    '別のフォルダで再生中のため、そちらのフォルダで停止してください': 'A timer is running in another folder. Stop it in that folder first',
+    '別のタブ／フォルダで再生中のため、先にそちらで停止してください': 'A timer is running in another tab or folder. Stop it there first',
+    'タイマーを開始できませんでした（ブラウザの保存領域に書き込めません）': 'Could not start the timer (browser storage is not writable)',
+    '分を数値で入力してください':         'Enter the minutes as a number',
+    '別のフォルダで計測中のタイマーを、記録せずに破棄します。よろしいですか？': 'Discard the timer running in another folder without logging it?',
+    '記録する作業時間を分で入力してください。\n空欄のままOKを押すと、記録せずに破棄します。\nキャンセルすると、計測を続けます。': 'Enter the work time to log, in minutes.\nPress OK with the field empty to discard without logging.\nPress Cancel to keep timing.',
     'タスクを削除しました':               'Task deleted',
     '日付を更新しました':                 'Date updated',
     'リンクをコピーしました':             'Link copied',
@@ -790,6 +812,11 @@
     s = s.replace(/^添付に失敗しました: (.+)$/, 'Attachment failed: $1');
     s = s.replace(/^プロジェクト P(\d+) が見つかりません$/, 'Project P$1 not found');
     s = s.replace(/^タスク #(\d+) が見つかりません$/, 'Task #$1 not found');
+    // 作業タイマー（v1.3.0）
+    const _timerDurEn = d => d.replace(/(\d+)時間/, '$1h ').replace(/(\d+)分/, '$1m').trim();
+    s = s.replace(/^作業時間を記録しました（(.+)）$/, (m, d) => 'Work time logged (' + _timerDurEn(d) + ')');
+    s = s.replace(/^作業タイマーが続いています（開始 (.+)）$/, 'Work timer is still running (started $1)');
+    s = s.replace(/^計測が(.+)になっています。このまま記録しますか？\n\nOK：そのまま記録\nキャンセル：記録する時間を指定する／破棄する$/, (m, d) => 'The timer has reached ' + _timerDurEn(d) + '. Log it as is?\n\nOK: log as is\nCancel: specify the time to log / discard');
     s = s.replace(/^「(.+)」フォルダを開いてから再度URLにアクセスしてください$/, 'Please open the "$1" folder and access the URL again');
     s = s.replace(/^フォルダが違います（必要: (.+)、現在: (.+)）$/, 'Wrong folder (Required: $1, Current: $2)');
     s = s.replace(/^<strong>(.+)<\/strong> フォルダへのリンクから来ています。<br>下の履歴または「別のフォルダを開く」から <strong>(.+)<\/strong> を選択してください。$/, 'You followed a link to the <strong>$1</strong> folder.<br>Select <strong>$2</strong> from history or "Open Another Folder".');
@@ -948,7 +975,7 @@
     [/^タスク作成: (<b>.+?<\/b>)/, 'Task created: $1'],
     [/^コメント投稿: &ldquo;(.*?)&rdquo;/, 'Posted comment: &ldquo;$1&rdquo;'],
     [/^工数記録: (.+?)(?= — |<|$)/, (match, p1) => {
-      return 'Logged hours: ' + p1.replace(/見積/g, 'Est').replace(/実績/g, 'Act');
+      return 'Logged hours: ' + p1.replace(/見積/g, 'Est').replace(/実績/g, 'Act').replace(/（/g, ' (').replace(/）/g, ')');
     }]
   ];
 
