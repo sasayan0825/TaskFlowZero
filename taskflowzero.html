@@ -166,6 +166,10 @@ html.light .modal{box-shadow:0 8px 32px rgba(0,0,0,.18)}
 .plugin-list-item.dragging{opacity:.4}
 .plugin-list-item.drag-over{border-color:var(--accent);background:rgba(79,142,255,.07)}
 .plugin-drag-handle{color:var(--muted);font-size:14px;flex-shrink:0}
+/* v1.3.1: 右側は「設定アイコン → バージョン → 削除」の順。設定がないプラグインも列がずれないよう、アイコンの幅だけ空ける */
+.plugin-cfg-slot{width:28px;height:28px;flex-shrink:0}
+.plugin-ver{flex-shrink:0;min-width:46px;text-align:center;font-size:10px;color:var(--muted);white-space:nowrap}
+.plugin-ver:not(:empty){background:var(--surface3);padding:1px 6px;border-radius:4px}
 .plugin-name{flex:1;font-size:13px;font-family:'JetBrains Mono',monospace}
 .plugin-del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;border-radius:3px;transition:color .1s}
 .plugin-del-btn:hover{color:var(--red)}
@@ -912,7 +916,27 @@ html.light .list-ms-group-row:hover td{background:#bfdbfe}
 .wiki-toolbar{padding:8px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--surface);flex-shrink:0}
 .wiki-toolbar-title{font-size:13px;font-weight:600;flex:1}
 #wiki-content-area{flex:1;overflow:hidden;position:relative;display:flex;flex-direction:column}
-#wiki-textarea{flex:1;background:var(--surface);border:none;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;padding:20px 24px;resize:none;outline:none;display:none}
+#wiki-textarea{flex:1;background:var(--surface);border:none;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;padding:20px 24px 42px;resize:none;outline:none;display:none}
+/* v1.3.1: Wiki編集の色分け。textarea（文字は透明）の背面に、同じ位置・同じ折り返しで色付きの文字を重ねる */
+:root{--hl-heading:#569cd6;--hl-marker:#d7ba7d;--hl-quote:#6a9955;--hl-code:#ce9178;--hl-link:#4ec9b0;--hl-url:#3794ff;--hl-ref:#4fc1ff;--hl-emph:#c586c0;--hl-dim:#6b7fa8}
+html.light{--hl-heading:#0550ae;--hl-marker:#953800;--hl-quote:#116329;--hl-code:#a31515;--hl-link:#0f766e;--hl-url:#0969da;--hl-ref:#0550ae;--hl-emph:#8250df;--hl-dim:#6e7781}
+#wiki-hl-wrap{display:none;position:absolute;inset:0;overflow:hidden;pointer-events:none;background:var(--surface)}
+#wiki-hl,#wiki-caret-mirror{margin:0;box-sizing:border-box;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;padding:20px 24px 42px;white-space:pre-wrap;overflow-wrap:break-word;word-break:normal;tab-size:8;letter-spacing:normal}
+#wiki-hl{position:absolute;top:0;left:0;color:var(--text);will-change:transform}
+#wiki-caret-mirror{display:none;position:absolute;top:0;left:0;visibility:hidden;pointer-events:none}
+#wiki-content-area.wiki-hl-on #wiki-hl-wrap{display:block}
+#wiki-content-area.wiki-hl-on #wiki-textarea{position:relative;z-index:1;background:transparent;color:transparent;caret-color:var(--text)}
+#wiki-content-area.wiki-hl-on #wiki-textarea.md-dragover{background:rgba(79,142,255,.05)}
+#wiki-content-area.wiki-hl-on #wiki-textarea::selection{background:rgba(79,142,255,.35);color:transparent}
+#wiki-hl .hl-h{color:var(--hl-heading)}
+#wiki-hl .hl-m{color:var(--hl-marker)}
+#wiki-hl .hl-q{color:var(--hl-quote)}
+#wiki-hl .hl-c{color:var(--hl-code)}
+#wiki-hl .hl-l{color:var(--hl-link)}
+#wiki-hl .hl-u{color:var(--hl-url)}
+#wiki-hl .hl-r{color:var(--hl-ref)}
+#wiki-hl .hl-e{color:var(--hl-emph)}
+#wiki-hl .hl-d{color:var(--hl-dim)}
 #wiki-preview{flex:1;overflow-y:auto;padding:24px 40px}
 #wiki-preview h1{font-family:'Outfit',sans-serif;font-size:26px;font-weight:700;color:var(--text);margin:0 0 16px;padding-bottom:10px;border-bottom:2px solid var(--border)}
 #wiki-preview h2{font-family:'Outfit',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
@@ -1869,6 +1893,8 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
             <button class="md-btn-fmt" title="ファイル・画像を添付" onclick="attachFile('wiki-textarea')" style="margin-left:4px">📎</button>
           </div>
           <div id="wiki-content-area">
+            <div id="wiki-hl-wrap" aria-hidden="true"><pre id="wiki-hl"></pre></div>
+            <div id="wiki-caret-mirror" aria-hidden="true"></div>
             <textarea id="wiki-textarea" placeholder="# プロジェクト概要&#10;&#10;ここにWikiをMarkdownで記述してください。&#10;&#10;## 目的&#10;&#10;## アーキテクチャ&#10;&#10;## 開発環境のセットアップ" oninput="onMentionInput(event)" onkeydown="onMentionKeydown(event)" onblur="hideMentionPopup()" onpaste="handleMdPaste(event,'wiki-textarea')" ondragover="event.preventDefault();this.classList.add('md-dragover')" ondragleave="this.classList.remove('md-dragover')" ondrop="handleMdDrop(event,'wiki-textarea')"></textarea>
             <div id="wiki-preview"></div>
           </div>
@@ -3115,13 +3141,13 @@ function renderPluginList() {
       <div style="flex:1;min-width:0;margin-left:10px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span class="plugin-name" style="font-size:13px;font-weight:500">${esc(displayName)}</span>
-          ${version ? `<span style="font-size:10px;color:var(--muted);background:var(--surface3);padding:1px 6px;border-radius:4px">${esc(version)}</span>` : ''}
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">
           ${description ? esc(description) : '<span style="font-style:italic;opacity:.6">説明未登録</span>'}
         </div>
       </div>
-      ${hasSettings ? `<button class="icon-btn" title="${esc(displayName)}の設定" onclick="openPluginConfig('${jsq(name)}')">⚙️</button>` : ''}
+      ${hasSettings ? `<button class="icon-btn" title="${esc(displayName)}の設定" onclick="openPluginConfig('${jsq(name)}')">⚙️</button>` : '<span class="plugin-cfg-slot" aria-hidden="true"></span>'}
+      <span class="plugin-ver">${version ? esc(version) : ''}</span>
       <button class="plugin-del-btn" title="削除" onclick="removePlugin(${idx})">🗑</button>`;
 
     // ドラッグ&ドロップ（既存ロジック流用）
@@ -7009,7 +7035,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.3.0';
+const APP_VERSION      = '1.3.1';
 const APP_VERSION_DATE = '2026-11-16';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
@@ -9741,6 +9767,153 @@ function deleteWikiPage(pageId) {
   toast('ページを削除しました', 'success');
 }
 
+// ══════════════════════════════════════════════════════════════
+// v1.3.1: Wiki編集の色分け ＋ 入力位置が画面下端に張り付かないようにする余白
+//  - textarea は文字を透明にして入力・選択・IMEだけを担当し、背面の #wiki-hl に
+//    同じ文字を色付きで描く（スクロール・幅は textarea に追従させる）
+//  - PC版のみ。スマホモードでは従来どおり
+// ══════════════════════════════════════════════════════════════
+let _wikiHlReady = false, _wikiHlActive = false, _wikiHlRaf = 0, _wikiCaretRaf = 0;
+const _WIKI_HL_MAX_CHARS = 300000; // これを超える巨大な本文では色分けを止める（入力の重さ対策）
+
+function _wikiHlEsc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function _wikiHlSpan(cls, s) { return s ? '<span class="hl-' + cls + '">' + _wikiHlEsc(s) + '</span>' : ''; }
+
+// 行内の色分け：コード・リンク・太字/斜体・取り消し線・@メンション・#タスク参照・URL
+const _WIKI_HL_INLINE_RE = new RegExp([
+  '(`[^`\\n]+`)',                                                  // 1 インラインコード
+  '(!?\\[[^\\]\\n]*\\])(\\([^)\\n]*\\))?',                         // 2,3 リンク・画像の文字／URL
+  '(\\*\\*[^*\\n]+\\*\\*|__[^_\\n]+__)',                           // 4 太字
+  '(~~[^~\\n]+~~)',                                                // 5 取り消し線
+  '((?<![*\\w])\\*[^*\\s][^*\\n]*\\*(?!\\*))',                     // 6 斜体
+  '((?<![\\w@])@[^\\s,。、!！?？<>()（）]+)',                      // 7 @メンション
+  '((?<![^\\s\\u3000])#(?:(?:[A-Za-z0-9_\\u3040-\\u9FFF\\u30A0-\\u30FF\\u4E00-\\u9FFF]+-)?P\\d+-\\d+(?:-C\\d+)?|C\\d+|\\d+)\\b)', // 8 #タスク参照
+  '(https?:\\/\\/[^\\s<>)\\]]+)'                                   // 9 URL
+].join('|'), 'g');
+
+function _wikiHlInline(s) {
+  let out = '', last = 0, m;
+  _WIKI_HL_INLINE_RE.lastIndex = 0;
+  while ((m = _WIKI_HL_INLINE_RE.exec(s)) !== null) {
+    if (m[0] === '') { _WIKI_HL_INLINE_RE.lastIndex++; continue; }
+    out += _wikiHlEsc(s.slice(last, m.index));
+    if (m[1]) out += _wikiHlSpan('c', m[1]);
+    else if (m[2]) out += _wikiHlSpan('l', m[2]) + (m[3] ? _wikiHlSpan('u', m[3]) : '');
+    else if (m[4] || m[5] || m[6]) out += _wikiHlSpan(m[5] ? 'd' : 'e', m[0]);
+    else if (m[7] || m[8]) out += _wikiHlSpan('r', m[0]);
+    else if (m[9]) out += _wikiHlSpan('u', m[9]);
+    last = m.index + m[0].length;
+  }
+  return out + _wikiHlEsc(s.slice(last));
+}
+
+function _wikiHlBuild(text) {
+  const lines = text.split('\n');
+  const out = [];
+  let inFence = false, m;
+  for (const line of lines) {
+    if (/^\s{0,3}(```|~~~)/.test(line)) { inFence = !inFence; out.push(_wikiHlSpan('c', line)); continue; }
+    if (inFence) { out.push(_wikiHlSpan('c', line)); continue; }
+    if (/^ {0,3}#{1,6}(\s|$)/.test(line)) { out.push(_wikiHlSpan('h', line)); continue; }
+    if (/^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/.test(line)) { out.push(_wikiHlSpan('d', line)); continue; }
+    if (/^\s*>/.test(line)) { out.push(_wikiHlSpan('q', line)); continue; }
+    if (/^\s*\|/.test(line)) {
+      if (/^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(line) && line.indexOf('-') >= 0) { out.push(_wikiHlSpan('d', line)); continue; }
+      out.push(line.split('|').map(_wikiHlInline).join('<span class="hl-d">|</span>'));
+      continue;
+    }
+    if ((m = /^(\s*)([-*+]|\d+[.)])(\s+)(.*)$/.exec(line))) {
+      let rest = m[4], box = '';
+      const cb = /^(\[[ xX]\])(\s|$)/.exec(rest);
+      if (cb) { box = _wikiHlSpan('m', cb[1]); rest = rest.slice(cb[1].length); }
+      out.push(_wikiHlEsc(m[1]) + _wikiHlSpan('m', m[2]) + _wikiHlEsc(m[3]) + box + _wikiHlInline(rest));
+      continue;
+    }
+    out.push(_wikiHlInline(line));
+  }
+  return out.join('\n');
+}
+
+function _wikiHlSync() {
+  const ta = document.getElementById('wiki-textarea'), pre = document.getElementById('wiki-hl');
+  if (!ta || !pre) return;
+  pre.style.width = ta.clientWidth + 'px';              // スクロールバー分を除いた幅に合わせて折り返し位置を揃える
+  pre.style.transform = 'translateY(' + (-ta.scrollTop) + 'px)';
+}
+
+function _wikiHlRender() {
+  _wikiHlRaf = 0;
+  const ta = document.getElementById('wiki-textarea'), pre = document.getElementById('wiki-hl');
+  const area = document.getElementById('wiki-content-area');
+  if (!ta || !pre || !area || !_wikiHlActive) return;
+  const v = ta.value;
+  if (v.length > _WIKI_HL_MAX_CHARS) { area.classList.remove('wiki-hl-on'); return; }
+  area.classList.add('wiki-hl-on');
+  pre.innerHTML = _wikiHlBuild(v);
+  _wikiHlSync();
+}
+
+function _wikiHlSchedule() {
+  if (!_wikiHlActive || _wikiHlRaf) return;
+  _wikiHlRaf = requestAnimationFrame(_wikiHlRender);
+}
+
+// 入力位置（キャレット）が画面下端から1行分より近づいたら、1行分の余白ができるまでスクロールする
+function _wikiEnsureCaretMargin() {
+  _wikiCaretRaf = 0;
+  const ta = document.getElementById('wiki-textarea'), m = document.getElementById('wiki-caret-mirror');
+  if (!ta || !m || window.IS_MOBILE_MODE || ta.style.display === 'none' || document.activeElement !== ta) return;
+  if (ta.scrollHeight <= ta.clientHeight) return;
+  const lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
+  const pos = ta.selectionDirection === 'backward' ? ta.selectionStart : ta.selectionEnd;
+  m.style.display = 'block';
+  m.style.width = ta.clientWidth + 'px';
+  m.textContent = ta.value.slice(0, pos);
+  const mk = document.createElement('span');
+  mk.textContent = '\u200b';
+  m.appendChild(mk);
+  const need = mk.offsetTop + lh * 2;                    // キャレット行の下端 ＋ 1行分
+  m.style.display = 'none';
+  m.textContent = '';
+  if (need > ta.scrollTop + ta.clientHeight) ta.scrollTop = need - ta.clientHeight;
+}
+
+function _wikiCaretSchedule() {
+  if (_wikiCaretRaf || window.IS_MOBILE_MODE) return;
+  _wikiCaretRaf = requestAnimationFrame(_wikiEnsureCaretMargin);
+}
+
+function _wikiHlInit() {
+  if (_wikiHlReady) return;
+  const ta = document.getElementById('wiki-textarea');
+  if (!ta) return;
+  _wikiHlReady = true;
+  // ta.value = ... で本文が差し替えられたとき（ページ切替・他者の変更のマージ等）も描き直す
+  const d = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  if (d && d.get && d.set) {
+    Object.defineProperty(ta, 'value', {
+      configurable: true,
+      get() { return d.get.call(this); },
+      set(v) { d.set.call(this, v); _wikiHlSchedule(); }
+    });
+  }
+  ta.addEventListener('input', () => { _wikiHlSchedule(); _wikiCaretSchedule(); });
+  ta.addEventListener('keydown', _wikiCaretSchedule);
+  ta.addEventListener('keyup', _wikiCaretSchedule);
+  ta.addEventListener('scroll', _wikiHlSync, { passive: true });
+  if (typeof ResizeObserver === 'function') new ResizeObserver(() => { _wikiHlSync(); }).observe(ta);
+  window.addEventListener('resize', _wikiHlSync);
+}
+
+function _wikiHlActivate(on) {
+  const area = document.getElementById('wiki-content-area');
+  if (!area) return;
+  if (!on || window.IS_MOBILE_MODE) { _wikiHlActive = false; area.classList.remove('wiki-hl-on'); return; }
+  _wikiHlInit();
+  _wikiHlActive = true;
+  _wikiHlRender();
+}
+
 function setWikiMode(mode) {
   _wikiMode = mode;
   const ta  = document.getElementById('wiki-textarea');
@@ -9751,6 +9924,7 @@ function setWikiMode(mode) {
   if (mode === 'edit') {
     ta.style.display = 'block';
     pv.style.display = 'none';
+    _wikiHlActivate(true);
     eBtn.classList.add('active');
     pBtn.classList.remove('active');
     _toggleFmtBtns('wiki-edit-btn', true);
@@ -9798,6 +9972,7 @@ function setWikiMode(mode) {
     pv.innerHTML = html;
     ta.style.display = 'none';
     pv.style.display = 'block';
+    _wikiHlActivate(false);
     eBtn.classList.remove('active');
     pBtn.classList.add('active');
     _toggleFmtBtns('wiki-edit-btn', false);
