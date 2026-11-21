@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.21',
+      version:     '1.3.22',
     });
   }
 
@@ -717,11 +717,12 @@
     'このプロジェクトだけの休み':         'This project only',
     '共通の休みを適用しない日':           'Common holiday not applied',
     '休みにしない日（共通の休みにない日のため、現在は対象外）': 'Excluded day (not a common holiday, so it currently has no effect)',
-    'スマホモードでは閲覧のみです。共通の休みはPC版で設定し、「スマホ用パッケージ」に含めて渡します': 'View only in mobile mode. Set common holidays on the PC version; they are included in the mobile package.',
     'データフォルダを開くと設定できます': 'Open a data folder to edit these settings',
     '共通の休みを保存できませんでした':   'Could not save the common holidays',
     '共通の休みを適用しない日の設定は、PC版で行ってください': 'Set days where common holidays do not apply on the PC version',
     '共通の休み設定も一緒に渡されます。': 'Common holiday settings are included as well.',
+    '詳細設定を表示 ▼':                   'Show more options ▼',
+    '詳細設定を閉じる ▲':                 'Hide options ▲',
 
     // ── プロジェクト設定モーダル（保存タブ：エクスポート）v1.1.7〜 ──
     'プロジェクトのエクスポート':         'Export Project',

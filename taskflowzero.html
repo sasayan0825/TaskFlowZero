@@ -1350,8 +1350,15 @@ a.att-name:hover{text-decoration:underline}
 .hcal-day.pend-off{opacity:.55;outline:2px dashed var(--muted)}
 .hcal-sw{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid var(--border2)}
 .hcal-sw.sun{background:rgba(239,68,68,.07)}
-html.mobile-mode .hcal-grid{grid-template-columns:1fr 1fr;gap:8px}
-html.mobile-mode .hcal-day{min-height:28px;font-size:12px}
+html.mobile-mode .hcal-grid{grid-template-columns:minmax(0,1fr);gap:10px}
+html.mobile-mode .hcal-day{aspect-ratio:auto;height:40px;min-height:0;font-size:13px}
+/* スマホ：共通の休みは変更できないため、設定には出さない（PC版で設定し、スマホ用パッケージで渡す） */
+html.mobile-mode #settings-nav-holidays,html.mobile-mode #settings-pane-holidays{display:none !important}
+/* スマホ：タスク追加は「タイトル＋追加／キャンセル」だけを出し、他の項目は折りたたむ（v1.4.1）。キーボードに隠れないよう上寄せ */
+.tm-details-toggle{display:none}
+html.mobile-mode #task-modal{align-items:flex-start;padding-top:calc(env(safe-area-inset-top,0px) + 12px)}
+html.mobile-mode #task-modal .tm-details-toggle{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin:0 0 14px;padding:11px 10px;background:var(--surface2);border:1px dashed var(--border2);border-radius:8px;color:var(--accent2);font-size:13px;font-family:inherit;cursor:pointer}
+html.mobile-mode #task-modal.tm-compact #tm-details,html.mobile-mode #task-modal.tm-compact #tm-template-row{display:none !important}
 html.mobile-mode #settings-nav-files{display:none !important}
 .settings-nav-item .sync-unsent{margin-left:8px}
 /* スマホの設定画面は縦積み。プラグインは使わない */
@@ -2286,6 +2293,8 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
       </select>
     </div>
     <div class="form-group"><label class="form-label">タイトル *</label><input class="form-input" id="tm-title" placeholder="タスクのタイトル"></div>
+    <button type="button" class="tm-details-toggle" id="tm-details-toggle" onclick="tmToggleDetails()">詳細設定を表示 ▼</button>
+    <div id="tm-details">
     <div class="form-row">
       <div class="form-group"><label class="form-label">作成者</label><input class="form-input" id="tm-creator" placeholder="作成者名" list="tm-creator-dl"><datalist id="tm-creator-dl"></datalist></div>
       <div class="form-group"><label class="form-label">優先度</label>
@@ -2374,6 +2383,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         <button class="btn btn-secondary btn-sm" onclick="tmAddLabel()">追加</button>
       </div>
     </div>
+    </div><!-- /#tm-details -->
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="tryCloseTaskModal()">キャンセル</button>
       <button class="btn btn-primary" onclick="saveNewTask()">追加</button>
@@ -7070,7 +7080,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.4.0';
+const APP_VERSION      = '1.4.1';
 const APP_VERSION_DATE = '2026-11-21';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
@@ -11041,8 +11051,7 @@ function renderGlobalHolidaysPane() {
   const root = document.getElementById('holidays-body');
   if (!root) return;
   let msg = '';
-  if (window.IS_MOBILE_MODE) msg = '<div class="att-empty" style="margin-bottom:10px">スマホモードでは閲覧のみです。共通の休みはPC版で設定し、「スマホ用パッケージ」に含めて渡します</div>';
-  else if (!state.rootDirHandle) msg = '<div class="att-empty" style="margin-bottom:10px">データフォルダを開くと設定できます</div>';
+  if (!state.rootDirHandle) msg = '<div class="att-empty" style="margin-bottom:10px">データフォルダを開くと設定できます</div>';
   root.innerHTML = msg + '<div id="hcal-global"></div>' +
     '<div class="hcal-note">共通の休みは、このデータフォルダを使う全員・全プロジェクトのガントチャートに反映されます。各プロジェクトの「休み設定」で、共通の休みを適用しない日や、そのプロジェクトだけの休みを指定できます。</div>';
   hcalMount('hcal-global', _globalHolidayCfg());
@@ -11380,8 +11389,25 @@ function openTaskModal(status='todo'){
     _tmplRow.style.display = 'none';
   }
   updateFilters();
+  _tmSetCompact(!!window.IS_MOBILE_MODE);   // スマホはタイトルだけ表示し、他の項目は折りたたむ
   openModal('task-modal');
-  setTimeout(()=>document.getElementById('tm-title').focus(),100);
+  // iOSは、タップ操作の同期処理内でフォーカスしないとキーボードが出ない（setTimeout内では出ない）。
+  // openModal は display:flex を同期で設定するので、ここで直接フォーカスできる
+  const _tmTitleEl = document.getElementById('tm-title');
+  _tmTitleEl.focus();
+  if (document.activeElement !== _tmTitleEl) setTimeout(()=>_tmTitleEl.focus(),100);
+}
+// スマホのタスク追加：詳細項目の折りたたみ（on=折りたたむ）
+function _tmSetCompact(on){
+  const m = document.getElementById('task-modal');
+  if (!m) return;
+  m.classList.toggle('tm-compact', !!on);
+  const b = document.getElementById('tm-details-toggle');
+  if (b) b.textContent = on ? '詳細設定を表示 ▼' : '詳細設定を閉じる ▲';
+}
+function tmToggleDetails(){
+  const m = document.getElementById('task-modal');
+  if (m) _tmSetCompact(!m.classList.contains('tm-compact'));
 }
 
 // チェックリスト項目を追加
@@ -14650,6 +14676,7 @@ function createReferenceTask() {
   const checklistTexts = (t.checklist || []).map(c => c.text).filter(Boolean);
 
   openTaskModal('todo');
+  _tmSetCompact(false);   // 引き継いだ内容を確認できるよう、折りたたまない
 
   document.getElementById('tm-title').value = title;
   document.getElementById('tm-start').value = startDate;
