@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.20',
+      version:     '1.3.21',
     });
   }
 
@@ -703,6 +703,26 @@
     '日付を選択してください':             'Please select a date',
     'すでに登録されています':             'Already registered',
 
+    // ── 共通の休み／休みカレンダー（v1.4.0〜） ──
+    '🗓 共通の休み':                      '🗓 Common Holidays',
+    '全プロジェクトのガントチャートに反映する休みです。日付をクリックすると休みのON/OFFを切り替えられ、ドラッグで範囲をまとめて切り替えられます（変更はその場で保存されます）。プロジェクトごとの指定が優先されます。':
+      'Holidays applied to the Gantt chart of every project. Click a date to turn it on or off, or drag to switch a range at once (changes are saved immediately). Each project\'s own settings take priority.',
+    '日付をクリックで切り替え、ドラッグで範囲をまとめて切り替えられます。共通の休みは「設定 → 共通の休み」で登録します。このプロジェクトの指定が優先されます。':
+      'Click a date to toggle it, or drag to switch a range at once. Common holidays are registered under Settings → Common Holidays. This project\'s own settings take priority.',
+    '共通の休みは、このデータフォルダを使う全員・全プロジェクトのガントチャートに反映されます。各プロジェクトの「休み設定」で、共通の休みを適用しない日や、そのプロジェクトだけの休みを指定できます。':
+      'Common holidays apply to the Gantt chart of every project, for everyone using this data folder. In each project\'s "Holidays" tab you can exclude days from the common holidays or add holidays for that project only.',
+    '休み':                               'Holiday',
+    '日曜（常に休みとして表示）':         'Sunday (always shown as a holiday)',
+    '共通の休み':                         'Common holiday',
+    'このプロジェクトだけの休み':         'This project only',
+    '共通の休みを適用しない日':           'Common holiday not applied',
+    '休みにしない日（共通の休みにない日のため、現在は対象外）': 'Excluded day (not a common holiday, so it currently has no effect)',
+    'スマホモードでは閲覧のみです。共通の休みはPC版で設定し、「スマホ用パッケージ」に含めて渡します': 'View only in mobile mode. Set common holidays on the PC version; they are included in the mobile package.',
+    'データフォルダを開くと設定できます': 'Open a data folder to edit these settings',
+    '共通の休みを保存できませんでした':   'Could not save the common holidays',
+    '共通の休みを適用しない日の設定は、PC版で行ってください': 'Set days where common holidays do not apply on the PC version',
+    '共通の休み設定も一緒に渡されます。': 'Common holiday settings are included as well.',
+
     // ── プロジェクト設定モーダル（保存タブ：エクスポート）v1.1.7〜 ──
     'プロジェクトのエクスポート':         'Export Project',
     'このプロジェクトのタスク・マイルストーン・Wiki・ラベル設定などをすべて含むJSONファイルをダウンロードします。':
@@ -847,6 +867,9 @@
     // アカウント管理（v1.2.10）
     s = s.replace(/^参加プロジェクト (\d+)件$/, 'Projects: $1');
     s = s.replace(/^🗑 削除済み（(\d+)件）$/, '🗑 Deleted ($1)');
+    // 共通の休み／休みカレンダー（v1.4.0）
+    s = s.replace(/^この年の休み: (\d+)日$/, 'Holidays this year: $1');
+    s = s.replace(/^共通 (\d+)日・追加 (\d+)日・適用しない (\d+)日$/, 'Common $1 · Added $2 · Not applied $3');
     s = s.replace(/^担当 未完了 (\d+) \/ 全 (\d+)$/, 'Assigned: $1 open / $2 total');
     s = s.replace(/^アカウント「(.+)」を追加しました$/, 'Account \"$1\" added');
     s = s.replace(/^アカウント「(.+)」を削除しました$/, 'Account \"$1\" deleted');

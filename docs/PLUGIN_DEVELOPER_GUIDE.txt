@@ -187,7 +187,8 @@ taskflowzero.html は起動時に以下の順序で動作します。
   ├── project_P2.json   ← プロジェクト 2 のデータ全体
   ├── project_P3.json
   └── settings.json     ← アプリ全体設定（v1.1.3〜: プラグイン設定は含まない。
-                          v1.2.10〜: アカウント登録情報 accounts を保存）
+                          v1.2.10〜: アカウント登録情報 accounts を保存、
+                          v1.4.0〜: 共通の休み holidays を保存）
 
   plugin フォルダ/
   ├── plugin_manifest.js       ← 読み込むプラグイン一覧（自動生成、データのみ）
@@ -845,7 +846,7 @@ TaskFlow.getPluginConfig(pluginId)
     milestones:      Milestone[],  // マイルストーン配列
     wikiPages:       WikiPage[],   // Wikiページ配列（v1.1.6〜。5-8章参照）
     weeklyNotes:     WeeklyNote[], // 週次コメント履歴（5-7章参照）
-    projectSettings: object,       // プロジェクト設定（タブ表示・ラベル等。連携するプラグインが独自キーを書き込むこともある）
+    projectSettings: object,       // プロジェクト設定（タブ表示・ラベル・休み等。連携するプラグインが独自キーを書き込むこともある。休みは holidays=このプロジェクトだけの休み、holidayExclusions=共通の休みを適用しない日（v1.4.0〜）。共通の休みは settings.json の holidays）
   }
 
   ※ プロジェクトは project_P{number}.json として個別ファイルに保存されます。

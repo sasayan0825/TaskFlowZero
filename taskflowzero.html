@@ -1320,6 +1320,38 @@ a.att-name:hover{text-decoration:underline}
 .att-link:hover{text-decoration:underline}
 .att-more,.att-miss{color:var(--muted)}
 .att-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── 休みカレンダー（共通の休み／プロジェクトの休み）v1.4.0 ── */
+.hcal-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.hcal-year{font-family:'Outfit',sans-serif;font-size:18px;font-weight:700;min-width:56px;text-align:center}
+.hcal-sum{font-size:12px;color:var(--muted);margin-left:auto}
+.hcal-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;color:var(--muted);margin-bottom:10px;align-items:center}
+.hcal-legend span{display:inline-flex;align-items:center;gap:5px}
+.hcal-note{font-size:11px;color:var(--muted);line-height:1.7;margin-top:12px}
+.hcal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(204px,1fr));gap:12px;user-select:none;-webkit-user-select:none}
+.hcal-month{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px}
+.hcal-mtitle{font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text)}
+.hcal-week{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.hcal-dow{font-size:10px;text-align:center;color:var(--muted);padding:2px 0}
+.hcal-dow.sun{color:var(--red)}
+.hcal-dow.sat{color:var(--accent2)}
+.hcal-day{position:relative;aspect-ratio:1/1;min-height:24px;border:none;border-radius:5px;background:transparent;color:var(--text);font-size:11px;font-family:inherit;padding:0;cursor:pointer;touch-action:manipulation}
+.hcal-day.sun{color:var(--red);background:rgba(239,68,68,.07)}
+.hcal-day.sat{color:var(--accent2)}
+.hcal-day:hover{filter:brightness(1.25)}
+.hcal-ro .hcal-day{cursor:default}
+.hcal-ro .hcal-day:hover{filter:none}
+.hcal-day.on,.hcal-sw.on,.hcal-day.proj,.hcal-sw.proj{background:var(--red);color:#fff}
+.hcal-day.inh,.hcal-sw.inh{background:rgba(239,68,68,.22);color:var(--red)}
+.hcal-day.excl,.hcal-sw.excl{background:repeating-linear-gradient(135deg,transparent 0 3px,rgba(239,68,68,.45) 3px 4px);box-shadow:inset 0 0 0 1px rgba(239,68,68,.55);color:var(--muted);text-decoration:line-through}
+.hcal-day.stale::after{content:"";position:absolute;right:2px;top:2px;width:5px;height:5px;border-radius:50%;border:1px dotted var(--muted)}
+.hcal-day.today{box-shadow:inset 0 0 0 2px var(--accent)}
+.hcal-day.pend-on{background:rgba(239,68,68,.55);color:#fff;outline:2px solid var(--red)}
+.hcal-day.pend-off{opacity:.55;outline:2px dashed var(--muted)}
+.hcal-sw{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid var(--border2)}
+.hcal-sw.sun{background:rgba(239,68,68,.07)}
+html.mobile-mode .hcal-grid{grid-template-columns:1fr 1fr;gap:8px}
+html.mobile-mode .hcal-day{min-height:28px;font-size:12px}
 html.mobile-mode #settings-nav-files{display:none !important}
 .settings-nav-item .sync-unsent{margin-left:8px}
 /* スマホの設定画面は縦積み。プラグインは使わない */
@@ -1536,6 +1568,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           <div id="settings-nav-sync"    class="settings-nav-item"        onclick="showSettingsPane('sync')">📱 スマホ連携<span id="sync-unsent" class="sync-unsent" style="display:none"></span></div>
           <div id="settings-nav-files"   class="settings-nav-item"        onclick="showSettingsPane('files')">📎 添付ファイル</div>
           <div id="settings-nav-accounts" class="settings-nav-item"       onclick="showSettingsPane('accounts')">👤 アカウント</div>
+          <div id="settings-nav-holidays" class="settings-nav-item"       onclick="showSettingsPane('holidays')">🗓 共通の休み</div>
           <div id="settings-nav-plugins" class="settings-nav-item"        onclick="showSettingsPane('plugins')">🔌 プラグイン</div>
         </div>
         <!-- 右ペイン -->
@@ -1604,6 +1637,11 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
             <div style="font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)">👤 アカウント</div>
             <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px;max-width:760px">プロジェクトのメンバー・担当者に登録されている名前を管理します。削除したアカウントは、右上のアカウント選択と、<br>新しい担当者・メンバーの候補から外れます（既存のタスクやコメントはそのまま残ります）。</div>
             <div id="accounts-body"></div>
+          </div>
+          <div id="settings-pane-holidays" style="display:none">
+            <div style="font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)">🗓 共通の休み</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px;max-width:760px">全プロジェクトのガントチャートに反映する休みです。日付をクリックすると休みのON/OFFを切り替えられ、ドラッグで範囲をまとめて切り替えられます（変更はその場で保存されます）。プロジェクトごとの指定が優先されます。</div>
+            <div id="holidays-body"></div>
           </div>
           <div id="settings-pane-plugins" style="display:none">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
@@ -2443,12 +2481,9 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
       </div>
       <!-- 休み設定タブ -->
       <div id="ps-pane-holidays" style="display:none">
-        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;letter-spacing:.5px">休み設定（ガントチャートに反映）</div>
-        <div style="display:flex;gap:8px;margin-bottom:10px">
-          <input type="date" class="form-input" id="ps-holiday-input" style="flex:1">
-          <button class="btn btn-secondary btn-sm" onclick="addPsHoliday()">＋ 追加</button>
-        </div>
-        <div id="ps-holiday-list" style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto"></div>
+        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px;letter-spacing:.5px">休み設定（ガントチャートに反映）</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:10px">日付をクリックで切り替え、ドラッグで範囲をまとめて切り替えられます。共通の休みは「設定 → 共通の休み」で登録します。このプロジェクトの指定が優先されます。</div>
+        <div id="hcal-project"></div>
       </div>
       <!-- 保存タブ -->
       <div id="ps-pane-export" style="display:none">
@@ -7035,8 +7070,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.3.3';
-const APP_VERSION_DATE = '2026-11-16';
+const APP_VERSION      = '1.4.0';
+const APP_VERSION_DATE = '2026-11-21';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -7064,7 +7099,7 @@ function showSettings() {
 
 function showSettingsPane(pane) {
   if (pane === 'accounts' && window.IS_MOBILE_MODE) pane = 'version';   // スマホ版にはアカウント設定を出さない
-  ['version','sync','files','accounts','plugins'].forEach(p => {
+  ['version','sync','files','accounts','holidays','plugins'].forEach(p => {
     document.getElementById('settings-pane-' + p).style.display = p === pane ? '' : 'none';
     const nav = document.getElementById('settings-nav-' + p);
     if (nav) nav.classList.toggle('active', p === pane);
@@ -7072,13 +7107,16 @@ function showSettingsPane(pane) {
   if (pane === 'plugins') initPluginPane();
   if (pane === 'files') renderAttPane();
   if (pane === 'accounts') renderAccountsPane();
+  if (pane === 'holidays') renderGlobalHolidaysPane();
   if (pane === 'sync') { renderSyncPane(); if (IS_MOBILE_MODE) refreshSyncBadge(); }
 }
 
 // ── settings.json（プロジェクトフォルダ直下・アプリ全体設定） ──────────────
 // v1.1.3〜: プラグイン関連の設定値は持たない。プラグイン設定は plugin フォルダ
-// 直下の plugin-settings.json に分離済み（将来の非プラグイン設定のための
-// 空のシェルとして維持）。
+// 直下の plugin-settings.json に分離済み。非プラグイン設定として
+//   accounts : アカウント登録情報（v1.2.10〜）
+//   holidays : 共通の休み（v1.4.0〜）  { value: ['YYYY-MM-DD', ...], _updatedAt }
+// を持つ。
 const _SETTINGS_DEFAULT = () => ({
   version: '1.0'
 });
@@ -9211,7 +9249,7 @@ function buildDateHeader(ganttStart, rangeDays, gStartMs) {
   daysRow.style.width = totalW+'px';
   const todayStr = today();
   const p = getProject(state.currentProjectId);
-  const holidaySet = new Set((p && p.projectSettings && p.projectSettings.holidays) || []);
+  const holidaySet = getEffectiveHolidaySet(p);   // 共通の休み＋プロジェクトの休み−休みにしない日（v1.4.0）
   let curMonth = null, curEl = null, curW = 0;
   for (let i = 0; i < rangeDays; i++) {
     const d = new Date(ganttStart+'T00:00:00'); d.setDate(d.getDate()+i);
@@ -9246,7 +9284,7 @@ function buildDateHeader(ganttStart, rangeDays, gStartMs) {
 function buildGridLines(container, ganttStart, rangeDays, gStartMs, totalW) {
   const todayStr = today();
   const p = getProject(state.currentProjectId);
-  const holidaySet = new Set((p && p.projectSettings && p.projectSettings.holidays) || []);
+  const holidaySet = getEffectiveHolidaySet(p);   // 共通の休み＋プロジェクトの休み−休みにしない日（v1.4.0）
   for (let i=0;i<rangeDays;i++) {
     const d=new Date(ganttStart+'T00:00:00'); d.setDate(d.getDate()+i);
     const ds=localDateStr(d);
@@ -10716,7 +10754,8 @@ function _psDefaultSettings() {
     },
     taskTemplates: [],
     labels: [],
-    holidays: []
+    holidays: [],
+    holidayExclusions: []
   };
 }
 
@@ -10780,6 +10819,7 @@ function openProjectSettings(pid) {
   if (!_psProjectSettings.taskTemplates) _psProjectSettings.taskTemplates = [];
   if (!_psProjectSettings.labels)        _psProjectSettings.labels        = [];
   if (!_psProjectSettings.holidays)      _psProjectSettings.holidays      = [];
+  if (!Array.isArray(_psProjectSettings.holidayExclusions)) _psProjectSettings.holidayExclusions = [];
 
   // 基本設定タブにデータを反映
   document.getElementById('ps-tab-kanban').checked      = !!_psProjectSettings.tabs.kanban;
@@ -10812,36 +10852,241 @@ function switchPsTab(tab) {
   });
 }
 
-// ── 休み設定（ガントチャートに反映） ──
-function _renderPsHolidays() {
-  const list = document.getElementById('ps-holiday-list');
-  const holidays = (_psProjectSettings.holidays || []).slice().sort();
-  if (!holidays.length) {
-    list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;padding:12px">休みは登録されていません</div>';
-    return;
+// ═══════════════════════════════════════
+// 休み設定（共通の休み＋プロジェクトの休み）v1.4.0
+// ═══════════════════════════════════════
+// 共通の休み       : settings.json の holidays.value（'YYYY-MM-DD' の配列）。このフォルダを使う全員・全プロジェクトに効く
+// プロジェクトの休み: projectSettings.holidays          … このプロジェクトだけの追加の休み
+//                    projectSettings.holidayExclusions … 共通の休みだが、このプロジェクトでは休みにしない日
+// 実効の休み = (共通 ∪ プロジェクト追加) − 休みにしない日（プロジェクト側の指定が常に勝つ）
+// ガントの色付けは getEffectiveHolidaySet(project) だけを参照する。日曜は従来どおり設定と無関係に常に休み色
+
+// 'YYYY-MM-DD' だけを残し、重複なし・昇順にそろえる（共通の休み・パッケージ取り込み用）
+function _normHolidayList(arr) {
+  const set = new Set();
+  (Array.isArray(arr) ? arr : []).forEach(x => { if (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x)) set.add(x); });
+  return [...set].sort();
+}
+// 重複なし・昇順（プロジェクト側。既存データは形式を問わず保持する）
+function _uniqSortList(arr) { return [...new Set((Array.isArray(arr) ? arr : []).filter(x => typeof x === 'string'))].sort(); }
+
+function _globalHolidayList() {
+  const h = state.settings && state.settings.holidays && state.settings.holidays.value;
+  return Array.isArray(h) ? h.filter(x => typeof x === 'string') : [];
+}
+function _globalHolidaySet() { return new Set(_globalHolidayList()); }
+
+function getEffectiveHolidaySet(p) {
+  const ps = (p && p.projectSettings) || {};
+  const eff = _globalHolidaySet();
+  (Array.isArray(ps.holidays) ? ps.holidays : []).forEach(d => eff.add(d));
+  (Array.isArray(ps.holidayExclusions) ? ps.holidayExclusions : []).forEach(d => eff.delete(d));
+  return eff;
+}
+
+// 共通の休みの更新。他の人の変更を巻き戻さないよう、ディスク上の最新を読み直してから変更して書き戻す
+// changes: Map<'YYYY-MM-DD', boolean>（true=休みにする / false=休みを外す）
+async function _mutateHolidays(changes) {
+  if (!state.rootDirHandle) return false;
+  try {
+    let disk = null;
+    try {
+      const fh = await state.rootDirHandle.getFileHandle('settings.json');
+      const parsed = JSON.parse(await (await fh.getFile()).text());
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) disk = parsed;
+    } catch(e) {}
+    state.settings = disk || state.settings || _SETTINGS_DEFAULT();
+    const set = _globalHolidaySet();
+    changes.forEach((on, ds) => { if (on) set.add(ds); else set.delete(ds); });
+    state.settings.holidays = { value: _normHolidayList([...set]), _updatedAt: new Date().toISOString() };
+    const fh = await state.rootDirHandle.getFileHandle('settings.json', { create: true });
+    const w  = await fh.createWritable();
+    await w.write(JSON.stringify(state.settings, null, 2));
+    await w.close();
+    return true;
+  } catch(e) {
+    console.warn('settings.json（holidays）書き込みエラー:', e);
+    return false;
   }
-  list.innerHTML = holidays.map(ds => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--surface2);border-radius:6px;font-size:12px">
-      <span style="font-family:'JetBrains Mono',monospace">${esc(ds)}</span>
-      <button class="icon-btn" title="削除" onclick="removePsHoliday('${jsq(ds)}')">🗑</button>
-    </div>`).join('');
 }
 
-function addPsHoliday() {
-  const input = document.getElementById('ps-holiday-input');
-  const ds = input.value;
-  if (!ds) { toast('日付を選択してください', 'error'); return; }
-  if (!_psProjectSettings.holidays) _psProjectSettings.holidays = [];
-  if (_psProjectSettings.holidays.includes(ds)) { toast('すでに登録されています', 'warn'); return; }
-  _psProjectSettings.holidays.push(ds);
-  input.value = '';
-  _renderPsHolidays();
+// ── 休みカレンダー（年間表示）の共通部品 ──
+// cfg: { year, readOnly, onYear(y), begin(), isOn(ds), cell(ds)→{cls,title}, summary(y), legend(), commit(Map) }
+//  ・クリックで切り替え、ドラッグで範囲をまとめて切り替え（最初に押した日の反対の状態に揃える）
+//  ・押したままの間はプレビュー表示にとどめ、マウスを離したときに commit を1回だけ呼ぶ
+//  ・スマホはタップのみ（タップ時の mousedown/mouseup でそのまま切り替わる）
+let _hcalDragRoot = null;
+let _hcalGlobalYear = new Date().getFullYear();
+function _hcalIsEn() { try { return localStorage.getItem('taskflow_lang') === 'en'; } catch(e) { return false; } }
+
+function hcalMount(rootId, cfg) {
+  const root = document.getElementById(rootId);
+  if (!root) return;
+  root._hcal = { cfg, year: cfg.year || new Date().getFullYear(), drag: null, pending: new Map(), busy: false };
+  if (!root._hcalBound) {
+    root._hcalBound = true;
+    root.addEventListener('mousedown', e => _hcalDown(root, e));
+    root.addEventListener('mouseover', e => _hcalOver(root, e));
+    root.addEventListener('click', e => _hcalClick(root, e));
+    root.addEventListener('dragstart', e => e.preventDefault());
+  }
+  hcalRender(root);
 }
 
-function removePsHoliday(ds) {
-  _psProjectSettings.holidays = (_psProjectSettings.holidays || []).filter(x => x !== ds);
-  _renderPsHolidays();
+function hcalRender(root) {
+  const st = root._hcal;
+  if (!st) return;
+  const cfg = st.cfg, y = st.year, en = _hcalIsEn(), todayStr = today();
+  cfg.begin();
+  root.classList.toggle('hcal-ro', !!cfg.readOnly);
+  const pad = n => String(n).padStart(2, '0');
+  const dow = en ? ['Su','Mo','Tu','We','Th','Fr','Sa'] : ['日','月','火','水','木','金','土'];
+  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let h = `<div class="hcal-nav">
+    <button type="button" class="btn btn-secondary btn-sm" data-hcal="prev">◀</button>
+    <span class="hcal-year">${y}</span>
+    <button type="button" class="btn btn-secondary btn-sm" data-hcal="next">▶</button>
+    <button type="button" class="btn btn-secondary btn-sm" data-hcal="today">今年</button>
+    <span class="hcal-sum">${cfg.summary(y)}</span>
+  </div>
+  <div class="hcal-legend">${cfg.legend()}</div>
+  <div class="hcal-grid">`;
+  for (let m = 0; m < 12; m++) {
+    const startDow = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
+    let cells = dow.map((w, i) => `<div class="hcal-dow${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('');
+    for (let i = 0; i < startDow; i++) cells += '<div></div>';
+    for (let d = 1; d <= days; d++) {
+      const ds = `${y}-${pad(m + 1)}-${pad(d)}`, wd = (startDow + d - 1) % 7;
+      const c = cfg.cell(ds);
+      cells += `<button type="button" tabindex="-1" class="hcal-day${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}${ds === todayStr ? ' today' : ''}${c.cls || ''}" data-ds="${ds}"${c.title ? ` title="${esc(c.title)}"` : ''}>${d}</button>`;
+    }
+    h += `<div class="hcal-month"><div class="hcal-mtitle">${en ? mon[m] : (m + 1) + '月'}</div><div class="hcal-week">${cells}</div></div>`;
+  }
+  h += '</div>';
+  root.innerHTML = h;
 }
+
+function _hcalClick(root, e) {
+  const st = root._hcal;
+  if (!st) return;
+  const nav = e.target.closest('[data-hcal]');
+  if (!nav || !root.contains(nav)) return;
+  const k = nav.getAttribute('data-hcal');
+  if (k === 'prev') st.year--;
+  else if (k === 'next') st.year++;
+  else st.year = new Date().getFullYear();
+  if (st.cfg.onYear) st.cfg.onYear(st.year);
+  hcalRender(root);
+}
+function _hcalDown(root, e) {
+  const st = root._hcal;
+  if (!st || st.cfg.readOnly || st.busy || e.button !== 0) return;
+  const el = e.target.closest('.hcal-day[data-ds]');
+  if (!el) return;
+  e.preventDefault();   // 文字選択・ドラッグ開始を防ぐ
+  st.drag = { want: !st.cfg.isOn(el.dataset.ds) };
+  st.pending = new Map();
+  _hcalApply(root, el.dataset.ds);
+  _hcalDragRoot = root;
+}
+function _hcalApply(root, ds) {
+  const st = root._hcal;
+  if (!st || !st.drag || st.pending.has(ds) || st.cfg.isOn(ds) === st.drag.want) return;
+  st.pending.set(ds, st.drag.want);
+  const el = root.querySelector('.hcal-day[data-ds="' + ds + '"]');
+  if (el) { el.classList.toggle('pend-on', st.drag.want); el.classList.toggle('pend-off', !st.drag.want); }
+}
+function _hcalOver(root, e) {
+  const st = root._hcal;
+  if (!st || !st.drag) return;
+  if (e.buttons === 0) { _hcalUp(); return; }   // ウィンドウ外でボタンを離していた場合
+  const el = e.target.closest('.hcal-day[data-ds]');
+  if (el) _hcalApply(root, el.dataset.ds);
+}
+async function _hcalUp() {
+  const root = _hcalDragRoot;
+  _hcalDragRoot = null;
+  if (!root || !root._hcal || !root._hcal.drag) return;
+  const st = root._hcal, changes = st.pending;
+  st.drag = null; st.pending = new Map();
+  if (changes.size) {
+    st.busy = true;
+    try { await st.cfg.commit(changes); } catch(e) { console.warn('hcal commit', e); }
+    st.busy = false;
+  }
+  hcalRender(root);
+}
+document.addEventListener('mouseup', () => { _hcalUp(); });
+
+// ── 設定 → 共通の休み ──
+function _globalHolidayCfg() {
+  let G = new Set();
+  const viewOnly = _accViewOnly();
+  return {
+    year: _hcalGlobalYear,
+    readOnly: viewOnly,
+    onYear(y) { _hcalGlobalYear = y; },
+    begin() { G = _globalHolidaySet(); },
+    isOn: ds => G.has(ds),
+    cell: ds => G.has(ds) ? { cls: ' on', title: '休み' } : { cls: '', title: '' },
+    summary: y => `この年の休み: ${[...G].filter(d => d.startsWith(y + '-')).length}日`,
+    legend: () => '<span><i class="hcal-sw on"></i>休み</span><span><i class="hcal-sw sun"></i>日曜（常に休みとして表示）</span><span><i class="hcal-sw" style="box-shadow:inset 0 0 0 2px var(--accent)"></i>今日</span>',
+    async commit(changes) {
+      const ok = await _mutateHolidays(changes);
+      if (!ok) toast('共通の休みを保存できませんでした', 'error');
+    }
+  };
+}
+function renderGlobalHolidaysPane() {
+  const root = document.getElementById('holidays-body');
+  if (!root) return;
+  let msg = '';
+  if (window.IS_MOBILE_MODE) msg = '<div class="att-empty" style="margin-bottom:10px">スマホモードでは閲覧のみです。共通の休みはPC版で設定し、「スマホ用パッケージ」に含めて渡します</div>';
+  else if (!state.rootDirHandle) msg = '<div class="att-empty" style="margin-bottom:10px">データフォルダを開くと設定できます</div>';
+  root.innerHTML = msg + '<div id="hcal-global"></div>' +
+    '<div class="hcal-note">共通の休みは、このデータフォルダを使う全員・全プロジェクトのガントチャートに反映されます。各プロジェクトの「休み設定」で、共通の休みを適用しない日や、そのプロジェクトだけの休みを指定できます。</div>';
+  hcalMount('hcal-global', _globalHolidayCfg());
+}
+
+// ── プロジェクト設定 → 休み設定 ──
+function _psHolidayCfg() {
+  let C = new Set(), H = new Set(), X = new Set();
+  const cnt = (it, y) => [...it].filter(d => d.startsWith(y + '-')).length;
+  return {
+    year: new Date().getFullYear(),
+    readOnly: false,
+    begin() {
+      C = _globalHolidaySet();
+      H = new Set(_psProjectSettings.holidays || []);
+      X = new Set(_psProjectSettings.holidayExclusions || []);
+    },
+    isOn: ds => (C.has(ds) || H.has(ds)) && !X.has(ds),
+    cell(ds) {
+      const inC = C.has(ds), inH = H.has(ds), inX = X.has(ds);
+      if (inX && inC) return { cls: ' excl', title: '共通の休みを適用しない日' };
+      if (inX)        return { cls: ' stale', title: '休みにしない日（共通の休みにない日のため、現在は対象外）' };
+      if (inC)        return { cls: ' inh',  title: '共通の休み' };
+      if (inH)        return { cls: ' proj', title: 'このプロジェクトだけの休み' };
+      return { cls: '', title: '' };
+    },
+    summary: y => `共通 ${cnt(C, y)}日・追加 ${cnt([...H].filter(d => !C.has(d)), y)}日・適用しない ${cnt([...X].filter(d => C.has(d)), y)}日`,
+    legend: () => '<span><i class="hcal-sw inh"></i>共通の休み</span><span><i class="hcal-sw proj"></i>このプロジェクトだけの休み</span><span><i class="hcal-sw excl"></i>共通の休みを適用しない日</span>',
+    commit(changes) {
+      const hs = new Set(_psProjectSettings.holidays || []), xs = new Set(_psProjectSettings.holidayExclusions || []);
+      let blocked = false;
+      changes.forEach((want, ds) => {
+        // スマホでは、共通の休みの適用有無（休みにしない日）は変更しない（PC版で設定する）
+        if (window.IS_MOBILE_MODE && (C.has(ds) || xs.has(ds))) { blocked = true; return; }
+        if (want) { xs.delete(ds); if (!C.has(ds)) hs.add(ds); }
+        else      { hs.delete(ds); if (C.has(ds)) xs.add(ds); }
+      });
+      _psProjectSettings.holidays = _uniqSortList([...hs]);
+      _psProjectSettings.holidayExclusions = _uniqSortList([...xs]);
+      if (blocked) toast('共通の休みを適用しない日の設定は、PC版で行ってください', 'warning');
+    }
+  };
+}
+function _renderPsHolidays() { hcalMount('hcal-project', _psHolidayCfg()); }
 
 // ── テンプレート ──
 function _renderPsTemplates() {
@@ -10994,6 +11239,8 @@ function saveProjectSettings() {
   }
   // リストビューの列表示設定を即時反映
   if (state.currentView === 'list') renderList();
+  // 休み設定の変更をガントに即時反映（v1.4.0）
+  if (state.currentView === 'gantt') renderGantt();
 
   closeModal('project-settings-modal');
   toast('プロジェクト設定を保存しました', 'success');
@@ -15272,6 +15519,7 @@ function openPcExportDialog() {
   const rows = projs.map(p => `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px"><input type="checkbox" class="sync-pick" value="${esc(p.id)}" ${p.archived ? '' : 'checked'}> P${esc(String(p.number))} ${esc(p.name)}${p.archived ? ' <span style="color:var(--muted);font-size:11px">（完了）</span>' : ''}</label>`).join('');
   _syncDialog('📤 スマホ用パッケージを書き出し', `
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">選んだプロジェクトを1つのファイルにまとめます。Teamsなどでスマホへ送り、スマホ版の「パッケージを取り込む」で開いてください。取り込むとスマホ側のデータはこの内容に置き換わります。</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">共通の休み設定も一緒に渡されます。</div>
     <div style="max-height:40vh;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin-bottom:14px">${rows}</div>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-secondary" onclick="closeSyncDialog()">キャンセル</button><button class="btn btn-primary" onclick="doPcExport()">ダウンロード</button></div>`);
 }
@@ -15282,6 +15530,7 @@ async function doPcExport() {
   const pkg = {
     tfzPackage: PKG_VERSION, kind: 'full', id: 'pkg-' + uid(), createdAt: new Date().toISOString(),
     appVersion: APP_VERSION, owner: _pkgMyName(), source: state.rootDirHandle ? state.rootDirHandle.name : '',
+    globalHolidays: { value: _normHolidayList(_globalHolidayList()), _updatedAt: (state.settings && state.settings.holidays && state.settings.holidays._updatedAt) || null },
     projects: deepCopy(state.data.projects.filter(p => !p.deleted && ids.has(p.id))),
   };
   await _pkgDeliver(`TFZ_full_${_pkgSafeName(pkg.source)}_${_pkgStamp()}.json`, JSON.stringify(pkg), 'download');
@@ -15462,6 +15711,14 @@ async function mobImportFull(pkg) {
   for (const p of pkg.projects) {
     await mobPut('files', `project_P${p.number}.json`, { text: JSON.stringify(p, null, 2), lastModified: Date.now() });
     await mobPut('pkgbase', p.id, deepCopy(p));
+  }
+  // 共通の休み（v1.4.0〜）：スマホ側の settings.json に保存する（スマホでは閲覧のみ）。古いパッケージ（キー無し）の場合は変えない
+  if (pkg.globalHolidays && Array.isArray(pkg.globalHolidays.value)) {
+    let st = null;
+    try { const rec = await mobGet('files', 'settings.json'); if (rec && rec.text) st = JSON.parse(rec.text); } catch(e) {}
+    if (!st || typeof st !== 'object' || Array.isArray(st)) st = _SETTINGS_DEFAULT();
+    st.holidays = { value: _normHolidayList(pkg.globalHolidays.value), _updatedAt: pkg.globalHolidays._updatedAt || new Date().toISOString() };
+    await mobPut('files', 'settings.json', { text: JSON.stringify(st, null, 2), lastModified: Date.now() });
   }
   await mobPut('meta', 'info', { pkgId: pkg.id || null, importedAt: new Date().toISOString(), owner: pkg.owner || '', source: pkg.source || '', appVersion: pkg.appVersion || '', lastExportHash: null });
   try { const key = 'taskflow-my-name-' + MOB_ROOT_NAME; if (!localStorage.getItem(key) && pkg.owner) localStorage.setItem(key, pkg.owner); } catch(e) {}

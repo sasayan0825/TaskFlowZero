@@ -95,7 +95,7 @@
 | `nextTaskNum` | number | ○ | 次に採番されるタスク番号。既存タスクの最大 `number` + 1にしておく |
 | `weeklyNotes` | WeeklyNote[] | ○ | 通常は空配列 `[]` でよい |
 | `startDate` / `endDate` | string | ○ | `'YYYY-MM-DD'` または `''` |
-| `projectSettings` | object | ○ | 空オブジェクト `{}` でよい。プラグイン等が独自キーを書き込む領域 |
+| `projectSettings` | object | ○ | 空オブジェクト `{}` でよい。プラグイン等が独自キーを書き込む領域。休みを指定する場合は `holidays`（このプロジェクトだけの休み。`'YYYY-MM-DD'` の配列）と `holidayExclusions`（共通の休みだが、このプロジェクトでは休みにしない日。同形式。v1.4.0〜）を入れる。どちらも省略可。共通の休みはプロジェクトJSONではなく、データフォルダの `settings.json` の `holidays` に保存される |
 | `wikiPages` | WikiPage[] | ○ | 最低1件（`title: "Home"`）は入れておくのが無難 |
 | `deleted` | boolean | ○ | 通常 `false` |
 
