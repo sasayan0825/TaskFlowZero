@@ -1384,12 +1384,14 @@ html.mobile-mode #proj-search-title{flex:1 1 100%;width:100%;box-sizing:border-b
 /* スマホ：トーストは画面上部に、横幅いっぱいで出す（下端はブラウザのツールバーに隠れるため。消えた状態も画面外へ） */
 html.mobile-mode #toast{left:12px;right:12px;bottom:auto;top:calc(env(safe-area-inset-top,0px) + 56px);transform:translateY(-160%);max-width:none;opacity:0;pointer-events:none;transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .2s;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 html.mobile-mode #toast.show{transform:none;opacity:1}
-/* iOS（ホーム画面から起動）で、画面上部がガラス表示でにじむのを防ぐ。
-   ヘッダーの色の固定帯を、画面最上部（ステータスバーの領域）に置く。iOSは画面上端に固定された不透明な要素を見て上部の表示を決める */
-/* v1.2.11: 高さに下限(4px)を付け、pointer-events:none を外した（iOSが上端の固定要素として認識できるように）。
-   起動直後は m-band-kick を一時的に付けて高さを変え、再レイアウトさせる */
-html.mobile-mode body::before{content:"";position:fixed;top:0;left:0;right:0;height:max(env(safe-area-inset-top,0px),4px);background:var(--surface);z-index:101}
-html.mobile-mode.m-band-kick body::before{height:calc(max(env(safe-area-inset-top,0px),4px) + 1px)}
+/* iOS（ホーム画面から起動）で、画面上端に強制的にガラス表示（ブラー）が付くのを防ぐ（v1.4.2）。
+   WebKitは「画面上端に、高さ10pxを超える position:fixed の要素（背景色あり）があるか」をCSSの値で判定し、
+   無いと上端にブラーを付ける。background-clip:text にすると何も描画されないまま、この条件だけ満たせる
+   （opacity:0・visibility:hidden・display:none では判定から外れて効かない）。background-color はステータスバー領域の色になる。
+   旧方式（v1.2.10〜1.4.1）の高さ4pxの固定帯は、この条件（10px超）を満たしていなかった。
+   参考: https://qiita.com/na-trium-144/items/0add98a80ca2391e3f17 */
+.ios-blur-fix{display:none}
+html.mobile-mode .ios-blur-fix{display:block;position:fixed;top:0;left:0;right:0;height:11px;z-index:2147483647;pointer-events:none;background-color:var(--surface);-webkit-background-clip:text;background-clip:text}
 /* スマホ版の設定にアカウントは出さない（登録情報はPC側の settings.json にあり、スマホには取り込まれないため） */
 html.mobile-mode #settings-nav-accounts{display:none !important}
 /* v1.2.11: 表示テーマの切替はスマホ版の設定に出す（PC版はヘッダーのボタン） */
@@ -1436,6 +1438,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
 </style>
 </head>
 <body>
+<div class="ios-blur-fix" aria-hidden="true"></div>
 
 <!-- FILE LOADER -->
 <div id="file-loader">
@@ -2768,20 +2771,6 @@ function toggleTheme() {
     applyTheme(saved);
   } catch(e) { applyTheme('dark'); }
 })();
-// v1.2.11: スマホ（iOSホーム追加起動）で、上部のにじみが消えないことがあるため、起動直後に上部の固定帯を再レイアウトさせる
-(function() {
-  if (!window.IS_MOBILE_MODE) return;
-  const de = document.documentElement;
-  function kick() {
-    de.classList.add('m-band-kick');
-    requestAnimationFrame(() => requestAnimationFrame(() => de.classList.remove('m-band-kick')));
-  }
-  [0, 300, 1000, 2500].forEach(ms => setTimeout(kick, ms));
-  window.addEventListener('pageshow', kick);
-  window.addEventListener('resize', kick);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
-})();
-
 // ═══════════════════════════════════════
 // FILE I/O
 // ═══════════════════════════════════════
@@ -7080,7 +7069,7 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.4.1';
+const APP_VERSION      = '1.4.2';
 const APP_VERSION_DATE = '2026-11-21';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
