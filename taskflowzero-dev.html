@@ -1267,6 +1267,7 @@ html.mobile-mode .m-fade.sc-l{--fl:26px}
 .sync-block{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;max-width:560px}
 .sync-block h4{margin:0 0 6px;font-size:14px;font-weight:600}
 .sync-block p{margin:0 0 12px;font-size:12px;color:var(--muted);line-height:1.7}
+#sync-dialog.modal-overlay{z-index:1100}   /* 初回画面（#file-loader: 1000）より手前に出す */
 .sync-fname{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);word-break:break-all;margin-top:8px}
 /* 設定 → 添付ファイル */
 /* ── 設定 → アカウント（v1.2.10） ── */
@@ -1539,9 +1540,6 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           <span class="sb-badge-task"    id="my-task-badge"    style="display:none" title="担当タスク数">0</span>
         </span>
       </div>
-      <div class="sidebar-item" id="nav-sync" onclick="openSyncDialog()">
-        <span>🔄</span><span class="proj-name">同期</span><span id="sync-btn-unsent" class="sync-unsent" style="display:none"></span>
-      </div>
       <div class="sidebar-item" id="nav-settings" onclick="showSettings()">
         <span>⚙️</span><span class="proj-name">設定</span><span id="settings-unsent" class="sync-unsent" style="display:none"></span>
       </div>
@@ -1579,7 +1577,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         <!-- 左ペイン -->
         <div id="settings-left" style="width:180px;flex-shrink:0;background:var(--surface2);border-right:1px solid var(--border);display:flex;flex-direction:column">
           <div id="settings-nav-version" class="settings-nav-item active" onclick="showSettingsPane('version')">📋 バージョン</div>
-          <div id="settings-nav-sync"    class="settings-nav-item"        onclick="showSettingsPane('sync')">🔄 同期<span id="sync-unsent" class="sync-unsent" style="display:none"></span></div>
+          <div id="settings-nav-sync"    class="settings-nav-item"        onclick="showSettingsPane('sync')">🔄 スマホ同期<span id="sync-unsent" class="sync-unsent" style="display:none"></span></div>
           <div id="settings-nav-files"   class="settings-nav-item"        onclick="showSettingsPane('files')">📎 添付ファイル</div>
           <div id="settings-nav-accounts" class="settings-nav-item"       onclick="showSettingsPane('accounts')">👤 アカウント</div>
           <div id="settings-nav-holidays" class="settings-nav-item"       onclick="showSettingsPane('holidays')">🗓 共通の休み</div>
@@ -1588,7 +1586,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         <!-- 右ペイン -->
         <div id="settings-right" style="flex:1;overflow-y:auto;padding:24px">
           <div id="settings-pane-sync" style="display:none">
-            <div style="font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)">🔄 同期</div>
+            <div style="font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)">🔄 スマホ同期</div>
             <div id="sync-status" style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:14px"></div>
             <div id="sync-items"></div>
           </div>
@@ -2515,7 +2513,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
         </label>
         <button class="btn btn-primary" onclick="exportCurrentProject()">📤 エクスポート</button>
         <div id="ps-mobile-delete" style="display:none;margin-top:28px;padding-top:16px;border-top:1px solid var(--border)">
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">スマホで作成したプロジェクトを、このスマホから削除します。PCへ渡し済みの場合も、PC側には残ります。削除する前に、エクスポートや「🔄 同期」でチームへ渡してください。</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">スマホで作成したプロジェクトを、このスマホから削除します。PCへ渡し済みの場合も、PC側には残ります。削除する前に、エクスポートや設定の「スマホ同期」でチームへ渡してください。</div>
           <button class="btn btn-danger" onclick="mobDeleteOwnedProject()">🗑 プロジェクトを削除</button>
         </div>
       </div>
@@ -15526,7 +15524,7 @@ const SYNC_REGROUP_AT   = 20;      // まとめ直し提案の目安（第2弾�
 // 新しく送るファイル名。種類によらず TFZ_sync_ で統一する（旧名 TFZ_full_ / TFZ_diff_ も受け取り対象）
 function _pkgSyncFileName() { return `TFZ_sync_${_pkgSafeName(_pkgMyName())}_${_pkgStamp()}.json`; }
 const _syncTime = s => { const t = new Date(s || 0).getTime(); return isNaN(t) ? 0 : t; };
-const _syncCmp = (a, b) => (_syncTime(a.createdAt) - _syncTime(b.createdAt)) || String(a.createdBy || '').localeCompare(String(b.createdBy || '')) || String(a.id).localeCompare(String(b.id));
+const _syncCmp = (a, b) => (_syncTime(a.createdAt) - _syncTime(b.createdAt)) || String(a.createdBy || '').localeCompare(String(b.createdBy || '')) || ((a.seq || 0) - (b.seq || 0)) || String(a.id).localeCompare(String(b.id));   // seq: 同じ人が同時刻に作った場合の送信順
 
 // 複数ファイルを選ばせる。File → { name, pkg }（JSONでない・TaskFlowZero形式でないものは pkg:null として返し、エラーにしない）
 function pickPackageFiles() {
@@ -15785,9 +15783,11 @@ async function decideSyncExport() {
 }
 // ファイルを作って outbox に保存する（pkgbase はまだ進めない。送信確認後に進める＝§6.2a）
 async function mobBuildOutbox(dec) {
-  const pkg = { tfzPackage: PKG_VERSION, kind: 'diff', id: 'pkg-' + uid(), createdAt: new Date().toISOString(), appVersion: APP_VERSION, createdBy: _pkgMyName(), baseId: dec.baseId, projects: dec.projects };
+  const info = await _mobMeta();
+  info.sendSeq = (info.sendSeq || 0) + 1;
+  const pkg = { tfzPackage: PKG_VERSION, kind: 'diff', id: 'pkg-' + uid(), createdAt: new Date().toISOString(), seq: info.sendSeq, appVersion: APP_VERSION, createdBy: _pkgMyName(), baseId: dec.baseId, projects: dec.projects };
   const ob = { id: pkg.id, fname: _pkgSyncFileName(), text: JSON.stringify(pkg), start: dec.type === 'start', total: dec.total };
-  const info = await _mobMeta(); info.outbox = ob; await mobPut('meta', 'info', info);
+  info.outbox = ob; await mobPut('meta', 'info', info);
   return ob;
 }
 // 送信確認（［保存できた］）：outbox の内容を pkgbase へ進める
@@ -16061,7 +16061,7 @@ async function mobStartNew() {
   info.startedNew = true; info.owner = info.owner || name; info.mobileOwned = info.mobileOwned || [];
   await mobPut('meta', 'info', info);
   await mobOpenData();
-  toast('「新規プロジェクト」を作って始めましょう。あとで「🔄 同期」でチームに渡せます', 'info', 5000);
+  toast('「新規プロジェクト」を作って始めましょう。あとで設定の「スマホ同期」でチームに渡せます', 'info', 5000);
 }
 // スマホで作ったプロジェクト（＝PCに無いか、PCに渡す前のもの）は、プロジェクト・マイルストーン・Wikiも編集できる
 let _mobOwnedIds = new Set(), _mobBaseIds = new Set();
@@ -16108,7 +16108,7 @@ async function mobOpenData() {
     const { total } = await mobCollectDiff();
     const info = (await mobGet('meta', 'info')) || {};
     const idle = info.lastExportAt ? (Date.now() - new Date(info.lastExportAt).getTime()) / 86400000 : 99;
-    if (total > 0 && idle >= 3) toast(`まだ送っていない変更が ${total} 件あります（🔄 同期から送れます）`, 'warning', 6000);
+    if (total > 0 && idle >= 3) toast(`まだ送っていない変更が ${total} 件あります（設定の「スマホ同期」から送れます）`, 'warning', 6000);
   } catch (e) {}
 }
 
@@ -16131,7 +16131,7 @@ async function renderMobileLoader() {
       </div>
     </div>
     <div class="welcome-info" style="display:block">
-      💡 データはこの端末のブラウザ内に保存されます。ブラウザの履歴やサイトデータを消すと失われるので、変更したら「🔄 同期」で送ってください。<br>
+      💡 データはこの端末のブラウザ内に保存されます。ブラウザの履歴やサイトデータを消すと失われるので、変更したら、設定の「スマホ同期」で送ってください。<br>
       💡 ホーム画面に追加すると、iPhoneでも保存データが消えにくくなります。
     </div>`;
 }
@@ -16150,7 +16150,7 @@ async function refreshSyncBadge() {
   if (!IS_MOBILE_MODE) return;
   try {
     const { total } = await mobCollectDiff();
-    ['sync-unsent', 'settings-unsent', 'sync-btn-unsent'].forEach(id => {
+    ['sync-unsent', 'settings-unsent'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       el.textContent = total ? String(total) : '';
