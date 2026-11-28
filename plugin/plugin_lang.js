@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.23',
+      version:     '1.3.24',
     });
   }
 
@@ -637,6 +637,13 @@
     'SP未設定のタスクは、設定済みタスクの平均SPで換算します。': 'Tasks without SP are counted as the average SP of the tasks that have one.',
     'プロジェクト一覧・バーンダウンの進捗率は「完了タスクのみ」で計算するため、数字が異なります。': 'Progress on the project list and burndown counts completed tasks only, so the numbers differ.',
     'バーの％は進捗（チェックリスト含む）': 'Bar % = progress (incl. checklist)',
+    // ── マイタスク改善（v1.4.4） ──
+    '7日以内':                              'Within 7 days',
+    '8日以降':                              'Later',
+    '完了済み':                              'Completed',
+    '実績/見積(h)':                      'Actual / Est. (h)',
+    '担当なし':                              'Unassigned',
+    '担当: 自分':                          'Assignee: me',
     '担当者を変更':                       'Change assignee',
     '＋ アカウントを追加':                '＋ Add Account',
     'スマホモードでは閲覧のみです。追加・削除・変更はPC版で行ってください': 'View only in mobile mode. Add, delete and edit accounts on the PC version.',
@@ -919,6 +926,7 @@
     s = s.replace(/^完了 (\d+)\/(\d+)件・(\d+)\/(\d+)SP$/, 'Done $1/$2 tasks · $3/$4 SP');
     s = s.replace(/^完了 (\d+)\/(\d+)件$/, 'Done $1/$2 tasks');
     s = s.replace(/^SP未設定 (\d+)件を平均 ([\d.]+)SP で換算$/, '$1 task(s) without SP counted as the average $2 SP');
+    s = s.replace(/^担当: (.+)$/, 'Assignee: $1');   // メンション一覧（v1.4.4）
     s = s.replace(/^編集済み (.+)$/, 'Edited $1');
     s = s.replace(/^今日 (\d+:\d+)$/, 'Today $1');
     // フォルダ履歴の「アクセス許可あり · 今日 08:47」などの複合文字列
