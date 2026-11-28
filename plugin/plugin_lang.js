@@ -14,7 +14,7 @@
       description: 'UIを日本語／英語で切り替えます。' +
                    'ヘッダーの「🌐 English」ボタンで即時切り替え可能（ページリロード）。' +
                    '他のプラグインよりも先に読み込んでください。',
-      version:     '1.3.22',
+      version:     '1.3.23',
     });
   }
 
@@ -623,6 +623,20 @@
     '期限: 未設定':                       'Due: Not set',
     '担当: 未設定':                       'Assignee: Not set',
     '期限を変更':                         'Change due date',
+
+    // ── 進捗率の説明（？ポップアップ）・期限の相対表示（v1.4.3） ──
+    '計算方法を見る':                     'How is this calculated?',
+    '進捗率の計算方法':                   'How progress is calculated',
+    '進捗率 ＝ 完了タスクの重み合計 ÷ 全タスクの重み合計': 'Progress = total weight of completed tasks ÷ total weight of all tasks',
+    '重みはタスクのSPです。SP未設定のタスクは、設定済みタスクの平均SPで換算します。': "A task's weight is its SP. Tasks without SP are counted as the average SP of the tasks that have one.",
+    'SPが未設定のため、全タスクを同じ重みで計算しています': 'No task has SP, so every task is given the same weight.',
+    'チェックリストの進捗は含みません。ガントチャートのバーの％は、チェックリストを含む進捗です。': 'Checklist progress is not included. The % on Gantt bars includes checklist progress.',
+    '表示中（絞り込み後）のタスクが対象です。グラフの総SP・残SPは、SPが設定されたタスクだけの合計です。': 'Applies to the tasks currently shown (after filters). Total/remaining SP in the chart count only tasks that have SP.',
+    'ガントチャートの進捗率の計算方法':   'How Gantt progress is calculated',
+    'チェックリストの進捗を含めた進捗です。完了タスクは100%、未完了タスクはチェックリストの達成率（最大99%）として、SPで重み付けして平均しています。': 'Progress including checklists. Completed tasks count as 100%; open tasks count as their checklist completion rate (max 99%), averaged with SP weights.',
+    'SP未設定のタスクは、設定済みタスクの平均SPで換算します。': 'Tasks without SP are counted as the average SP of the tasks that have one.',
+    'プロジェクト一覧・バーンダウンの進捗率は「完了タスクのみ」で計算するため、数字が異なります。': 'Progress on the project list and burndown counts completed tasks only, so the numbers differ.',
+    'バーの％は進捗（チェックリスト含む）': 'Bar % = progress (incl. checklist)',
     '担当者を変更':                       'Change assignee',
     '＋ アカウントを追加':                '＋ Add Account',
     'スマホモードでは閲覧のみです。追加・削除・変更はPC版で行ってください': 'View only in mobile mode. Add, delete and edit accounts on the PC version.',
@@ -899,6 +913,12 @@
     s = s.replace(/^(\d+)件のファイルを添付しました$/, '$1 file(s) attached');
     s = s.replace(/^(.+) の添付に失敗: (.+)$/, 'Attachment failed for $1: $2');
     s = s.replace(/^(⚠ )?期限:\s*(\d{4}\/\d+\/\d+)/g, '$1Due: $2');
+    // 期限の相対表示・進捗率の説明（v1.4.3）
+    s = s.replace(/^(\d+)日超過$/, (m, n) => (n === '1' ? '1 day overdue' : n + ' days overdue'));
+    s = s.replace(/^あと(\d+)日$/, (m, n) => (n === '1' ? '1 day left' : n + ' days left'));
+    s = s.replace(/^完了 (\d+)\/(\d+)件・(\d+)\/(\d+)SP$/, 'Done $1/$2 tasks · $3/$4 SP');
+    s = s.replace(/^完了 (\d+)\/(\d+)件$/, 'Done $1/$2 tasks');
+    s = s.replace(/^SP未設定 (\d+)件を平均 ([\d.]+)SP で換算$/, '$1 task(s) without SP counted as the average $2 SP');
     s = s.replace(/^編集済み (.+)$/, 'Edited $1');
     s = s.replace(/^今日 (\d+:\d+)$/, 'Today $1');
     // フォルダ履歴の「アクセス許可あり · 今日 08:47」などの複合文字列

@@ -420,6 +420,16 @@ html.light .list-table tbody tr:hover td{background:#dce6f5}
 .due-cell{font-size:11px;white-space:nowrap}
 .due-cell.overdue{color:var(--red)}
 .due-cell.soon{color:var(--yellow)}
+.rel-due{display:inline-block;margin-left:5px;padding:0 6px;border-radius:8px;font-size:10px;font-weight:600;line-height:1.6;white-space:nowrap;vertical-align:middle}
+.rel-due.overdue{background:var(--red);color:#fff;border:1px solid var(--red)}
+.rel-due.today{background:color-mix(in srgb, var(--orange) 20%, transparent);color:var(--orange);border:1px solid color-mix(in srgb, var(--orange) 55%, transparent)}
+.rel-due.near{color:var(--muted);border:1px solid var(--border)}
+.help-q{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:4px;padding:0;border-radius:50%;border:1px solid var(--muted);background:transparent;color:var(--muted);font-size:10px;font-weight:700;line-height:1;cursor:pointer;vertical-align:middle;font-family:inherit}
+.help-q:hover{color:var(--accent);border-color:var(--accent)}
+.help-pop{position:fixed;z-index:10000;width:max-content;max-width:min(340px,calc(100vw - 16px));background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,.35);padding:12px 14px;font-size:12px;line-height:1.7;color:var(--text);text-align:left;font-weight:400}
+.help-pop-title{font-weight:700;margin-bottom:4px}
+.help-pop-now{margin:6px 0;padding:3px 8px;border-radius:4px;background:var(--surface3);font-family:'JetBrains Mono',monospace;font-size:11px}
+.help-pop-note{margin-top:6px;color:var(--muted)}
 .assignee-avatar{width:22px;height:22px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent2)}
 .sp-cell{font-family:'JetBrains Mono',monospace;font-size:11px}
 .list-empty{padding:48px;text-align:center;color:var(--muted);font-size:13px}
@@ -1902,6 +1912,7 @@ html.mobile-mode .form-row > .form-group{overflow:hidden}
           <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;height:2px"></div> イナズマ線（マイルストーン）</div>
           <div class="legend-item"><div class="legend-dot" style="background:#fb923c;height:2px"></div> イナズマ線（タスク）</div>
           <div class="legend-item"><div class="legend-dot" style="background:var(--green);opacity:.5"></div> 完了塗り</div>
+          <div class="legend-item">バーの％は進捗（チェックリスト含む）<button type="button" class="help-q" title="計算方法を見る" onclick="showProgressHelp(event,this,'gantt','')">?</button></div>
         </div>
       </div>
 
@@ -5565,6 +5576,126 @@ function getTaskProgress(t) {
   return Math.min(0.99, checked / cl.length);
 }
 
+// ─────────────────────────────────────────
+// v1.4.3: 進捗の共通計算（プロジェクト一覧・バーンダウン・ガントで同じ重み付けを使う）
+//   重み       = タスクのSP。SP未設定（0・空）のタスクは、設定済みタスクの平均SPで換算
+//                （設定済みが1件もなければ全タスク同じ重み＝件数ベースと同じ）
+//   rate       = 完了タスクの重み合計 ÷ 全タスクの重み合計（公式の進捗。チェックリストは含まない）
+//   rateCl     = 各タスクの getTaskProgress（チェックリスト込み）を重みで平均（ガントのMSバー用）
+// ─────────────────────────────────────────
+function calcProgress(tasks) {
+  tasks = tasks || [];
+  const spOf = t => { const n = Number(t && t.storyPoints); return n > 0 ? n : 0; };
+  const setSp = tasks.filter(t => spOf(t) > 0);
+  const avg = setSp.length ? setSp.reduce((a, t) => a + spOf(t), 0) / setSp.length : 1;
+  let wAll = 0, wDone = 0, wCl = 0, spTotal = 0, spDone = 0, nDone = 0;
+  tasks.forEach(t => {
+    const sp = spOf(t);
+    const w = sp > 0 ? sp : avg;
+    wAll += w;
+    wCl  += w * getTaskProgress(t);
+    spTotal += sp;
+    if (t.status === 'done') { wDone += w; spDone += sp; nDone++; }
+  });
+  return {
+    total: tasks.length, done: nDone,
+    spTotal, spDone,
+    setCount: setSp.length, unsetCount: tasks.length - setSp.length, avgSp: avg,
+    rate:   wAll > 0 ? wDone / wAll : 0,
+    rateCl: wAll > 0 ? wCl   / wAll : 0,
+  };
+}
+
+// ─────────────────────────────────────────
+// v1.4.3: 期限の表示（完了タスクには色も相対表示も付けない）
+//   あと○日は7日以内のみ。日数は暦日で数える（休み設定は考慮しない）
+// ─────────────────────────────────────────
+function dueClsOf(t) {
+  if (!t || !t.dueDate || t.status === 'done') return '';
+  const d = daysDiff(t.dueDate);
+  return d === null ? '' : (d < 0 ? 'overdue' : d <= 3 ? 'soon' : '');
+}
+function dueColorStyle(t) {
+  const c = dueClsOf(t);
+  return c === 'overdue' ? 'color:var(--red)' : c === 'soon' ? 'color:var(--yellow)' : '';
+}
+function relDueInfo(t) {
+  if (!t || !t.dueDate || t.status === 'done') return null;
+  const d = daysDiff(t.dueDate);
+  if (d === null) return null;
+  if (d < 0)   return { text: `${-d}日超過`, cls: 'overdue' };
+  if (d === 0) return { text: '今日', cls: 'today' };
+  if (d <= 7)  return { text: `あと${d}日`, cls: 'near' };
+  return null;
+}
+function relDueHtml(t) {
+  const r = relDueInfo(t);
+  return r ? `<span class="rel-due ${r.cls}">${r.text}</span>` : '';
+}
+
+// ─────────────────────────────────────────
+// v1.4.3: 「？」ボタンと、進捗率の計算方法の説明ポップアップ
+// ─────────────────────────────────────────
+function helpQ(kind, pid) {
+  return `<button type="button" class="help-q" title="計算方法を見る" onclick="showProgressHelp(event,this,'${kind}','${jsq(pid||'')}')">?</button>`;
+}
+let _helpPopBtn = null;
+function closeHelpPop() {
+  const p = document.getElementById('help-pop');
+  if (p) p.remove();
+  _helpPopBtn = null;
+  document.removeEventListener('click', _helpPopOutside, true);
+  document.removeEventListener('keydown', _helpPopKey, true);
+}
+function _helpPopOutside(e) {
+  const p = document.getElementById('help-pop');
+  if (p && !p.contains(e.target) && !(e.target.closest && e.target.closest('.help-q'))) closeHelpPop();
+}
+function _helpPopKey(e) { if (e.key === 'Escape') closeHelpPop(); }
+function _progressHelpHtml(kind, pid) {
+  const line = (cls, txt) => `<div class="${cls}">${txt}</div>`;
+  if (kind === 'gantt') {
+    return line('help-pop-title', 'ガントチャートの進捗率の計算方法')
+      + line('', 'チェックリストの進捗を含めた進捗です。完了タスクは100%、未完了タスクはチェックリストの達成率（最大99%）として、SPで重み付けして平均しています。')
+      + line('', 'SP未設定のタスクは、設定済みタスクの平均SPで換算します。')
+      + line('help-pop-note', 'プロジェクト一覧・バーンダウンの進捗率は「完了タスクのみ」で計算するため、数字が異なります。');
+  }
+  let tasks;
+  if (kind === 'burndown') tasks = getFilteredTasks();
+  else { const p = getProject(pid); tasks = p ? (p.tasks || []) : []; }
+  const c = calcProgress(tasks);
+  let h = line('help-pop-title', '進捗率の計算方法')
+    + line('', '進捗率 ＝ 完了タスクの重み合計 ÷ 全タスクの重み合計')
+    + line('', '重みはタスクのSPです。SP未設定のタスクは、設定済みタスクの平均SPで換算します。');
+  h += line('help-pop-now', c.spTotal > 0 ? `完了 ${c.done}/${c.total}件・${c.spDone}/${c.spTotal}SP` : `完了 ${c.done}/${c.total}件`);
+  if (c.total > 0 && c.setCount === 0) h += line('help-pop-now', 'SPが未設定のため、全タスクを同じ重みで計算しています');
+  else if (c.unsetCount > 0) h += line('help-pop-now', `SP未設定 ${c.unsetCount}件を平均 ${Math.round(c.avgSp * 10) / 10}SP で換算`);
+  h += line('help-pop-note', 'チェックリストの進捗は含みません。ガントチャートのバーの％は、チェックリストを含む進捗です。');
+  if (kind === 'burndown') h += line('help-pop-note', '表示中（絞り込み後）のタスクが対象です。グラフの総SP・残SPは、SPが設定されたタスクだけの合計です。');
+  return h;
+}
+function showProgressHelp(ev, btn, kind, pid) {
+  if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+  const again = _helpPopBtn === btn;
+  closeHelpPop();
+  if (again) return;
+  const pop = document.createElement('div');
+  pop.id = 'help-pop'; pop.className = 'help-pop';
+  pop.style.visibility = 'hidden';
+  pop.innerHTML = _progressHelpHtml(kind, pid);
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  const x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), Math.max(8, window.innerWidth - w - 8));
+  let y = r.bottom + 6;
+  if (y + h > window.innerHeight - 8) y = Math.max(8, r.top - h - 6);
+  pop.style.left = x + 'px'; pop.style.top = y + 'px';
+  pop.style.visibility = '';
+  _helpPopBtn = btn;
+  document.addEventListener('click', _helpPopOutside, true);
+  document.addEventListener('keydown', _helpPopKey, true);
+}
+
 function getMilestone(p,mid){ return p?(p.milestones||[]).find(m=>m.id===mid):null; }
 function initials(n){ if(!n)return'?'; const p=n.trim().split(/\s+/); return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.slice(0,2).toUpperCase(); }
 
@@ -6247,7 +6378,7 @@ function renderMyTasks() {
           const s = SMAP[t.status]||SMAP['todo'];
           const ms = getMilestone(p, t.milestoneId);
           const diff = daysDiff(t.dueDate);
-          const dueCls = diff!==null?(diff<0?'color:var(--red)':diff<=3?'color:var(--yellow)':''):'';
+          const dueCls = dueColorStyle(t);   // v1.4.3: 完了タスクには付けない
           return `<tr class="my-tasks-row" style="border-bottom:1px solid var(--border)" onclick="openTaskPanelFromMyTasks('${jsq(p.id)}','${jsq(t.id)}')">
             <td style="padding:7px 8px;font-family:'JetBrains Mono',monospace;color:var(--muted)">#${t.number||'?'}</td>
             <td class="mt-title" style="padding:7px 8px;font-weight:500">${esc(t.title)}</td>
@@ -6256,7 +6387,7 @@ function renderMyTasks() {
             <td style="padding:7px 8px">${ms?`<span style="background:${ms.color||'#4f8eff'}22;color:${ms.color||'#4f8eff'};border-radius:3px;padding:1px 7px;font-size:11px;font-weight:600">🏁 ${esc(ms.name)}</span>`:'<span style="color:var(--muted);font-size:12px">—</span>'}</td>
             <td style="padding:7px 8px"><span style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44;border-radius:10px;font-size:11px;font-weight:600;padding:2px 8px">${s.label}</span></td>
             <td style="padding:7px 8px;font-size:12px">${t.startDate?fmtFull(t.startDate):'—'}</td>
-            <td style="padding:7px 8px;font-size:12px;${dueCls}">${t.dueDate?fmtFull(t.dueDate):'—'}</td>
+            <td style="padding:7px 8px;font-size:12px;${dueCls}">${t.dueDate?fmtFull(t.dueDate):'—'}${relDueHtml(t)}</td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>` : `<div style="text-align:center;padding:20px;font-size:12px;color:var(--muted)">担当タスクはありません</div>`}`;
@@ -7069,8 +7200,8 @@ function _viewFadeIn(el) {
 // ═══════════════════════════════════════
 // SETTINGS VIEW
 // ═══════════════════════════════════════
-const APP_VERSION      = '1.4.2';
-const APP_VERSION_DATE = '2026-11-21';
+const APP_VERSION      = '1.4.3';
+const APP_VERSION_DATE = '2026-11-27';
 
 // 本体の全標準ビューを隠す共通関数（プラグインからも呼べるようTaskFlowに公開）
 function _hideAllViews() {
@@ -7968,7 +8099,7 @@ function _projectSortComparator(a, b) {
   if (sortKey === 'name')      return (a.name||'').localeCompare(b.name||'', 'ja');
   if (sortKey === 'startDate') return (a.startDate||'') < (b.startDate||'') ? -1 : (a.startDate||'') > (b.startDate||'') ? 1 : 0;
   if (sortKey === 'progress') {
-    const pct = p => { const t = p.tasks||[]; return t.length ? t.filter(t=>t.status==='done').length/t.length : 0; };
+    const pct = p => calcProgress(p.tasks||[]).rate;   // v1.4.3: 一覧の％と同じ計算
     return pct(b) - pct(a);
   }
   return 0;
@@ -8018,7 +8149,7 @@ function renderProjectsList() {
 
   const renderCard = (p, isArchived) => {
     const tasks=p.tasks||[]; const done=tasks.filter(t=>t.status==='done').length;
-    const pct=tasks.length>0?Math.round(done/tasks.length*100):0;
+    const pct=Math.round(calcProgress(tasks).rate*100);
     const totalPts=tasks.reduce((s,t)=>s+(t.storyPoints||0),0);
     const ms=(p.milestones||[]).length;
     const _mbrs=p.members||[]; const _shown=_mbrs.slice(0,4); const _rest=_mbrs.length-_shown.length;
@@ -8045,7 +8176,7 @@ function renderProjectsList() {
         <div class="stat-item"><div class="stat-val">${totalPts}</div><div class="stat-lbl">SP</div></div>
       </div>
       <div style="position:relative;margin-bottom:10px">
-        <span style="position:absolute;right:0;top:-15px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted)">${pct}%</span>
+        <span style="position:absolute;right:0;top:-15px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted)">${pct}%${helpQ('project',p.id)}</span>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${p.color||'var(--green)'}"></div></div>
       </div>
       <div class="project-card-footer">
@@ -8563,7 +8694,7 @@ function listMsDrop(e, msId) {
 function buildListRow(t) {
   const s = STATUSES.find(x=>x.id===t.status)||STATUSES[0];
   const diff = daysDiff(t.dueDate);
-  const dueCls = diff!==null?(diff<0?'overdue':diff<=3?'soon':''):'';
+  const dueCls = dueClsOf(t);   // v1.4.3: 完了タスクには付けない
   const labels = (t.labels||[]).map(l=>`<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`).join('');
   const priorityFlag = t.priority==='high' ? `<span class="priority-flag priority-high" title="優先度: 高">↑</span>`
                       : t.priority==='low'  ? `<span class="priority-flag priority-low" title="優先度: 低">↓</span>` : '';
@@ -8613,7 +8744,7 @@ function buildListRow(t) {
     <td data-col="estimatedHours" style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)">${t.estimatedHours>0?t.estimatedHours:'—'}</td>
     <td data-col="actualHours" style="text-align:right;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;${t.actualHours>0&&t.estimatedHours>0?(t.actualHours>t.estimatedHours?'color:var(--red)':'color:var(--green)'):'color:var(--muted)'}">${t.actualHours>0?t.actualHours:'—'}</td>
     <td class="due-cell${_taskDatesInvalid(t)?' date-invalid-cell':''}" data-col="startDate"${_taskDatesInvalid(t)?' title="期限が開始日より前です"':''}>${t.startDate?fmtFull(t.startDate):'—'}</td>
-    <td class="due-cell ${dueCls}${_taskDatesInvalid(t)?' date-invalid-cell':''}" data-col="dueDate"${_taskDatesInvalid(t)?' title="期限が開始日より前です"':''}>${t.dueDate?fmtFull(t.dueDate):'—'}</td>
+    <td class="due-cell ${dueCls}${_taskDatesInvalid(t)?' date-invalid-cell':''}" data-col="dueDate"${_taskDatesInvalid(t)?' title="期限が開始日より前です"':''}>${t.dueDate?fmtFull(t.dueDate):'—'}${relDueHtml(t)}</td>
   </tr>`;
 }
 
@@ -8657,7 +8788,7 @@ function createTaskCard(t, msMap) {
   card.className = 'task-card' + (t.priority==='high' ? ' priority-high' : t.priority==='low' ? ' priority-low' : '');
   card.draggable = true; card.dataset.taskId = t.id;
   const diff = daysDiff(t.dueDate);
-  const dueCls = diff!==null?(diff<0?'overdue':diff<=3?'soon':''):'';
+  const dueCls = dueClsOf(t);   // v1.4.3: 完了タスクには付けない
   const labels = (t.labels||[]).map(l=>`<span class="label-chip" style="background:${getLabelColor(l)}22;color:${getLabelColor(l)};border:1px solid ${getLabelColor(l)}44">${esc(l)}</span>`).join('');
   const ms = t.milestoneId&&msMap?msMap[t.milestoneId]:null;
   card.innerHTML = `
@@ -8668,7 +8799,7 @@ function createTaskCard(t, msMap) {
     </div>
     <div class="task-card-meta">
       ${t.storyPoints>0?`<span class="task-points">${t.storyPoints}pt</span>`:''}
-      ${t.dueDate?`<span class="task-due ${dueCls}${_taskDatesInvalid(t)?' date-invalid-chip':''}"${_taskDatesInvalid(t)?' title="期限が開始日より前です"':''}>📅 ${fmt(t.dueDate)}</span>`:''}
+      ${t.dueDate?`<span class="task-due ${dueCls}${_taskDatesInvalid(t)?' date-invalid-chip':''}"${_taskDatesInvalid(t)?' title="期限が開始日より前です"':''}>📅 ${fmt(t.dueDate)}${relDueHtml(t)}</span>`:''}
       ${ms?`<span class="task-ms-tag" style="background:${ms.color||'#4f8eff'}22;color:${ms.color||'#4f8eff'};border:1px solid ${ms.color||'#4f8eff'}44">🏁 ${esc(ms.name)}</span>`:''}
       ${labels}
       ${(t.comments||[]).length>0?`<span style="font-size:10px;color:var(--muted);margin-left:auto">💬 ${t.comments.length}</span>`:''}
@@ -8713,7 +8844,7 @@ function renderBurndown() {
     <div class="burndown-stat"><div class="burndown-stat-val">${totalPts}</div><div class="burndown-stat-label">総SP</div></div>
     <div class="burndown-stat"><div class="burndown-stat-val" style="color:var(--green)">${donePts}</div><div class="burndown-stat-label">完了SP</div></div>
     <div class="burndown-stat"><div class="burndown-stat-val" style="color:var(--accent)">${totalPts-donePts}</div><div class="burndown-stat-label">残SP</div></div>
-    <div class="burndown-stat"><div class="burndown-stat-val">${totalPts>0?Math.round(donePts/totalPts*100):0}%</div><div class="burndown-stat-label">進捗率</div></div>
+    <div class="burndown-stat"><div class="burndown-stat-val">${Math.round(calcProgress(tasks).rate*100)}%</div><div class="burndown-stat-label">進捗率${helpQ('burndown')}</div></div>
     <div class="burndown-stat"><div class="burndown-stat-val">${tasks.filter(t=>t.status==='done').length}/${tasks.length}</div><div class="burndown-stat-label">タスク</div></div>`;
 
   if(burndownChart){burndownChart.destroy();burndownChart=null;}
@@ -8795,7 +8926,7 @@ function renderBurndown() {
           <td style="padding:5px 8px">${esc(t.title)}</td>
           <td style="padding:5px 8px;text-align:center">${t.storyPoints>0?`<span style="background:rgba(79,142,255,.15);color:var(--accent);padding:1px 7px;border-radius:4px;font-family:'JetBrains Mono',monospace">${t.storyPoints}</span>`:'—'}</td>
           <td style="padding:5px 8px">${esc(t.assignee||'—')}</td>
-          <td style="padding:5px 8px">${t.dueDate?fmtFull(t.dueDate):'—'}</td>
+          <td style="padding:5px 8px;${dueColorStyle(t)}">${t.dueDate?fmtFull(t.dueDate):'—'}${relDueHtml(t)}</td>
           <td style="padding:5px 8px;color:var(--green)">${t.completedAt?fmtFull(t.completedAt):'—'}</td>
         </tr>`;
       }).join('')}</tbody>
@@ -8841,6 +8972,8 @@ function _ganttTaskTooltip(t) {
   if (t.startDate || t.dueDate) {
     tip += `\n期間：${t.startDate ? fmtFull(t.startDate) : '未設定'} 〜 ${t.dueDate ? fmtFull(t.dueDate) : '未設定'}`;
   }
+  const _rd = relDueInfo(t);   // v1.4.3: 期限の相対表示
+  if (_rd) tip += `\n期限：${_rd.text}`;
   return tip;
 }
 
@@ -8940,18 +9073,8 @@ function renderGantt() {
   // Rows: milestone + tasks
   ms.forEach((m,mi) => {
     const mTasks = filteredTasks.filter(t=>t.milestoneId===m.id);
-    // チェックリスト進捗を含むSP加重平均
-    const totalSP = mTasks.reduce((s,t)=>s+(t.storyPoints||0),0);
-    const pct = mTasks.length === 0 ? 0 : (() => {
-      if (totalSP > 0) {
-        // SP加重平均
-        const weighted = mTasks.reduce((s,t) => s + getTaskProgress(t)*(t.storyPoints||0), 0);
-        return weighted / totalSP;
-      } else {
-        // SP未設定：単純平均
-        return mTasks.reduce((s,t) => s + getTaskProgress(t), 0) / mTasks.length;
-      }
-    })();
+    // v1.4.3: 共通関数（SP未設定は平均SPで換算。チェックリスト進捗を含む）
+    const pct = mTasks.length === 0 ? 0 : calcProgress(mTasks).rateCl;
 
     // Milestone row (left)
     const leftEl = document.createElement('div');
@@ -8981,7 +9104,7 @@ function renderGantt() {
           entityType:'milestone', entityId:m.id,
           startDate:m.startDate, endDate:m.endDate, isTask:false
         });
-        bar.title=`${m.name}: ${fmtFull(m.startDate)} ~ ${fmtFull(m.endDate)} (${Math.round(pct*100)}%)`;
+        bar.title=`${m.name}: ${fmtFull(m.startDate)} ~ ${fmtFull(m.endDate)} (${Math.round(pct*100)}%)`;   // ％はチェックリスト込み（凡例の「？」で説明）
         rightEl.appendChild(bar);
 
         // イナズマ線 point for this milestone
